@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from secrets import OWN_CHAT_ID, TOKEN
 
-WORKDIR = '/Users/Floris/hestia/data/'
+WORKDIR = '/data/'
 
 logging.basicConfig(
     format='%(asctime)s [%(levelname)s]: %(message)s',
