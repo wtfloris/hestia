@@ -1,7 +1,11 @@
 set -e
 
-VERSION=1.0.0
-docker build --tag wtfloris/hestia:latest .
-docker tag wtfloris/hestia:latest wtfloris/hestia:$VERSION
-docker push wtfloris/hestia:latest
-docker push wtfloris/hestia:$VERSION
+docker build --tag wtfloris/hestia-bot:latest -f Dockerfile.bot .
+docker build --tag wtfloris/hestia-scraper:latest -f Dockerfile.scraper .
+
+read -p "Run the containers? [y/N]" -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+        docker compose up -d
+fi

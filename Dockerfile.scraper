@@ -2,11 +2,11 @@
 
 FROM python:3.8-slim-buster
 
-WORKDIR /hestia
+WORKDIR /scraper
 
 COPY requirements.txt requirements.txt
 
-RUN apt-get update && apt-get install cron -y
+RUN apt-get update && apt-get install cron procps -y && rm -rf /var/lib/apt/lists/*
 RUN pip3 install -r requirements.txt
 
 COPY secrets.py secrets.py
@@ -14,7 +14,7 @@ COPY targets.py targets.py
 COPY hestia.py hestia.py
 COPY scraper.py scraper.py
 
-RUN echo "*/5 * * * * /usr/local/bin/python3 /hestia/scraper.py" >> /etc/crontab
+RUN echo "*/5 * * * * root /usr/local/bin/python3 /scraper/scraper.py > /proc/1/fd/1 2>/proc/1/fd/2" >> /etc/crontab
 
-CMD ["python3", "hestia.py"]
+CMD ["cron", "-f"]
 
