@@ -14,7 +14,7 @@ COPY scraper.py scraper.py
 COPY secrets.py secrets.py
 COPY targets.py targets.py
 
-RUN crontab -l | { cat; echo "*/5 * * * * /bin/bash /usr/local/bin/python3 /hestia/scraper.py"; } | crontab -
+RUN echo "*/5 * * * * /usr/local/bin/python3 /hestia/scraper.py" >> /etc/crontab
 
 CMD ["python3", "hestia.py"]
 

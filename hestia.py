@@ -10,7 +10,9 @@ WORKDIR = '/data/'
 
 logging.basicConfig(
     format='%(asctime)s [%(levelname)s]: %(message)s',
-    level=logging.INFO
+    level=logging.INFO,
+    filename=WORKDIR + 'hestia.log',
+    encoding='utf-8'
 )
 
 def initialize():
