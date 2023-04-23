@@ -23,12 +23,12 @@ async def handle_exception(site, savefile, e):
 
     # If the error was already logged, do not log it again
     # This is to prevent the same error popping up every time cron runs the scraper
-    if os.path.exists("error.log"):
-        with open("error.log", 'r') as err:
+    if os.path.exists(WORKDIR + "error.log"):
+        with open(WORKDIR + "error.log", 'r') as err:
             last_error = err.readlines()[-1]
 
     if last_error[last_error.index('['):-1] != error:
-        with open("error.log", 'a') as log:
+        with open(WORKDIR + "error.log", 'a') as log:
             log.write(f"{datetime.now()} {error}\n")
         await BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
 

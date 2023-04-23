@@ -1,0 +1,9 @@
+version: '3.7'
+services:
+  hestia:
+    container_name: hestia
+    image: wtfloris/hestia:latest
+    restart: unless-stopped
+    working_dir: /hestia
+    volumes:
+      - /root/hestia/data:/data
