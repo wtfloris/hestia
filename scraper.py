@@ -81,7 +81,7 @@ async def scrape_site(item):
                 continue
                 
             house = res["address"]
-            link = "https://ik-zoek.de-alliantie.nl/" + res["url"]
+            link = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
             if house not in prev_homes:
                 new_homes.add((house, link))
                 prev_homes.add(house)
