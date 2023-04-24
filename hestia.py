@@ -57,7 +57,7 @@ You are now recieving updates when I find something new! If you want me to stop,
 If you have any issues or questions, let @WTFloris know!"""
     )
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update, context):
     subs = await load_subs(update, context)
 
     if subs is None:
@@ -72,7 +72,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await new_sub(subs, update, context)
         
 
-async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def stop(update, context):
     subs = await load_subs(update, context)
 
     if subs is None:
@@ -89,12 +89,26 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text="You will no longer recieve updates for new listings."
     )
 
-async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def reply(update, context):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Sorry, I can't talk to you, I'm a just a scraper. If you want to stop updates, reply with /stop."
     )
 
+async def announce(update, context):
+    if update.effective_chat.id != OWN_CHAT_ID:
+        await BOT.send_message(text="You are not allowed to do that!", chat_id=update.effective_chat.id)
+        return
+
+    with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
+        subs = pickle.load(subscribers_file)
+
+    for sub in subs:
+        try:
+            # If a user blocks the bot, this would throw an error and kill the entire broadcast
+            await BOT.send_message(text=update.message.text[10:], chat_id=sub)
+        except:
+            continue
 
 if __name__ == '__main__':
     initialize()
@@ -102,7 +116,8 @@ if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
 
     application.add_handler(CommandHandler('start', start))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     application.add_handler(CommandHandler('stop', stop))
+    application.add_handler(CommandHandler('announce', announce))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
     application.run_polling()
