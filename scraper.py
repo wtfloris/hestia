@@ -10,6 +10,9 @@ from hestia import WORKDIR
 
 BOT = telegram.Bot(TOKEN)
 
+HOUSE_EMOJI = str(b'\xF0\x9F\x8F\xA0')
+LINK_EMOJI = str(b'\xF0\x9F\x94\x97')
+
 async def main():
     for item in targets:
         try:
@@ -38,9 +41,11 @@ async def broadcast(new_homes):
 
     for home in new_homes:
         for sub in subs:
+            # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
-                # If a user blocks the bot, this would throw an error and kill the entire broadcast
-                await BOT.send_message(text=f"{home[0]}\n{home[1]}", chat_id=sub)
+                message = f"{HOUSE_EMOJI} {home[0]}\n"
+                message += f"{LINK_EMOJI} {home[1]}"
+                await BOT.send_message(text=message, chat_id=sub)
             except:
                 continue
 
