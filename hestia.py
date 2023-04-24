@@ -6,23 +6,23 @@ from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from secrets import OWN_CHAT_ID, TOKEN
 
-WORKDIR = '/data/'
+WORKDIR = "/data/"
 
 logging.basicConfig(
-    format='%(asctime)s [%(levelname)s]: %(message)s',
+    format="%(asctime)s [%(levelname)s]: %(message)s",
     level=logging.INFO,
-    filename=WORKDIR + 'hestia.log'
+    filename=WORKDIR + "hestia.log"
 )
 
 def initialize():
-    if not exists(WORKDIR + 'subscribers'):
-        logging.info('Initializing new subscribers database file...')
-        with open(WORKDIR + 'subscribers', 'wb') as file:
+    if not exists(WORKDIR + "subscribers"):
+        logging.info("Initializing new subscribers database file...")
+        with open(WORKDIR + "subscribers", 'wb') as file:
             pickle.dump(set([OWN_CHAT_ID]), file)
 
 async def load_subs(update, context):
     try:
-        with open(WORKDIR + 'subscribers', 'rb') as file:
+        with open(WORKDIR + "subscribers", 'rb') as file:
             return pickle.load(file)
     except BaseException as e:
         await transmit_error(e, update, context)
@@ -40,11 +40,11 @@ async def transmit_error(e, update, context):
     return 1
 
 async def new_sub(subs, update, context):
-    log_msg = f'New subscriber: {update.effective_chat.username} ({update.effective_chat.id})'
+    log_msg = f"New subscriber: {update.effective_chat.username} ({update.effective_chat.id})"
     logging.info(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
     subs.add(update.effective_chat.id)
-    with open(WORKDIR + 'subscribers', 'wb') as file:
+    with open(WORKDIR + "subscribers", 'wb') as file:
         pickle.dump(subs, file)
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -80,9 +80,9 @@ async def stop(update, context):
 
     if update.effective_chat.id in subs:
         subs.remove(update.effective_chat.id)
-        with open(WORKDIR + 'subscribers', 'wb') as file:
+        with open(WORKDIR + "subscribers", 'wb') as file:
             pickle.dump(subs, file)
-        logging.info(f'Removed subscriber: {update.effective_chat.username} ({update.effective_chat.id})')
+        logging.info(f"Removed subscriber: {update.effective_chat.username} ({update.effective_chat.id})")
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -96,7 +96,10 @@ async def reply(update, context):
     )
 
 async def announce(update, context):
+    logging.info(f"Incoming announcement by {update.effective_chat.username} ({update.effective_chat.id}): {update.message.text}")
+
     if update.effective_chat.id != OWN_CHAT_ID:
+        logging.warning(f"Unauthorized announcement by {update.effective_chat.username} ({update.effective_chat.id}).")
         await BOT.send_message(text="You are not allowed to do that!", chat_id=update.effective_chat.id)
         return
 
@@ -107,7 +110,8 @@ async def announce(update, context):
         try:
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             await BOT.send_message(text=update.message.text[10:], chat_id=sub)
-        except:
+        except BaseException as e:
+            logging.warning(f"Exception while broadcasting announcement to {sub}: {repr(e)}")
             continue
 
 if __name__ == '__main__':
@@ -115,9 +119,9 @@ if __name__ == '__main__':
 
     application = ApplicationBuilder().token(TOKEN).build()
 
-    application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('stop', stop))
-    application.add_handler(CommandHandler('announce', announce))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("stop", stop))
+    application.add_handler(CommandHandler("announce", announce))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
     application.run_polling()
