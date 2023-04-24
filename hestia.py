@@ -51,10 +51,10 @@ async def new_sub(subs, update, context):
         chat_id=update.effective_chat.id,
         text="""Hi there!
 
-I scrape real estate websites for new rental homes in and around Amsterdam. Any new listings with a monthly rent between €900 and €1500 will be automatically sent in this chat.
+I scrape real estate websites for new rental homes in and around Amsterdam. For more info on which websites I scrape with which parameters, say /websites.
 
-For more info on which websites I scrape with which parameters, say /websites. Please note that some real estate websites provide paid members with early access, so some of the homes I send you will be unavailable.
-            
+Please note that some real estate websites provide paid members with early access, so some of the homes I send you will be unavailable.
+
 You are now recieving updates when I find something new! If you want me to stop, just say /stop.
 
 If you have any issues or questions, let @WTFloris know!"""
