@@ -10,8 +10,8 @@ from hestia import WORKDIR
 
 BOT = telegram.Bot(TOKEN)
 
-HOUSE_EMOJI = str(b'\xF0\x9F\x8F\xA0')
-LINK_EMOJI = str(b'\xF0\x9F\x94\x97')
+HOUSE_EMOJI = "\U0001F3E0"
+LINK_EMOJI = "\U0001F517"
 
 async def main():
     for item in targets:
