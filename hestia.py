@@ -100,7 +100,7 @@ async def announce(update, context):
 
     if update.effective_chat.id != OWN_CHAT_ID:
         logging.warning(f"Unauthorized announcement by {update.effective_chat.username} ({update.effective_chat.id}).")
-        await BOT.send_message(text="You are not allowed to do that!", chat_id=update.effective_chat.id)
+        await context.bot.send_message(text="You are not allowed to do that!", chat_id=update.effective_chat.id)
         return
 
     with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
@@ -109,7 +109,7 @@ async def announce(update, context):
     for sub in subs:
         try:
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
-            await BOT.send_message(text=update.message.text[10:], chat_id=sub)
+            await context.bot.send_message(text=update.message.text[10:], chat_id=sub)
         except BaseException as e:
             logging.warning(f"Exception while broadcasting announcement to {sub}: {repr(e)}")
             continue
