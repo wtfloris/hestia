@@ -5,6 +5,7 @@ from os.path import exists
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from secrets import OWN_CHAT_ID, TOKEN
+from targets import targets
 
 WORKDIR = "/data/"
 
@@ -51,6 +52,8 @@ async def new_sub(subs, update, context):
         text="""Hi there!
 
 I scrape real estate websites for new rental homes in and around Amsterdam. Any new listings with a monthly rent between €900 and €1500 will be automatically sent in this chat.
+
+For more info on which websites I scrape with which parameters, say /websites. Please note that some real estate websites provide paid members with early access, so some of the homes I send you will be unavailable.
             
 You are now recieving updates when I find something new! If you want me to stop, just say /stop.
 
@@ -113,6 +116,17 @@ async def announce(update, context):
         except BaseException as e:
             logging.warning(f"Exception while broadcasting announcement to {sub}: {repr(e)}")
             continue
+            
+async def websites(update, context):
+    message = "Here are the websites I scrape, and with which search parameters (these differ per website):\n\n"
+    
+    for target in targets:
+        message += f"Agency: {target['info']['agency']}\n"
+        message += f"Website: {target['info']['website']}\n"
+        message += f"Search parameters: {target['info']['parameters']}\n"
+        message += f"\n"
+        
+    await context.bot.send_message(text=message[:-1], chat_id=update.effective_chat.id)
 
 if __name__ == '__main__':
     initialize()
@@ -122,6 +136,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("stop", stop))
     application.add_handler(CommandHandler("announce", announce))
+    application.add_handler(CommandHandler("websites", websites))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
     application.run_polling()
