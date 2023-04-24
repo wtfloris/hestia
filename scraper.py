@@ -13,7 +13,7 @@ BOT = telegram.Bot(TOKEN)
 async def main():
     for item in targets:
         try:
-            await scrape_site(item["site"], item["savefile"], item["url"])
+            await scrape_site(item)
         except BaseException as e:
             await handle_exception(item["site"], item["savefile"], e)
 
@@ -33,19 +33,28 @@ async def handle_exception(site, savefile, e):
         await BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
 
 async def broadcast(new_homes):
-    with open(WORKDIR + 'subscribers', 'rb') as subscribers_file:
+    with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
         subs = pickle.load(subscribers_file)
 
     for home in new_homes:
         for sub in subs:
             try:
-                # If a user blocks the bot, this would throw an error and stops the broadcast
-                await BOT.send_message(text=f'{home[0]}\n{home[1]}', chat_id=sub)
+                # If a user blocks the bot, this would throw an error and kill the entire broadcast
+                await BOT.send_message(text=f"{home[0]}\n{home[1]}", chat_id=sub)
             except:
                 continue
 
-async def scrape_site(site, savefile, url):
-    r = requests.get(url)
+async def scrape_site(item):
+    site = item["site"]
+    savefile = item["savefile"]
+    url = item["url"]
+    method = item["method"]
+    
+    if method == "GET":
+        r = requests.get(url)
+    elif method == "POST":
+        r = requests.post(url, json=item["data"], headers=item["headers"])
+    
     houses = []
     prev_homes = set()
     new_homes = set()
@@ -61,40 +70,55 @@ async def scrape_site(site, savefile, url):
     
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
+        
+    if site == "woningnet":
+        results = json.loads(r.content)["Resultaten"]
+        
+        for res in results:
+            # Filter senioren & gezin priority results
+            if res["WoningTypeCssClass"] == "Type03":
+                continue
+                
+            house = res["Adres"]
+            link = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
+            if house not in prev_homes:
+                new_homes.add((house, link))
+                prev_homes.add(house)
     
     if site == "bouwinvest":
         results = json.loads(r.content)["data"]
 
         for res in results:
             # Filter non-property results
-            if res["class"] == 'Project':
+            if res["class"] == "Project":
                 continue
 
             house = res["name"]
-            link = res['url']
+            link = res["url"]
             if house not in prev_homes:
                 new_homes.add((house, link))
                 prev_homes.add(house)
 
     if site == "ikwilhuren":
-        results = BeautifulSoup(r.content, 'html.parser').find_all("li", class_="search-result")
+        results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
             house = str(res.find(class_="street-name").contents[0])
-            link = res.find(class_="search-result-title").a['href']
+            link = res.find(class_="search-result-title").a["href"]
             if house not in prev_homes:
                 new_homes.add((house, link))
                 prev_homes.add(house)
-            
-    if site == "eh":
-        results = BeautifulSoup(r.content, 'html.parser').find_all(class_="column-flex-box")
-
-        for res in results:
-            house = str(res.find(class_="content").find("h3").contents[0])
-            link = 'https://www.eigenhaard.nl' + res.a['href']
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+     
+    # Now only offered through Woningnet
+#    if site == "eh":
+#        results = BeautifulSoup(r.content, 'html.parser').find_all(class_="column-flex-box")
+#
+#        for res in results:
+#            house = str(res.find(class_="content").find("h3").contents[0])
+#            link = 'https://www.eigenhaard.nl' + res.a['href']
+#            if house not in prev_homes:
+#                new_homes.add((house, link))
+#                prev_homes.add(house)
 
     # Write new homes to savefile
     with open(WORKDIR + savefile, 'wb') as prev_homes_file:
