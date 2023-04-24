@@ -71,7 +71,22 @@ async def scrape_site(item):
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
         
-    if site == "woningnet":
+    if site == "alliantie":
+        results = json.loads(r.content)["data"]
+        
+        for res in results:
+            # Filter results not in selection because why the FUCK would you include
+            # parameters and then not actually use them in your FUCKING API
+            if not res["isInSelection"]:
+                continue
+                
+            house = res["address"]
+            link = "https://ik-zoek.de-alliantie.nl/" + res["url"]
+            if house not in prev_homes:
+                new_homes.add((house, link))
+                prev_homes.add(house)
+        
+    elif site == "woningnet":
         results = json.loads(r.content)["Resultaten"]
         
         for res in results:
@@ -85,7 +100,7 @@ async def scrape_site(item):
                 new_homes.add((house, link))
                 prev_homes.add(house)
     
-    if site == "bouwinvest":
+    elif site == "bouwinvest":
         results = json.loads(r.content)["data"]
 
         for res in results:
@@ -99,7 +114,7 @@ async def scrape_site(item):
                 new_homes.add((house, link))
                 prev_homes.add(house)
 
-    if site == "ikwilhuren":
+    elif site == "ikwilhuren":
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
