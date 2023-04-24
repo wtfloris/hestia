@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from secrets import OWN_CHAT_ID, TOKEN
 from targets import targets
+from time import sleep
 
 WORKDIR = "/data/"
 
@@ -127,6 +128,10 @@ async def websites(update, context):
         message += f"\n"
         
     await context.bot.send_message(text=message[:-1], chat_id=update.effective_chat.id)
+    sleep(2)
+    
+    message = "If you want more information, you can also read my source code: https://github.com/wtfloris/hestia"
+    await context.bot.send_message(text=message, chat_id=update.effective_chat.id)
 
 if __name__ == '__main__':
     initialize()
