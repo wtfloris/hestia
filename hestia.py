@@ -148,9 +148,9 @@ async def get_sub_info(update, context):
 async def help(update, context):
     message = f"I can do the following for you:\n"
     message += "\n"
-    message += "\help - Show this message"
-    message += "\start - Subscribe to updates"
-    message += "\stop - Stop recieving updates"
+    message += "\help - Show this message\n"
+    message += "\start - Subscribe to updates\n"
+    message += "\stop - Stop recieving updates\n"
     message += "\websites - Show info about which websites I scrape"
     
     await context.bot.send_message(update.effective_chat.id, message)
