@@ -137,7 +137,7 @@ async def get_sub_info(update, context):
     if not privileged(update, context, "get_sub_info"): return
         
     sub = update.message.text.split(' ')[1]
-    chat = bot.get_chat(sub)
+    chat = context.bot.get_chat(sub)
     
     message = f"Username: {chat.username}\n"
     message += f"Name: {chat.first_name} {chat.last_name}\n"
