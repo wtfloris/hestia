@@ -101,7 +101,7 @@ async def stop(update, context):
 async def reply(update, context):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="Sorry, I can't talk to you, I'm a just a scraper. If you want to stop updates, reply with /stop."
+        text="Sorry, I can't talk to you, I'm a just a scraper. If you want to see what commands I support, say /help."
     )
 
 async def announce(update, context):
@@ -148,10 +148,10 @@ async def get_sub_info(update, context):
 async def help(update, context):
     message = f"I can do the following for you:\n"
     message += "\n"
-    message += "\help - Show this message\n"
-    message += "\start - Subscribe to updates\n"
-    message += "\stop - Stop recieving updates\n"
-    message += "\websites - Show info about which websites I scrape"
+    message += "/help - Show this message\n"
+    message += "/start - Subscribe to updates\n"
+    message += "/stop - Stop recieving updates\n"
+    message += "/websites - Show info about which websites I scrape"
     
     await context.bot.send_message(update.effective_chat.id, message)
 
