@@ -4,7 +4,7 @@ import pickle
 from os.path import exists
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
-from secrets import OWN_CHAT_ID, TOKEN
+from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS
 from targets import targets
 from time import sleep
 
@@ -100,12 +100,7 @@ async def reply(update, context):
     )
 
 async def announce(update, context):
-    logging.info(f"Incoming announcement by {update.effective_chat.username} ({update.effective_chat.id}): {update.message.text}")
-
-    if update.effective_chat.id != OWN_CHAT_ID:
-        logging.warning(f"Unauthorized announcement by {update.effective_chat.username} ({update.effective_chat.id}).")
-        await context.bot.send_message(text="You are not allowed to do that!", chat_id=update.effective_chat.id)
-        return
+    if not privileged(update, context, "announce"): return
 
     with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
         subs = pickle.load(subscribers_file)
@@ -132,6 +127,29 @@ async def websites(update, context):
     
     message = "If you want more information, you can also read my source code: https://github.com/wtfloris/hestia"
     await context.bot.send_message(text=message, chat_id=update.effective_chat.id)
+    
+async def get_sub_info(update, context):
+    if not privileged(update, context, "get_sub_info"): return
+        
+    sub = update.message.text.split(' ')[1]
+    chat = bot.get_chat(sub)
+    
+    message = f"Username: {chat.username}\n"
+    message += f"Name: {chat.first_name} {chat.last_name}\n"
+    message += f"Bio: {chat.bio}"
+    
+    await context.bot.send_message(text=message, chat_id=update.effective_chat.id)
+    
+async def privileged(update, context, command):
+    logging.info(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
+
+    if not update.effective_chat.id in PRIVILEGED_USERS:
+        logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
+        await context.bot.send_message(text="You're not allowed to do that!", chat_id=update.effective_chat.id)
+        return 0
+    return 1
+        
+    
 
 if __name__ == '__main__':
     initialize()
@@ -142,6 +160,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("stop", stop))
     application.add_handler(CommandHandler("announce", announce))
     application.add_handler(CommandHandler("websites", websites))
+    application.add_handler(CommandHandler("getsubinfo", get_sub_info))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
     application.run_polling()
