@@ -76,7 +76,23 @@ async def scrape_site(item):
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
         
-    if site == "alliantie":
+    if site == "vesteda":
+        results = json.loads(r.content)["items"]
+        
+        for res in results:
+            # Filter non-available properties
+            if res["status"] != 1:
+                continue
+                
+            house = f"{res['street']} {res['houseNumber']}"
+            if res["houseNumberAddition"] is not None:
+                house += f" {res['houseNumberAddition']}"
+            link = "https://vesteda.com/" + res["url"]
+            if house not in prev_homes:
+                new_homes.add((house, link))
+                prev_homes.add(house)
+        
+    elif site == "alliantie":
         results = json.loads(r.content)["data"]
         
         for res in results:
@@ -95,7 +111,7 @@ async def scrape_site(item):
         results = json.loads(r.content)["Resultaten"]
         
         for res in results:
-            # Filter senioren & gezin priority results
+            # Filter senior & family priority results
             if res["WoningTypeCssClass"] == "Type03":
                 continue
                 
