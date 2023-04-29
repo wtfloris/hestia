@@ -50,9 +50,14 @@ async def privileged(update, context, command):
     return 1
     
 async def new_sub(subs, update, context):
-    log_msg = f"New subscriber: {update.effective_chat.username} ({update.effective_chat.id})"
+    name = update.effective_chat.username
+    if name is None:
+        name = await context.bot.get_chat(sub).first_name
+        
+    log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.info(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
+    
     subs.add(update.effective_chat.id)
     with open(WORKDIR + "subscribers", 'wb') as file:
         pickle.dump(subs, file)
