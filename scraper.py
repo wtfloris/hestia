@@ -91,6 +91,20 @@ async def scrape_site(item):
             if house not in prev_homes:
                 new_homes.add((house, link))
                 prev_homes.add(house)
+                
+    elif site == "vbt":
+        results = json.loads(r.content)["houses"]
+        
+        for res in results:
+            # Filter Bouwinvest results to not have double results
+            if res["isBouwinvest"]:
+                continue
+        
+            house = res["address"]["house"]
+            link = res["source"]["externalLink"]
+            if house not in prev_homes:
+                new_homes.add((house, link))
+                prev_homes.add(house)
         
     elif site == "alliantie":
         results = json.loads(r.content)["data"]
