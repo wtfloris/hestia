@@ -160,7 +160,7 @@ async def get_sub_info(update, context):
 async def halt(update, context):
     if not privileged(update, context, "halt", check_only=False): return
     
-    open("HALT", "w").close()
+    open(WORKDIR + "HALT", "w").close()
     
     message = "Halting scraper."
     await context.bot.send_message(update.effective_chat.id, message)
