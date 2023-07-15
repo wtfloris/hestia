@@ -23,14 +23,14 @@ def initialize():
         with open(WORKDIR + "subscribers", 'wb') as file:
             pickle.dump(set([OWN_CHAT_ID]), file)
 
-    if os.path.exists(WORKDIR + "HALT"):
-        logging.warning("Scraper is halted.")
-        await context.bot.send_message(OWN_CHAT_ID, "Scraper is halted. Use /resume to resume scraping.")
-        
-    if os.path.exists(WORKDIR + "DEVMODE"):
-        DEVMODE = True
-        logging.warning("Dev mode is enabled.")
-        await context.bot.send_message(OWN_CHAT_ID, "Dev mode enabled. Use /nodev to resume publishing updates.")
+#    if os.path.exists(WORKDIR + "HALT"):
+#        logging.warning("Scraper is halted.")
+#        await context.bot.send_message(OWN_CHAT_ID, "Scraper is halted. Use /resume to resume scraping.")
+#        
+#    if os.path.exists(WORKDIR + "DEVMODE"):
+#        DEVMODE = True
+#        logging.warning("Dev mode is enabled.")
+#        await context.bot.send_message(OWN_CHAT_ID, "Dev mode enabled. Use /nodev to resume publishing updates.")
 
 async def load_subs(update, context):
     try:
