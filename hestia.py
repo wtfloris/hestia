@@ -22,6 +22,10 @@ def initialize():
         with open(WORKDIR + "subscribers", 'wb') as file:
             pickle.dump(set([OWN_CHAT_ID]), file)
 
+    if os.path.exists(WORKDIR + "HALT"):
+        logging.warning("Scraper is halted.")
+        await context.bot.send_message(OWN_CHAT_ID, "Scraper is halted. Use /resume to resume scraping.")
+
 async def load_subs(update, context):
     try:
         with open(WORKDIR + "subscribers", 'rb') as file:
@@ -165,9 +169,7 @@ async def halt(update, context):
     message = "Halting scraper."
     await context.bot.send_message(update.effective_chat.id, message)
     
-# TODO implement check for existing HALT file upon startup
-    
-# Resumes the scraper by remove the HALT file. Note that this may create
+# Resumes the scraper by removing the HALT file. Note that this may create
 # a massive update broadcast. Consider putting Hestia on dev mode first.
 async def resume(update, context):
     if not privileged(update, context, "resume", check_only=False): return
