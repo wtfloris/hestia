@@ -182,10 +182,10 @@ async def resume(update, context):
         
     try:
         os.remove(WORKDIR + "HALT")
+        message = "Resuming scraper. Note that this may create a massive update within the next 5 minutes. Consider enabling /dev mode."
     except FileNotFoundError:
-        pass
+        message = "Scraper is not halted."
         
-    message = "Resuming scraper. Note that this may create a massive update within the next 5 minutes. Consider enabling /dev mode."
     await context.bot.send_message(update.effective_chat.id, message)
 
 async def enable_dev(update, context):
@@ -203,10 +203,10 @@ async def disable_dev(update, context):
     DEVMODE = False
     try:
         os.remove(WORKDIR + "DEVMODE")
+        message = "Dev mode disabled."
     except FileNotFoundError:
-        pass
+        message = "Dev mode is not active."
     
-    message = "Dev mode disabled."
     await context.bot.send_message(update.effective_chat.id, message)
 
 async def help(update, context):
@@ -223,7 +223,9 @@ async def help(update, context):
         message += "/announce - Broadcast a message to all subscribers\n"
         message += "/getsubinfo <sub_id> - Get info by subscriber ID\n"
         message += "/halt - Halts the scraper\n"
-        message += "/resume - Resumes the scraper"
+        message += "/resume - Resumes the scraper\n"
+        message += "/dev - Enables dev mode\n"
+        message += "/nodev - Disables dev mode"
 
     await context.bot.send_message(update.effective_chat.id, message)
 
