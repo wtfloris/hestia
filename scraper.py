@@ -9,6 +9,7 @@ from secrets import OWN_CHAT_ID, TOKEN
 from hestia import WORKDIR
 
 BOT = telegram.Bot(TOKEN)
+DEVMODE = False
 
 HOUSE_EMOJI = "\U0001F3E0"
 LINK_EMOJI = "\U0001F517"
@@ -18,6 +19,11 @@ async def main():
         with open(WORKDIR + "error.log", 'a') as log:
             log.write(f"Scraper is halted.")
         exit()
+        
+    if os.path.exists(WORKDIR + "DEVMODE"):
+        with open(WORKDIR + "error.log", 'a') as log:
+            log.write(f"Dev mode is enabled.")
+        DEVMODE = True
 
     for item in targets:
         try:
@@ -43,6 +49,10 @@ async def handle_exception(site, savefile, e):
 async def broadcast(new_homes):
     with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
         subs = pickle.load(subscribers_file)
+        
+    # Overwrite subs if DEVMODE is enabled
+    if DEVMODE:
+        subs = set([OWN_CHAT_ID])
 
     for home in new_homes:
         for sub in subs:

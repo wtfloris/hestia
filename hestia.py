@@ -9,6 +9,7 @@ from targets import targets
 from time import sleep
 
 WORKDIR = "/data/"
+DEVMODE = False
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s]: %(message)s",
@@ -25,6 +26,11 @@ def initialize():
     if os.path.exists(WORKDIR + "HALT"):
         logging.warning("Scraper is halted.")
         await context.bot.send_message(OWN_CHAT_ID, "Scraper is halted. Use /resume to resume scraping.")
+        
+    if os.path.exists(WORKDIR + "DEVMODE"):
+        DEVMODE = True
+        logging.warning("Dev mode is enabled.")
+        await context.bot.send_message(OWN_CHAT_ID, "Dev mode enabled. Use /nodev to resume publishing updates.")
 
 async def load_subs(update, context):
     try:
@@ -181,8 +187,27 @@ async def resume(update, context):
         
     message = "Resuming scraper. Note that this may create a massive update within the next 5 minutes. Consider enabling /dev mode."
     await context.bot.send_message(update.effective_chat.id, message)
+
+async def enable_dev(update, context):
+    if not privileged(update, context, "resume", check_only=False): return
     
-# TODO implement dev mode, where only admins receive updates
+    DEVMODE = True
+    open(WORKDIR + "DEVMODE", "w").close()
+    
+    message = "Dev mode enabled."
+    await context.bot.send_message(update.effective_chat.id, message)
+    
+async def disable_dev(update, context):
+    if not privileged(update, context, "resume", check_only=False): return
+    
+    DEVMODE = False
+    try:
+        os.remove(WORKDIR + "DEVMODE")
+    except FileNotFoundError:
+        pass
+    
+    message = "Dev mode disabled."
+    await context.bot.send_message(update.effective_chat.id, message)
 
 async def help(update, context):
     message = f"I can do the following for you:\n"
@@ -214,6 +239,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("getsubinfo", get_sub_info))
     application.add_handler(CommandHandler("halt", halt))
     application.add_handler(CommandHandler("resume", resume))
+    application.add_handler(CommandHandler("dev", enable_dev))
+    application.add_handler(CommandHandler("nodev", disable_dev))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
