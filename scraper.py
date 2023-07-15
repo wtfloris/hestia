@@ -14,6 +14,10 @@ HOUSE_EMOJI = "\U0001F3E0"
 LINK_EMOJI = "\U0001F517"
 
 async def main():
+    if os.path.exists(WORKDIR + "HALT"):
+        log.write(f"Scraper is halted.")
+        exit()
+
     for item in targets:
         try:
             await scrape_site(item)
