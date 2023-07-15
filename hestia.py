@@ -191,11 +191,11 @@ async def help(update, context):
     message += "/websites - Show info about the websites I scrape"
     
     if privileged(update, context, "help", check_only=True):
-        message += "\n"
-        message += "Admin commands:"
-        message += "/announce - Broadcast a message to all subscribers"
-        message += "/getsubinfo <sub_id> - Get info by subscriber ID"
-        message += "/halt - Halts the scraper"
+        message += "\n\n"
+        message += "Admin commands:\n"
+        message += "/announce - Broadcast a message to all subscribers\n"
+        message += "/getsubinfo <sub_id> - Get info by subscriber ID\n"
+        message += "/halt - Halts the scraper\n"
         message += "/resume - Resumes the scraper"
 
     await context.bot.send_message(update.effective_chat.id, message)
