@@ -50,16 +50,16 @@ async def transmit_error(e, update, context):
     message = "Something went wrong there, but I've let @WTFloris know! He'll let you know once he's fixed his buggy-ass code."
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def privileged(update, context, command, check_only=True):
+def privileged(update, context, command, check_only=True):
     if update.effective_chat.id in PRIVILEGED_USERS:
         if not check_only:
             logging.info(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
         return True
     else:
-        if check_only:
-            return False
-        logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
-        await context.bot.send_message(update.effective_chat.id, "You're not allowed to do that!")
+        if not check_only:
+            logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
+            # TODO this function must be await but the privilege check must not be async
+            #await context.bot.send_message(update.effective_chat.id, "You're not allowed to do that!")
         return False
     
 async def new_sub(subs, update, context):
