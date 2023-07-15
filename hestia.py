@@ -1,7 +1,7 @@
 import logging
 import asyncio
 import pickle
-from os.path import exists
+import os
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS
@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 
 def initialize():
-    if not exists(WORKDIR + "subscribers"):
+    if not os.path.exists(WORKDIR + "subscribers"):
         logging.info("Initializing new subscribers database file...")
         with open(WORKDIR + "subscribers", 'wb') as file:
             pickle.dump(set([OWN_CHAT_ID]), file)
@@ -40,14 +40,17 @@ async def transmit_error(e, update, context):
     message = "Something went wrong there, but I've let @WTFloris know! He'll let you know once he's fixed his buggy-ass code."
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def privileged(update, context, command):
-    logging.info(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
-
-    if not update.effective_chat.id in PRIVILEGED_USERS:
+async def privileged(update, context, command, check_only=True):
+    if update.effective_chat.id in PRIVILEGED_USERS:
+        if not check_only:
+            logging.info(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
+        return True
+    else:
+        if check_only:
+            return False
         logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
         await context.bot.send_message(update.effective_chat.id, "You're not allowed to do that!")
-        return 0
-    return 1
+        return False
     
 async def new_sub(subs, update, context):
     name = update.effective_chat.username
@@ -96,7 +99,9 @@ async def stop(update, context):
         subs.remove(update.effective_chat.id)
         with open(WORKDIR + "subscribers", 'wb') as file:
             pickle.dump(subs, file)
-        logging.info(f"Removed subscriber: {update.effective_chat.username} ({update.effective_chat.id})")
+        log_msg = f"Removed subscriber: {update.effective_chat.username} ({update.effective_chat.id})"
+        logging.info(log_msg)
+        await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -106,11 +111,11 @@ async def stop(update, context):
 async def reply(update, context):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="Sorry, I can't talk to you, I'm a just a scraper. If you want to see what commands I support, say /help."
+        text="Sorry, I can't talk to you, I'm a just a scraper. If you want to see what commands I support, say /help. If you are lonely and want to chat, try ChatGPT."
     )
 
 async def announce(update, context):
-    if not privileged(update, context, "announce"): return
+    if not privileged(update, context, "announce", check_only=False): return
 
     with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
         subs = pickle.load(subscribers_file)
@@ -139,7 +144,7 @@ async def websites(update, context):
     await context.bot.send_message(update.effective_chat.id, message)
     
 async def get_sub_info(update, context):
-    if not privileged(update, context, "get_sub_info"): return
+    if not privileged(update, context, "get_sub_info", check_only=False): return
         
     sub = update.message.text.split(' ')[1]
     chat = await context.bot.get_chat(sub)
@@ -149,6 +154,33 @@ async def get_sub_info(update, context):
     message += f"Bio: {chat.bio}"
     
     await context.bot.send_message(update.effective_chat.id, message)
+    
+# This writes a HALT file to stop the scraper, in case some API has changed
+# and all results for a website are ending up in the bot
+async def halt(update, context):
+    if not privileged(update, context, "halt", check_only=False): return
+    
+    open("HALT", "w").close()
+    
+    message = "Halting scraper."
+    await context.bot.send_message(update.effective_chat.id, message)
+    
+# TODO implement check for existing HALT file upon startup
+    
+# Resumes the scraper by remove the HALT file. Note that this may create
+# a massive update broadcast. Consider putting Hestia on dev mode first.
+async def resume(update, context):
+    if not privileged(update, context, "resume", check_only=False): return
+        
+    try:
+        os.remove(WORKDIR + "HALT")
+    except FileNotFoundError:
+        pass
+        
+    message = "Resuming scraper. Note that this may create a massive update within the next 5 minutes. Consider enabling /dev mode."
+    await context.bot.send_message(update.effective_chat.id, message)
+    
+# TODO implement dev mode, where only admins receive updates
 
 async def help(update, context):
     message = f"I can do the following for you:\n"
@@ -156,8 +188,16 @@ async def help(update, context):
     message += "/help - Show this message\n"
     message += "/start - Subscribe to updates\n"
     message += "/stop - Stop recieving updates\n"
-    message += "/websites - Show info about which websites I scrape"
+    message += "/websites - Show info about the websites I scrape"
     
+    if privileged(update, context, "help", check_only=True):
+        message += "\n"
+        message += "Admin commands:"
+        message += "/announce - Broadcast a message to all subscribers"
+        message += "/getsubinfo <sub_id> - Get info by subscriber ID"
+        message += "/halt - Halts the scraper"
+        message += "/resume - Resumes the scraper"
+
     await context.bot.send_message(update.effective_chat.id, message)
 
 if __name__ == '__main__':
@@ -170,6 +210,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("announce", announce))
     application.add_handler(CommandHandler("websites", websites))
     application.add_handler(CommandHandler("getsubinfo", get_sub_info))
+    application.add_handler(CommandHandler("halt", halt))
+    application.add_handler(CommandHandler("resume", resume))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
