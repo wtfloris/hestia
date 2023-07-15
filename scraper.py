@@ -15,7 +15,8 @@ LINK_EMOJI = "\U0001F517"
 
 async def main():
     if os.path.exists(WORKDIR + "HALT"):
-        log.write(f"Scraper is halted.")
+        with open(WORKDIR + "error.log", 'a') as log:
+            log.write(f"Scraper is halted.")
         exit()
 
     for item in targets:
