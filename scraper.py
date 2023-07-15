@@ -77,10 +77,11 @@ async def scrape_site(item):
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
         
     if site == "vesteda":
-        results = json.loads(r.content)["items"]
+        results = json.loads(r.content)["results"]["items"]
         
         for res in results:
             # Filter non-available properties
+            # Status 0 seems to be that the property is a project/complex
             if res["status"] != 1:
                 continue
                 

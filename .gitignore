@@ -1,5 +1,6 @@
 # Hestia specific files
 error.log
+hestia.log
 data/*
 secrets.py
 targets.py
