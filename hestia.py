@@ -14,7 +14,7 @@ DEVMODE = False
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s]: %(message)s",
     level=logging.INFO,
-    filename=WORKDIR + "hestia.log"
+    filename=WORKDIR + "hestia-bot.log"
 )
 
 def initialize():
