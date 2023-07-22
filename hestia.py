@@ -54,7 +54,7 @@ async def send_sync_message(chat_id, msg):
     loop = asyncio.get_event_loop()
     # This will raise an exception, so I catch it and ignore
     try:
-        loop.run_until_complete(await context.bot.send_message(chat_id, msg))
+        loop.run_until_complete(context.bot.send_message(chat_id, msg))
     except RuntimeError:
         pass
     
