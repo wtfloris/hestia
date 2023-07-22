@@ -18,7 +18,7 @@ LINK_EMOJI = "\U0001F517"
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s]: %(message)s",
-    level=logging.INFO,
+    level=logging.WARNING,
     filename=WORKDIR + "hestia-scraper.log"
 )
 
@@ -53,7 +53,7 @@ async def broadcast(new_homes):
         
     # Overwrite subs if DEVMODE is enabled
     if os.path.exists(WORKDIR + "DEVMODE"):
-        logging.INFO("Dev mode is enabled.")
+        logging.warning("Dev mode is enabled.")
         subs = set([OWN_CHAT_ID])
 
     for home in new_homes:

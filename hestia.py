@@ -13,13 +13,13 @@ DEVMODE = False
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s]: %(message)s",
-    level=logging.INFO,
+    level=logging.WARNING,
     filename=WORKDIR + "hestia-bot.log"
 )
 
 def initialize():
     if not os.path.exists(WORKDIR + "subscribers"):
-        logging.info("Initializing new subscribers database file...")
+        logging.warning("Initializing new subscribers database file...")
         with open(WORKDIR + "subscribers", 'wb') as file:
             pickle.dump(set([OWN_CHAT_ID]), file)
 
@@ -50,25 +50,33 @@ async def transmit_error(e, update, context):
     message = "Something went wrong there, but I've let @WTFloris know! He'll let you know once he's fixed his buggy-ass code."
     await context.bot.send_message(update.effective_chat.id, message)
     
+async def send_sync_message(chat_id, msg):
+    loop = asyncio.get_event_loop()
+    # This will raise an exception, so I catch it and ignore
+    try:
+        loop.run_until_complete(await context.bot.send_message(chat_id, msg))
+    except RuntimeError:
+        pass
+    
 def privileged(update, context, command, check_only=True):
     if update.effective_chat.id in PRIVILEGED_USERS:
         if not check_only:
-            logging.info(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
+            logging.warning(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
+            await send_sync_message(update.effective_chat.id, "test")
         return True
     else:
         if not check_only:
             logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
-            # TODO this function must be await but the privilege check must not be async
-            #await context.bot.send_message(update.effective_chat.id, "You're not allowed to do that!")
+        #await send_sync_message(update.effective_chat.id, "")
         return False
-    
+
 async def new_sub(subs, update, context):
     name = update.effective_chat.username
     if name is None:
         name = await context.bot.get_chat(sub).first_name
         
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
-    logging.info(log_msg)
+    logging.warning(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
     
     subs.add(update.effective_chat.id)
@@ -110,7 +118,7 @@ async def stop(update, context):
         with open(WORKDIR + "subscribers", 'wb') as file:
             pickle.dump(subs, file)
         log_msg = f"Removed subscriber: {update.effective_chat.username} ({update.effective_chat.id})"
-        logging.info(log_msg)
+        logging.warning(log_msg)
         await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
 
     await context.bot.send_message(
