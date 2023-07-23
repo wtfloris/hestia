@@ -25,12 +25,10 @@ def initialize():
 
     if os.path.exists(WORKDIR + "HALT"):
         logging.warning("Scraper is halted.")
-#        await context.bot.send_message(OWN_CHAT_ID, "Scraper is halted. Use /resume to resume scraping.")
         
     if os.path.exists(WORKDIR + "DEVMODE"):
         DEVMODE = True
         logging.warning("Dev mode is enabled.")
-#        await context.bot.send_message(OWN_CHAT_ID, "Dev mode enabled. Use /nodev to resume publishing updates.")
 
 async def load_subs(update, context):
     try:
@@ -50,24 +48,14 @@ async def transmit_error(e, update, context):
     message = "Something went wrong there, but I've let @WTFloris know! He'll let you know once he's fixed his buggy-ass code."
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def send_sync_message(chat_id, msg):
-    loop = asyncio.get_event_loop()
-    # This will raise an exception, so I catch it and ignore
-    try:
-        loop.run_until_complete(context.bot.send_message(chat_id, msg))
-    except RuntimeError:
-        pass
-    
 def privileged(update, context, command, check_only=True):
     if update.effective_chat.id in PRIVILEGED_USERS:
         if not check_only:
             logging.warning(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
-            await send_sync_message(update.effective_chat.id, "test")
         return True
     else:
         if not check_only:
             logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
-        #await send_sync_message(update.effective_chat.id, "")
         return False
 
 async def new_sub(subs, update, context):
