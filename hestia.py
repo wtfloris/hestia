@@ -18,6 +18,8 @@ logging.basicConfig(
 )
 
 def initialize():
+    logging.warning("Initializing application...")
+
     if not os.path.exists(WORKDIR + "subscribers"):
         logging.warning("Initializing new subscribers database file...")
         with open(WORKDIR + "subscribers", 'wb') as file:
