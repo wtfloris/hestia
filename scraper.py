@@ -4,11 +4,13 @@ import requests
 import pickle
 import json
 import logging
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from datetime import datetime
 from asyncio import run
 from targets import targets
-from secrets import OWN_CHAT_ID, TOKEN
+from secrets import OWN_CHAT_ID, TOKEN, DB
 from hestia import WORKDIR
 
 BOT = telegram.Bot(TOKEN)
@@ -48,23 +50,33 @@ async def handle_exception(site, savefile, e):
         await BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
 
 async def broadcast(new_homes):
-    with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
-        subs = pickle.load(subscribers_file)
-        
+
+    #with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
+    #    subs = pickle.load(subscribers_file)
+       
+    subs = set()
+
+    subquery = DB.cursor(cursor_factory=RealDictCursor)
+    subquery.execute("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+
     # Overwrite subs if DEVMODE is enabled
     if os.path.exists(WORKDIR + "DEVMODE"):
         logging.warning("Dev mode is enabled.")
         subs = set([OWN_CHAT_ID])
 
     for home in new_homes:
-        for sub in subs:
+        for sub in subquery.fetchall():
+            # TODO check if home is within user parameters
+            
+            message = f"{HOUSE_EMOJI} {home[0]}\n"
+            message += f"{LINK_EMOJI} {home[1]}"
+            
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
-                message = f"{HOUSE_EMOJI} {home[0]}\n"
-                message += f"{LINK_EMOJI} {home[1]}"
-                await BOT.send_message(text=message, chat_id=sub)
+                await BOT.send_message(text=message, chat_id=sub["telegram_id"])
             except:
-                continue
+                logging.warning(f"Error transmitting to user {sub['username']}")
+                pass
 
 async def scrape_site(item):
     site = item["site"]
@@ -89,6 +101,9 @@ async def scrape_site(item):
     # Get the previously broadcasted homes
     with open(WORKDIR + savefile, 'rb') as prev_homes_file:
         prev_homes = pickle.load(prev_homes_file)
+        
+    # TODO save homes to db
+    # TODO get previously broadcasted homes of current agent from db
     
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
@@ -102,13 +117,13 @@ async def scrape_site(item):
             if res["status"] != 1:
                 continue
                 
-            house = f"{res['street']} {res['houseNumber']}"
+            address = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
-                house += f" {res['houseNumberAddition']}"
-            link = "https://vesteda.com/" + res["url"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+                address += f" {res['houseNumberAddition']}"
+            link = "https://vesteda.com" + res["url"]
+            if address not in prev_homes:
+                new_homes.add((address, link))
+                prev_homes.add(address)
                 
     elif site == "vbt":
         results = json.loads(r.content)["houses"]
@@ -118,11 +133,11 @@ async def scrape_site(item):
             if res["isBouwinvest"]:
                 continue
         
-            house = res["address"]["house"]
+            address = res["address"]["house"]
             link = res["source"]["externalLink"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            if address not in prev_homes:
+                new_homes.add((address, link))
+                prev_homes.add(address)
         
     elif site == "alliantie":
         results = json.loads(r.content)["data"]
@@ -133,11 +148,11 @@ async def scrape_site(item):
             if not res["isInSelection"]:
                 continue
                 
-            house = res["address"]
+            address = res["address"]
             link = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            if address not in prev_homes:
+                new_homes.add((address, link))
+                prev_homes.add(address)
         
     elif site == "woningnet":
         results = json.loads(r.content)["Resultaten"]
@@ -147,11 +162,11 @@ async def scrape_site(item):
             if res["WoningTypeCssClass"] == "Type03":
                 continue
                 
-            house = res["Adres"]
+            address = res["Adres"]
             link = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            if address not in prev_homes:
+                new_homes.add((address, link))
+                prev_homes.add(address)
     
     elif site == "bouwinvest":
         results = json.loads(r.content)["data"]
@@ -161,25 +176,27 @@ async def scrape_site(item):
             if res["class"] == "Project":
                 continue
 
-            house = res["name"]
+            address = res["name"]
             link = res["url"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            if address not in prev_homes:
+                new_homes.add((address, link))
+                prev_homes.add(address)
 
     elif site == "ikwilhuren":
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
-            house = str(res.find(class_="street-name").contents[0])
+            address = str(res.find(class_="street-name").contents[0])
             link = res.find(class_="search-result-title").a["href"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            if address not in prev_homes:
+                new_homes.add((address, link))
+                prev_homes.add(address)
 
     # Write new homes to savefile
     with open(WORKDIR + savefile, 'wb') as prev_homes_file:
         pickle.dump(prev_homes, prev_homes_file)
+        
+    # TODO write new homes to db
 
     await broadcast(new_homes)
 
