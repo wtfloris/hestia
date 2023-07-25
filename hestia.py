@@ -66,7 +66,7 @@ async def new_sub(update, context):
     newsubquery = db.cursor()
     insert = f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')"
     newsubquery.execute(insert)
-    newsubquery.commit()
+    db.commit()
     newsubquery.close()
         
     message ="""Hi there!
