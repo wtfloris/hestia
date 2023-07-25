@@ -64,8 +64,7 @@ async def new_sub(update, context):
 #        pickle.dump(subs, file)
         
     newsubquery = db.cursor()
-    insert = f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')"
-    newsubquery.execute(insert)
+    newsubquery.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
     db.commit()
     newsubquery.close()
         
@@ -81,14 +80,13 @@ If you have any issues or questions, let @WTFloris know!"""
     await context.bot.send_message(update.effective_chat.id, message)
 
 async def start(update, context):
-    # TODO check if sub exists
-#    if update.effective_chat.id in subs:
-#        message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
-#        await context.bot.send_message(update.effective_chat.id, message)
-#    else:
-#        await new_sub(subs, update, context)
-        
-    await new_sub(update, context)
+    checksubquery = db.cursor()
+    checksubquery.execute(f"SELECT id FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'")
+    if len(checksubquery.fetchone()) > 0:
+        message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
+        await context.bot.send_message(update.effective_chat.id, message)
+    else:
+        await new_sub(update, context)
 
 async def stop(update, context):
     subs = await load_subs(update, context)
