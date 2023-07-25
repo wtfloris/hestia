@@ -82,7 +82,7 @@ If you have any issues or questions, let @WTFloris know!"""
 async def start(update, context):
     checksubquery = db.cursor()
     checksubquery.execute(f"SELECT id FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'")
-    if len(checksubquery.fetchone()) > 0:
+    if checksubquery.fetchone() is not None:
         message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
         await context.bot.send_message(update.effective_chat.id, message)
     else:
