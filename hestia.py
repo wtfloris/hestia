@@ -2,6 +2,8 @@ import logging
 import asyncio
 import pickle
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS, WORKDIR, DB
@@ -36,14 +38,6 @@ def initialize():
     if os.path.exists(WORKDIR + "DEVMODE"):
         DEVMODE = True
         logging.warning("Dev mode is enabled.")
-
-async def load_subs(update, context):
-    try:
-        with open(WORKDIR + "subscribers", 'rb') as file:
-            return pickle.load(file)
-    except BaseException as e:
-        await transmit_error(e, update, context)
-        return None
 
 async def transmit_error(e, update, context):
     log_msg = f'''Error loading file for subscriber: {update.effective_chat.username} ({update.effective_chat.id})
