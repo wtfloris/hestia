@@ -49,7 +49,7 @@ def privileged(update, context, command, check_only=True):
             logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
         return False
 
-async def new_sub(update, context):
+async def new_sub(update, context, reenable=False):
     name = update.effective_chat.username
     if name is None:
         chat = await context.bot.get_chat(update.effective_chat.id)
@@ -58,11 +58,14 @@ async def new_sub(update, context):
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
-        
-    newsubquery = db.cursor()
-    newsubquery.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
+    
+    query = db.cursor()
+    if reenable:
+        query.execute(f"UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = '{update.effective_chat.id}'")
+    else:
+        query.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
     db.commit()
-    newsubquery.close()
+    query.close()
         
     message ="""Hi there!
 
@@ -84,6 +87,7 @@ async def start(update, context):
         if checksub["telegram_enabled"]:
             message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
             await context.bot.send_message(update.effective_chat.id, message)
+        await new_sub(update, context, reenable=True)
     else:
         await new_sub(update, context)
 
