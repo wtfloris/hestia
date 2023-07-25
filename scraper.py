@@ -105,7 +105,7 @@ async def scrape_site(item):
             house = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
                 house += f" {res['houseNumberAddition']}"
-            link = "https://vesteda.com/" + res["url"]
+            link = "https://vesteda.com" + res["url"]
             if house not in prev_homes:
                 new_homes.add((house, link))
                 prev_homes.add(house)
