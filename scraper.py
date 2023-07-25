@@ -1,28 +1,34 @@
+import logging
 import os
 import telegram
 import requests
 import pickle
 import json
-import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from datetime import datetime
 from asyncio import run
 from targets import targets
-from secrets import OWN_CHAT_ID, TOKEN, DB
-from hestia import WORKDIR
+from secrets import OWN_CHAT_ID, TOKEN, DB, WORKDIR
 
 BOT = telegram.Bot(TOKEN)
 
 HOUSE_EMOJI = "\U0001F3E0"
 LINK_EMOJI = "\U0001F517"
 
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s]: %(message)s",
-    level=logging.WARNING,
-    filename=WORKDIR + "hestia-scraper.log"
-)
+db = psycopg2.connect(database=DB["database"],
+                        host=DB["host"],
+                        user=DB["user"],
+                        password=DB["password"],
+                        port=DB["port"])
+
+def initialize():
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)s]: %(message)s",
+        level=logging.WARNING,
+        filename=WORKDIR + "hestia-scraper.log"
+    )
 
 async def main():
     if os.path.exists(WORKDIR + "HALT"):
@@ -101,7 +107,6 @@ async def scrape_site(item):
     with open(WORKDIR + savefile, 'rb') as prev_homes_file:
         prev_homes = pickle.load(prev_homes_file)
         
-    # TODO save homes to db
     # TODO get previously broadcasted homes of current agent from db
     
     if not r.status_code == 200:
@@ -201,4 +206,5 @@ async def scrape_site(item):
 
 
 if __name__ == '__main__':
+    initialize()
     run(main())

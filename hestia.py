@@ -4,20 +4,19 @@ import pickle
 import os
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
-from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS
+from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS, WORKDIR, DB
 from targets import targets
 from time import sleep
 
-WORKDIR = "/data/"
 DEVMODE = False
 
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s]: %(message)s",
-    level=logging.WARNING,
-    filename=WORKDIR + "hestia-bot.log"
-)
-
 def initialize():
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)s]: %(message)s",
+        level=logging.WARNING,
+        filename=WORKDIR + "hestia-bot.log"
+    )
+
     logging.warning("Initializing application...")
 
     if not os.path.exists(WORKDIR + "subscribers"):
