@@ -38,16 +38,6 @@ def initialize():
     if os.path.exists(WORKDIR + "DEVMODE"):
         DEVMODE = True
         logging.warning("Dev mode is enabled.")
-
-async def transmit_error(e, update, context):
-    log_msg = f'''Error loading file for subscriber: {update.effective_chat.username} ({update.effective_chat.id})
-{repr(e)}'''
-
-    logging.error(log_msg)
-    await context.bot.send_message(OWN_CHAT_ID, log_msg)
-    
-    message = "Something went wrong there, but I've let @WTFloris know! He'll let you know once he's fixed his buggy-ass code."
-    await context.bot.send_message(update.effective_chat.id, message)
     
 def privileged(update, context, command, check_only=True):
     if update.effective_chat.id in PRIVILEGED_USERS:
@@ -89,17 +79,14 @@ If you have any issues or questions, let @WTFloris know!"""
     await context.bot.send_message(update.effective_chat.id, message)
 
 async def start(update, context):
-    subs = await load_subs(update, context)
-
-    if subs is None:
-        return 1
-
-    if update.effective_chat.id in subs:
-        message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
-        await context.bot.send_message(update.effective_chat.id, message)
-    else:
-        await new_sub(subs, update, context)
+    # TODO check if sub exists
+#    if update.effective_chat.id in subs:
+#        message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
+#        await context.bot.send_message(update.effective_chat.id, message)
+#    else:
+#        await new_sub(subs, update, context)
         
+    await new_sub(subs, update, context)
 
 async def stop(update, context):
     subs = await load_subs(update, context)
