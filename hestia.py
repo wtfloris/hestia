@@ -99,13 +99,16 @@ async def start(update, context):
 async def stop(update, context):
     disablesubquery = db.cursor()
     disablesubquery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = '{update.effective_chat.id}'")
+    updated = disablesubquery.rowcount
     db.commit()
     disablesubquery.close()
 
-    name = await get_sub_name(update, context)
-    log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
-    logging.warning(log_msg)
-    await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
+    # Only log /stop if a database row is updated, to prevent a spam vector
+    if updated:
+        name = await get_sub_name(update, context)
+        log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
+        logging.warning(log_msg)
+        await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
