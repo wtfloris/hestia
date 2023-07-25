@@ -10,6 +10,12 @@ from time import sleep
 
 DEVMODE = False
 
+db = psycopg2.connect(database=DB["database"],
+                        host=DB["host"],
+                        user=DB["user"],
+                        password=DB["password"],
+                        port=DB["port"])
+
 def initialize():
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s]: %(message)s",
@@ -69,9 +75,13 @@ async def new_sub(subs, update, context):
     logging.warning(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
     
-    subs.add(update.effective_chat.id)
-    with open(WORKDIR + "subscribers", 'wb') as file:
-        pickle.dump(subs, file)
+#    subs.add(update.effective_chat.id)
+#    with open(WORKDIR + "subscribers", 'wb') as file:
+#        pickle.dump(subs, file)
+        
+    newsubquery = db.cursor()
+    newsubquery.execute(f"INSERT INTO subscribers VALUES ('', '2099-01-01T00:00:00', NULL, NULL, NULL, NULL, true, {update.effective_chat.id}")
+    newsubquery.close()
         
     message ="""Hi there!
 
