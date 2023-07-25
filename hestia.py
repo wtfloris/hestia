@@ -49,7 +49,7 @@ def privileged(update, context, command, check_only=True):
             logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
         return False
 
-async def new_sub(subs, update, context):
+async def new_sub(update, context):
     name = update.effective_chat.username
     if name is None:
         chat = await context.bot.get_chat(update.effective_chat.id)
@@ -86,7 +86,7 @@ async def start(update, context):
 #    else:
 #        await new_sub(subs, update, context)
         
-    await new_sub(subs, update, context)
+    await new_sub(update, context)
 
 async def stop(update, context):
     subs = await load_subs(update, context)
