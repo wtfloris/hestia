@@ -58,10 +58,6 @@ async def new_sub(update, context):
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
-    
-#    subs.add(update.effective_chat.id)
-#    with open(WORKDIR + "subscribers", 'wb') as file:
-#        pickle.dump(subs, file)
         
     newsubquery = db.cursor()
     newsubquery.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
@@ -80,11 +76,14 @@ If you have any issues or questions, let @WTFloris know!"""
     await context.bot.send_message(update.effective_chat.id, message)
 
 async def start(update, context):
-    checksubquery = db.cursor()
-    checksubquery.execute(f"SELECT id FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'")
-    if checksubquery.fetchone() is not None:
-        message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
-        await context.bot.send_message(update.effective_chat.id, message)
+    checksubquery = db.cursor(cursor_factory=RealDictCursor)
+    checksubquery.execute(f"SELECT * FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'")
+    checksub = checksubquery.fetchone()
+    
+    if checksub is not None:
+        if checksub["telegram_enabled"]:
+            message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
+            await context.bot.send_message(update.effective_chat.id, message)
     else:
         await new_sub(update, context)
 
