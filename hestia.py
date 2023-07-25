@@ -62,6 +62,7 @@ async def new_sub(update, context, reenable=False):
     logging.warning(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
     
+    # If the user existed before, then re-enable the telegram updates
     enablequery = db.cursor()
     if reenable:
         enablequery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = '{update.effective_chat.id}'")
@@ -97,6 +98,7 @@ async def start(update, context):
         await new_sub(update, context)
 
 async def stop(update, context):
+    # Disabling is setting the telegram_enabled to false in the db
     disablesubquery = db.cursor()
     disablesubquery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = '{update.effective_chat.id}'")
     updated = disablesubquery.rowcount
