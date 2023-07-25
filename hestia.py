@@ -8,7 +8,6 @@ from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS, WORKDIR
 from targets import targets
 from time import sleep
 
-
 DEVMODE = False
 
 logging.basicConfig(
