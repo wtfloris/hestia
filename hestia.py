@@ -62,10 +62,6 @@ def privileged(update, context, command, check_only=True):
 
 async def new_sub(subs, update, context):
     name = update.effective_chat.username
-    if name is None:
-        chat = context.bot.get_chat(update.effective_chat.id, read_timeout=2.9)
-        sleep(3)
-        name = chat.first_name
         
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
@@ -148,7 +144,7 @@ async def websites(update, context):
         message += f"\n"
         
     await context.bot.send_message(update.effective_chat.id, message[:-1])
-    sleep(2)
+    sleep(1)
     
     message = "If you want more information, you can also read my source code: https://github.com/wtfloris/hestia"
     await context.bot.send_message(update.effective_chat.id, message)
