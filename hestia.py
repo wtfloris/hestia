@@ -4,11 +4,11 @@ import pickle
 import os
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
-from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS
+from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS, WORKDIR
 from targets import targets
 from time import sleep
 
-WORKDIR = "/data/"
+
 DEVMODE = False
 
 logging.basicConfig(
@@ -63,7 +63,9 @@ def privileged(update, context, command, check_only=True):
 async def new_sub(subs, update, context):
     name = update.effective_chat.username
     if name is None:
-        name = context.bot.get_chat(update.effective_chat.id).first_name
+        chat = context.bot.get_chat(update.effective_chat.id, read_timeout=2.9)
+        sleep(3)
+        name = chat.first_name
         
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)

@@ -8,8 +8,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from asyncio import run
 from targets import targets
-from secrets import OWN_CHAT_ID, TOKEN
-from hestia import WORKDIR
+from secrets import OWN_CHAT_ID, TOKEN, WORKDIR
 
 BOT = telegram.Bot(TOKEN)
 
