@@ -48,13 +48,16 @@ def privileged(update, context, command, check_only=True):
         if not check_only:
             logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
         return False
-
-async def new_sub(update, context, reenable=False):
+        
+async get_sub_name(update, context)
     name = update.effective_chat.username
     if name is None:
         chat = await context.bot.get_chat(update.effective_chat.id)
         name = chat.first_name
-        
+    return name
+
+async def new_sub(update, context, reenable=False):
+    name = await get_sub_name(update, context)
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
@@ -99,7 +102,8 @@ async def stop(update, context):
     db.commit()
     disablesubquery.close()
 
-    log_msg = f"Removed subscriber: {update.effective_chat.username} ({update.effective_chat.id})"
+    name = await get_sub_name(update, context)
+    log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
 
