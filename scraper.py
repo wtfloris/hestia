@@ -50,19 +50,16 @@ async def handle_exception(site, savefile, e):
         await BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
 
 async def broadcast(new_homes):
-
-    #with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
-    #    subs = pickle.load(subscribers_file)
-       
     subs = set()
 
     subquery = DB.cursor(cursor_factory=RealDictCursor)
     subquery.execute("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
+    ### Disabled for testing db
     # Overwrite subs if DEVMODE is enabled
-    if os.path.exists(WORKDIR + "DEVMODE"):
-        logging.warning("Dev mode is enabled.")
-        subs = set([OWN_CHAT_ID])
+#    if os.path.exists(WORKDIR + "DEVMODE"):
+#        logging.warning("Dev mode is enabled.")
+#        subs = set([OWN_CHAT_ID])
 
     for home in new_homes:
         for sub in subquery.fetchall():
@@ -77,6 +74,8 @@ async def broadcast(new_homes):
             except:
                 logging.warning(f"Error transmitting to user {sub['username']}")
                 pass
+    
+    subquery.close()
 
 async def scrape_site(item):
     site = item["site"]
