@@ -64,7 +64,8 @@ async def new_sub(update, context):
 #        pickle.dump(subs, file)
         
     newsubquery = db.cursor()
-    newsubquery.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, {update.effective_chat.id}")
+    insert = f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')"
+    newsubquery.execute(insert)
     newsubquery.close()
         
     message ="""Hi there!
