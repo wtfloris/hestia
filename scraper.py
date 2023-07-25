@@ -58,7 +58,7 @@ async def handle_exception(site, savefile, e):
 async def broadcast(new_homes):
     subs = set()
 
-    subquery = DB.cursor(cursor_factory=RealDictCursor)
+    subquery = db.cursor(cursor_factory=RealDictCursor)
     subquery.execute("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
     ### Disabled for testing db
