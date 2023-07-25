@@ -49,7 +49,7 @@ def privileged(update, context, command, check_only=True):
             logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
         return False
         
-async def get_sub_name(update, context)
+async def get_sub_name(update, context):
     name = update.effective_chat.username
     if name is None:
         chat = await context.bot.get_chat(update.effective_chat.id)
