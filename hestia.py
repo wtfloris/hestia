@@ -59,13 +59,13 @@ async def new_sub(update, context, reenable=False):
     logging.warning(log_msg)
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
     
-    query = db.cursor()
+    enablequery = db.cursor()
     if reenable:
-        query.execute(f"UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = '{update.effective_chat.id}'")
+        enablequery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = '{update.effective_chat.id}'")
     else:
-        query.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
+        enablequery.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
     db.commit()
-    query.close()
+    enablequery.close()
         
     message ="""Hi there!
 
@@ -82,28 +82,26 @@ async def start(update, context):
     checksubquery = db.cursor(cursor_factory=RealDictCursor)
     checksubquery.execute(f"SELECT * FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'")
     checksub = checksubquery.fetchone()
+    checksubquery.close()
     
     if checksub is not None:
         if checksub["telegram_enabled"]:
             message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
             await context.bot.send_message(update.effective_chat.id, message)
-        await new_sub(update, context, reenable=True)
+        else:
+            await new_sub(update, context, reenable=True)
     else:
         await new_sub(update, context)
 
 async def stop(update, context):
-    subs = await load_subs(update, context)
+    disablesubquery = db.cursor()
+    disablesubquery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = '{update.effective_chat.id}'")
+    db.commit()
+    disablesubquery.close()
 
-    if subs is None:
-        return 1
-
-    if update.effective_chat.id in subs:
-        subs.remove(update.effective_chat.id)
-        with open(WORKDIR + "subscribers", 'wb') as file:
-            pickle.dump(subs, file)
-        log_msg = f"Removed subscriber: {update.effective_chat.username} ({update.effective_chat.id})"
-        logging.warning(log_msg)
-        await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
+    log_msg = f"Removed subscriber: {update.effective_chat.username} ({update.effective_chat.id})"
+    logging.warning(log_msg)
+    await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
