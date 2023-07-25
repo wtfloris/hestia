@@ -61,6 +61,9 @@ def privileged(update, context, command, check_only=True):
 
 async def new_sub(subs, update, context):
     name = update.effective_chat.username
+    if name is None:
+        chat = await context.bot.get_chat(update.effective_chat.id)
+        name = chat.first_name
         
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
