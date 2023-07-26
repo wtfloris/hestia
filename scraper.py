@@ -17,18 +17,27 @@ BOT = telegram.Bot(TOKEN)
 HOUSE_EMOJI = "\U0001F3E0"
 LINK_EMOJI = "\U0001F517"
 
-db = psycopg2.connect(database=DB["database"],
-                        host=DB["host"],
-                        user=DB["user"],
-                        password=DB["password"],
-                        port=DB["port"])
-
 def initialize():
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s]: %(message)s",
         level=logging.WARNING,
         filename=WORKDIR + "hestia-scraper.log"
     )
+    
+def query_db(query):
+    db = psycopg2.connect(database=DB["database"],
+                            host=DB["host"],
+                            user=DB["user"],
+                            password=DB["password"],
+                            port=DB["port"])
+    
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    db.close()
+    
+    return result
 
 async def main():
     if os.path.exists(WORKDIR + "HALT"):
@@ -55,25 +64,23 @@ async def handle_exception(site, savefile, e):
         logging.error(error)
         await BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
         
+# This is a seperate functions so that if the location of the settings changes, only these need to be updated
 def check_dev_mode():
-    checkdevquery = db.cursor(cursor_factory=RealDictCursor)
-    checkdevquery.execute("SELECT devmode_enabled FROM hestia.meta")
-    devmode_enabled = checkdevquery.fetchone()["devmode_enabled"]
-    db.commit()
-    checkdevquery.close()
-    return devmode_enabled
+    return query_db("SELECT devmode_enabled FROM hestia.meta")[0]["devmode_enabled"]
+    
+def check_scraper_halt():
+    return query_db("SELECT scraper_halted FROM hestia.meta")[0]["scraper_halted"]
 
 async def broadcast(new_homes):
     subs = set()
-
-    getsubsquery = db.cursor(cursor_factory=RealDictCursor)
+    
     if check_dev_mode():
-        getsubsquery.execute("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
+        subs = query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
     else:
-        getsubsquery.execute("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+        subs = query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
     for home in new_homes:
-        for sub in getsubsquery.fetchall():
+        for sub in subs:
             # TODO check if home is within user parameters
             
             message = f"{HOUSE_EMOJI} {home[0]}\n"
@@ -85,9 +92,6 @@ async def broadcast(new_homes):
             except:
                 logging.warning(f"Error transmitting to user {sub['id']}")
                 pass
-    
-    db.commit()
-    getsubsquery.close()
 
 async def scrape_site(item):
     site = item["site"]
