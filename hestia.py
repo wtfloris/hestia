@@ -1,3 +1,5 @@
+import psycopg2
+import telegram
 from secrets import OWN_CHAT_ID, TOKEN, DB
 
 # TODO this could be a class

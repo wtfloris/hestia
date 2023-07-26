@@ -1,7 +1,6 @@
 import hestia
 import logging
 import os
-import telegram
 import requests
 import pickle
 import json
