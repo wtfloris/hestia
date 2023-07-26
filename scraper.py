@@ -90,7 +90,7 @@ async def scrape_site(target):
                 
             address = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
-                address += f"{res['houseNumberAddition']}"
+                address += f" {res['houseNumberAddition']}"
             city = res["city"]
             url = "https://vesteda.com" + res["url"]
             if url not in prev_homes:
@@ -123,7 +123,7 @@ async def scrape_site(target):
             # TODO check this parse because this is a dirty hack for a site that does not
             # include the city AT ALL in their FUCKING API RESPONSES
             city_start = res["url"].index('/') + 1
-            city_end = res["url"][city_start:].index('/')
+            city_end = res["url"][city_start:].index('/') + city_start
             city = res["url"][city_start:city_end].capitalize()
             url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
             if url not in prev_homes:
@@ -163,7 +163,7 @@ async def scrape_site(target):
         for res in results:
             address = str(res.find(class_="street-name").contents[0])
             # TODO test this city parsing
-            city = str(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
+            city = ''.join(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
             url = res.find(class_="search-result-title").a["href"]
             if url not in prev_homes:
                 new_homes.append({"address":address, "city":city, "url":url})
