@@ -1,3 +1,4 @@
+import hestia
 import logging
 import os
 import telegram
@@ -10,12 +11,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from asyncio import run
 from targets import targets
-from secrets import OWN_CHAT_ID, TOKEN, DB, WORKDIR
-
-BOT = telegram.Bot(TOKEN)
-
-HOUSE_EMOJI = "\U0001F3E0"
-LINK_EMOJI = "\U0001F517"
+from secrets import OWN_CHAT_ID
 
 def initialize():
     logging.basicConfig(
@@ -23,21 +19,6 @@ def initialize():
         level=logging.WARNING,
         filename=WORKDIR + "hestia-scraper.log"
     )
-    
-def query_db(query):
-    db = psycopg2.connect(database=DB["database"],
-                            host=DB["host"],
-                            user=DB["user"],
-                            password=DB["password"],
-                            port=DB["port"])
-    
-    cursor = db.cursor(cursor_factory=RealDictCursor)
-    cursor.execute(query)
-    result = cursor.fetchall()
-    cursor.close()
-    db.close()
-    
-    return result
 
 async def main():
     if os.path.exists(WORKDIR + "HALT"):
@@ -62,33 +43,33 @@ async def handle_exception(site, savefile, e):
 
     if last_error[last_error.index('['):-1] != error:
         logging.error(error)
-        await BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
+        await hestia.BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
         
 # This is a seperate functions so that if the location of the settings changes, only these need to be updated
 def check_dev_mode():
-    return query_db("SELECT devmode_enabled FROM hestia.meta")[0]["devmode_enabled"]
+    return hestia.query_db("SELECT devmode_enabled FROM hestia.meta", fetchOne=True)["devmode_enabled"]
     
 def check_scraper_halt():
-    return query_db("SELECT scraper_halted FROM hestia.meta")[0]["scraper_halted"]
+    return hestia.query_db("SELECT scraper_halted FROM hestia.meta", fetchOne=True)["scraper_halted"]
 
 async def broadcast(new_homes):
     subs = set()
     
     if check_dev_mode():
-        subs = query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
+        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
     else:
-        subs = query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
     for home in new_homes:
         for sub in subs:
             # TODO check if home is within user parameters
             
-            message = f"{HOUSE_EMOJI} {home[0]}\n"
-            message += f"{LINK_EMOJI} {home[1]}"
+            message = f"{hestia.HOUSE_EMOJI} {home[0]}\n"
+            message += f"{hestia.LINK_EMOJI} {home[1]}"
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
-                await BOT.send_message(text=message, chat_id=sub["telegram_id"])
+                await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"])
             except:
                 logging.warning(f"Error transmitting to user {sub['id']}")
                 pass
