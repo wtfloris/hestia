@@ -9,22 +9,23 @@ from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from datetime import datetime
 from asyncio import run
-from targets import targets
 from secrets import OWN_CHAT_ID
 
 async def main():
     if hestia.check_scraper_halted():
         logging.warning("Scraper is halted.")
         exit()
+        
+    targets = hestia.query_db("SELECT * FROM hestia.targets WHERE enabled = true")
 
-    for item in targets:
+    for target in targets:
         try:
-            await scrape_site(item)
+            await scrape_site(target)
         except BaseException as e:
-            await handle_exception(item["site"], item["savefile"], e)
+            await handle_exception(target["id"], target["agent"], e)
 
-async def handle_exception(site, savefile, e):
-    error = f"[{site}: {savefile}] {repr(e)}"
+async def handle_exception(id, agent, e):
+    error = f"[{id}: {agent}] {repr(e)}"
     last_error = "["
 
     # If the error was already logged, do not log it again
@@ -59,36 +60,37 @@ async def broadcast(new_homes):
                 logging.warning(f"Error transmitting to user {sub['id']}")
                 pass
 
-async def scrape_site(item):
-    site = item["site"]
-    savefile = item["savefile"]
-    url = item["url"]
-    method = item["method"]
+async def scrape_site(target):
+    agent = target["agent"]
+    url = target["queryurl"]
+    method = target["method"]
     
     if method == "GET":
         r = requests.get(url)
     elif method == "POST":
-        r = requests.post(url, json=item["data"], headers=item["headers"])
+        r = requests.post(url, json=target["post_data"], headers=target["headers"])
     
-    houses = []
     prev_homes = set()
     new_homes = set()
     
     # Create savefile if it does not exist
-    if not os.path.exists(hestia.WORKDIR + savefile):
-        with open(hestia.WORKDIR + savefile, 'wb') as w:
-            pickle.dump(set([]), w)
+#    if not os.path.exists(hestia.WORKDIR + savefile):
+#        with open(hestia.WORKDIR + savefile, 'wb') as w:
+#            pickle.dump(set([]), w)
 
     # Get the previously broadcasted homes
-    with open(hestia.WORKDIR + savefile, 'rb') as prev_homes_file:
-        prev_homes = pickle.load(prev_homes_file)
+#    with open(hestia.WORKDIR + savefile, 'rb') as prev_homes_file:
+#        prev_homes = pickle.load(prev_homes_file)
         
     # TODO get previously broadcasted homes of current agent from db
+    
+    for home in hestia.query_db(f"SELECT url FROM hestia.homes WHERE agent = '{agent}'"):
+        prev_homes.add(home["url"])
     
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
         
-    if site == "vesteda":
+    if agent == "vesteda":
         results = json.loads(r.content)["results"]["items"]
         
         for res in results:
@@ -96,30 +98,45 @@ async def scrape_site(item):
             # Status 0 seems to be that the property is a project/complex
             if res["status"] != 1:
                 continue
-                
+            print()
+            print()
+            print()
+            print(agent)
+            print(res)
+            print()
+            print()
+            print()
             address = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
-                address += f" {res['houseNumberAddition']}"
-            link = "https://vesteda.com" + res["url"]
-            if address not in prev_homes:
-                new_homes.add((address, link))
+                address += f"{res['houseNumberAddition']}"
+            url = "https://vesteda.com" + res["url"]
+            if url not in prev_homes:
+                new_homes.add((address, url))
                 prev_homes.add(address)
                 
-    elif site == "vbt":
+    elif agent == "vbt":
         results = json.loads(r.content)["houses"]
         
         for res in results:
             # Filter Bouwinvest results to not have double results
             if res["isBouwinvest"]:
                 continue
+            print()
+            print()
+            print()
+            print(agent)
+            print(res)
+            print()
+            print()
+            print()
         
             address = res["address"]["house"]
-            link = res["source"]["externalLink"]
-            if address not in prev_homes:
-                new_homes.add((address, link))
+            url = res["source"]["externalLink"]
+            if url not in prev_homes:
+                new_homes.add((address, url))
                 prev_homes.add(address)
         
-    elif site == "alliantie":
+    elif agent == "alliantie":
         results = json.loads(r.content)["data"]
         
         for res in results:
@@ -127,49 +144,81 @@ async def scrape_site(item):
             # parameters and then not actually use them in your FUCKING API
             if not res["isInSelection"]:
                 continue
+            print()
+            print()
+            print()
+            print(agent)
+            print(res)
+            print()
+            print()
+            print()
                 
             address = res["address"]
-            link = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
-            if address not in prev_homes:
-                new_homes.add((address, link))
+            url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
+            if url not in prev_homes:
+                new_homes.add((address, url))
                 prev_homes.add(address)
         
-    elif site == "woningnet":
+    elif agent == "woningnet":
         results = json.loads(r.content)["Resultaten"]
         
         for res in results:
             # Filter senior & family priority results
             if res["WoningTypeCssClass"] == "Type03":
                 continue
+            print()
+            print()
+            print()
+            print(agent)
+            print(res)
+            print()
+            print()
+            print()
                 
             address = res["Adres"]
-            link = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
-            if address not in prev_homes:
-                new_homes.add((address, link))
+            url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
+            if url not in prev_homes:
+                new_homes.add((address, url))
                 prev_homes.add(address)
     
-    elif site == "bouwinvest":
+    elif agent == "bouwinvest":
         results = json.loads(r.content)["data"]
 
         for res in results:
             # Filter non-property results
             if res["class"] == "Project":
                 continue
+            print()
+            print()
+            print()
+            print(agent)
+            print(res)
+            print()
+            print()
+            print()
 
             address = res["name"]
-            link = res["url"]
-            if address not in prev_homes:
-                new_homes.add((address, link))
+            url = res["url"]
+            if url not in prev_homes:
+                new_homes.add((address, url))
                 prev_homes.add(address)
 
-    elif site == "ikwilhuren":
+    elif agent == "ikwilhuren":
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
+            print()
+            print()
+            print()
+            print(agent)
+            print(res)
+            print()
+            print()
+            print()
             address = str(res.find(class_="street-name").contents[0])
-            link = res.find(class_="search-result-title").a["href"]
-            if address not in prev_homes:
-                new_homes.add((address, link))
+            url = res.find(class_="search-result-title").a["href"]
+            if url not in prev_homes:
+                new_homes.add((address, url))
                 prev_homes.add(address)
 
     # Write new homes to savefile

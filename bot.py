@@ -6,7 +6,6 @@ import os
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS
-from targets import targets
 from time import sleep
 
 def initialize():
