@@ -63,13 +63,14 @@ async def new_sub(update, context, reenable=False):
     await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
     
     # If the user existed before, then re-enable the telegram updates
-    enablequery = db.cursor()
+    # TODO check modified rows and catch errors
+    enablesubquery = db.cursor()
     if reenable:
-        enablequery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = '{update.effective_chat.id}'")
+        enablesubquery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = '{update.effective_chat.id}'")
     else:
-        enablequery.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
+        enablesubquery.execute(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
     db.commit()
-    enablequery.close()
+    enablesubquery.close()
         
     message ="""Hi there!
 
@@ -98,19 +99,23 @@ async def start(update, context):
         await new_sub(update, context)
 
 async def stop(update, context):
-    # Disabling is setting the telegram_enabled to false in the db
-    disablesubquery = db.cursor()
-    disablesubquery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = '{update.effective_chat.id}'")
-    updated = disablesubquery.rowcount
-    db.commit()
-    disablesubquery.close()
+    checksubquery = db.cursor(cursor_factory=RealDictCursor)
+    checksubquery.execute(f"SELECT * FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'")
+    checksub = checksubquery.fetchone()
+    checksubquery.close()
 
-    # Only log /stop if a database row is updated, to prevent a spam vector
-    if updated:
-        name = await get_sub_name(update, context)
-        log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
-        logging.warning(log_msg)
-        await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
+    if checksub is not None:
+        if not checksub["telegram_enabled"]:
+            # Disabling is setting telegram_enabled to false in the db
+            disablesubquery = db.cursor()
+            disablesubquery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = '{update.effective_chat.id}'")
+            db.commit()
+            disablesubquery.close()
+            
+            name = await get_sub_name(update, context)
+            log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
+            logging.warning(log_msg)
+            await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
