@@ -177,7 +177,7 @@ async def scrape_site(target):
             home["url"] = res.find(class_="search-result-title").a["href"]
             home["price"] = str(res.find(class_="page-price").contents[0])[1:].replace('.', '')
             if url not in prev_homes:
-                new_homes.append({"address":address, "city":city, "url":url})
+                new_homes.append(home)
 
     # Write new homes to database
     for home in new_homes:
