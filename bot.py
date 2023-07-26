@@ -105,7 +105,7 @@ async def announce(update, context):
     for sub in subs:
         try:
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
-            await context.bot.send_message(sub, update.message.text[10:])
+            await context.bot.send_message(sub["telegram_id"], update.message.text[10:])
         except BaseException as e:
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             continue
