@@ -69,11 +69,11 @@ async def scrape_site(target):
     elif method == "POST":
         r = requests.post(url, json=target["post_data"], headers=target["headers"])
     
-    prev_homes = set()
-    new_homes = set()
+    prev_homes = []
+    new_homes = []
     
     for home in hestia.query_db(f"SELECT url FROM hestia.homes WHERE agency = '{agency}'"):
-        prev_homes.add(home["url"])
+        prev_homes.append(home["url"])
     
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
@@ -93,7 +93,7 @@ async def scrape_site(target):
             city = res["city"]
             url = "https://vesteda.com" + res["url"]
             if url not in prev_homes:
-                new_homes.add({"address":address, "city":city, "url":url})
+                new_homes.append({"address":address, "city":city, "url":url})
                 
     elif agency == "vbt":
         results = json.loads(r.content)["houses"]
@@ -107,7 +107,7 @@ async def scrape_site(target):
             city = res["address"]["city"]
             url = res["source"]["externalLink"]
             if url not in prev_homes:
-                new_homes.add({"address":address, "city":city, "url":url})
+                new_homes.append({"address":address, "city":city, "url":url})
         
     elif agency == "alliantie":
         results = json.loads(r.content)["data"]
@@ -126,7 +126,7 @@ async def scrape_site(target):
             city = res["url"][city_start:city_end].capitalize()
             url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
             if url not in prev_homes:
-                new_homes.add({"address":address, "city":city, "url":url})
+                new_homes.append({"address":address, "city":city, "url":url})
         
     elif agency == "woningnet":
         results = json.loads(r.content)["Resultaten"]
@@ -141,7 +141,7 @@ async def scrape_site(target):
             city = res["PlaatsWijk"].split('-')[0][:-1]
             url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
             if url not in prev_homes:
-                new_homes.add({"address":address, "city":city, "url":url})
+                new_homes.append({"address":address, "city":city, "url":url})
     
     elif agency == "bouwinvest":
         results = json.loads(r.content)["data"]
@@ -155,7 +155,7 @@ async def scrape_site(target):
             city = res["address"]["city"]
             url = res["url"]
             if url not in prev_homes:
-                new_homes.add({"address":address, "city":city, "url":url})
+                new_homes.append({"address":address, "city":city, "url":url})
 
     elif agency == "ikwilhuren":
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
@@ -166,7 +166,7 @@ async def scrape_site(target):
             city = str(res.find(class_="plaats").contents[0].split(' ')[2:])
             url = res.find(class_="search-result-title").a["href"]
             if url not in prev_homes:
-                new_homes.add({"address":address, "city":city, "url":url})
+                new_homes.append({"address":address, "city":city, "url":url})
 
     # Write new homes to database
     for home in new_homes:
