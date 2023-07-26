@@ -38,7 +38,7 @@ async def handle_exception(id, agency, e):
         logging.error(error)
         await hestia.BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
 
-async def broadcast(new_homes):
+async def broadcast(homes):
     subs = set()
     
     if hestia.check_dev_mode():
@@ -46,18 +46,17 @@ async def broadcast(new_homes):
     else:
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
-    for home in new_homes:
+    for home in homes:
         for sub in subs:
             # TODO check if home is within user parameters
             
-            message = f"{hestia.HOUSE_EMOJI} {home[0]}\n"
-            message += f"{hestia.LINK_EMOJI} {home[1]}"
+            message = f"{hestia.HOUSE_EMOJI} {home['address']}, {home['city']}\n"
+            message += f"{hestia.LINK_EMOJI} {home['url']}"
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
                 await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"])
             except:
-                logging.warning(f"Error transmitting to user {sub['id']}")
                 pass
 
 async def scrape_site(target):
@@ -73,17 +72,6 @@ async def scrape_site(target):
     prev_homes = set()
     new_homes = set()
     
-    # Create savefile if it does not exist
-#    if not os.path.exists(hestia.WORKDIR + savefile):
-#        with open(hestia.WORKDIR + savefile, 'wb') as w:
-#            pickle.dump(set([]), w)
-
-    # Get the previously broadcasted homes
-#    with open(hestia.WORKDIR + savefile, 'rb') as prev_homes_file:
-#        prev_homes = pickle.load(prev_homes_file)
-        
-    # TODO get previously broadcasted homes of current agency from db
-    
     for home in hestia.query_db(f"SELECT url FROM hestia.homes WHERE agency = '{agency}'"):
         prev_homes.add(home["url"])
     
@@ -98,22 +86,14 @@ async def scrape_site(target):
             # Status 0 seems to be that the property is a project/complex
             if res["status"] != 1:
                 continue
-            print()
-            print()
-            print()
-            print(agency)
-            print(res)
-            print()
-            print()
-            print()
-            break
+                
             address = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
                 address += f"{res['houseNumberAddition']}"
+            city = res["city"]
             url = "https://vesteda.com" + res["url"]
             if url not in prev_homes:
-                new_homes.add((address, url))
-                prev_homes.add(address)
+                new_homes.add({"address":address, "city":city, "url":url})
                 
     elif agency == "vbt":
         results = json.loads(r.content)["houses"]
@@ -127,8 +107,7 @@ async def scrape_site(target):
             city = res["address"]["city"]
             url = res["source"]["externalLink"]
             if url not in prev_homes:
-                new_homes.add((address, url))
-                prev_homes.add(address)
+                new_homes.add({"address":address, "city":city, "url":url})
         
     elif agency == "alliantie":
         results = json.loads(r.content)["data"]
@@ -138,21 +117,16 @@ async def scrape_site(target):
             # parameters and then not actually use them in your FUCKING API
             if not res["isInSelection"]:
                 continue
-            print()
-            print()
-            print()
-            print(agency)
-            print(res)
-            print()
-            print()
-            print()
-            break
                 
             address = res["address"]
+            # TODO check this parse because this is a dirty hack for a site that does not
+            # include the city AT ALL in their FUCKING API RESPONSES
+            city_start = res["url"].index('/')
+            city_end = res["url"][city_start:].index('/')
+            city = res["url"][city_start:city_end].capitalize()
             url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
             if url not in prev_homes:
-                new_homes.add((address, url))
-                prev_homes.add(address)
+                new_homes.add({"address":address, "city":city, "url":url})
         
     elif agency == "woningnet":
         results = json.loads(r.content)["Resultaten"]
@@ -161,21 +135,13 @@ async def scrape_site(target):
             # Filter senior & family priority results
             if res["WoningTypeCssClass"] == "Type03":
                 continue
-            print()
-            print()
-            print()
-            print(agency)
-            print(res)
-            print()
-            print()
-            print()
-            break
                 
             address = res["Adres"]
+            # TODO test this city parsing
+            city = res["PlaatsWijk"].split('-')[0][:-1]
             url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
             if url not in prev_homes:
-                new_homes.add((address, url))
-                prev_homes.add(address)
+                new_homes.add({"address":address, "city":city, "url":url})
     
     elif agency == "bouwinvest":
         results = json.loads(r.content)["data"]
@@ -184,46 +150,27 @@ async def scrape_site(target):
             # Filter non-property results
             if res["class"] == "Project":
                 continue
-            print()
-            print()
-            print()
-            print(agency)
-            print(res)
-            print()
-            print()
-            print()
-            break
 
             address = res["name"]
+            city = res["address"]["city"]
             url = res["url"]
             if url not in prev_homes:
-                new_homes.add((address, url))
-                prev_homes.add(address)
+                new_homes.add({"address":address, "city":city, "url":url})
 
     elif agency == "ikwilhuren":
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
-            print()
-            print()
-            print()
-            print(agency)
-            print(res)
-            print()
-            print()
-            print()
-            break
             address = str(res.find(class_="street-name").contents[0])
+            # TODO test this city parsing
+            city = str(res.find(class_="plaats").contents[0].split(' ')[2:])
             url = res.find(class_="search-result-title").a["href"]
             if url not in prev_homes:
-                new_homes.add((address, url))
-                prev_homes.add(address)
+                new_homes.add({"address":address, "city":city, "url":url})
 
-    # Write new homes to savefile
-    with open(hestia.WORKDIR + savefile, 'wb') as prev_homes_file:
-        pickle.dump(prev_homes, prev_homes_file)
-        
-    # TODO write new homes to db
+    # Write new homes to database
+    for home in new_homes:
+        hestia.query_db("INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', '{home['city']}', DEFAULT, {agency}, '{datetime.now().isoformat()}')")
 
     await broadcast(new_homes)
 
