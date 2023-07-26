@@ -16,11 +16,11 @@ def initialize():
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s]: %(message)s",
         level=logging.WARNING,
-        filename=WORKDIR + "hestia-scraper.log"
+        filename=hestia.WORKDIR + "hestia-scraper.log"
     )
 
 async def main():
-    if os.path.exists(WORKDIR + "HALT"):
+    if os.path.exists(hestia.WORKDIR + "HALT"):
         logging.warning("Scraper is halted.")
         exit()
 
@@ -36,8 +36,8 @@ async def handle_exception(site, savefile, e):
 
     # If the error was already logged, do not log it again
     # This is to prevent the same error popping up every time cron runs the scraper
-    if os.path.exists(WORKDIR + "error.log"):
-        with open(WORKDIR + "error.log", 'r') as err:
+    if os.path.exists(hestia.WORKDIR + "error.log"):
+        with open(hestia.WORKDIR + "error.log", 'r') as err:
             last_error = err.readlines()[-1]
 
     if last_error[last_error.index('['):-1] != error:
@@ -89,12 +89,12 @@ async def scrape_site(item):
     new_homes = set()
     
     # Create savefile if it does not exist
-    if not os.path.exists(WORKDIR + savefile):
-        with open(WORKDIR + savefile, 'wb') as w:
+    if not os.path.exists(hestia.WORKDIR + savefile):
+        with open(hestia.WORKDIR + savefile, 'wb') as w:
             pickle.dump(set([]), w)
 
     # Get the previously broadcasted homes
-    with open(WORKDIR + savefile, 'rb') as prev_homes_file:
+    with open(hestia.WORKDIR + savefile, 'rb') as prev_homes_file:
         prev_homes = pickle.load(prev_homes_file)
         
     # TODO get previously broadcasted homes of current agent from db
@@ -187,7 +187,7 @@ async def scrape_site(item):
                 prev_homes.add(address)
 
     # Write new homes to savefile
-    with open(WORKDIR + savefile, 'wb') as prev_homes_file:
+    with open(hestia.WORKDIR + savefile, 'wb') as prev_homes_file:
         pickle.dump(prev_homes, prev_homes_file)
         
     # TODO write new homes to db
