@@ -12,15 +12,8 @@ from asyncio import run
 from targets import targets
 from secrets import OWN_CHAT_ID
 
-def initialize():
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)s]: %(message)s",
-        level=logging.WARNING,
-        filename=hestia.WORKDIR + "hestia-scraper.log"
-    )
-
 async def main():
-    if os.path.exists(hestia.WORKDIR + "HALT"):
+    if hestia.check_scraper_halted():
         logging.warning("Scraper is halted.")
         exit()
 
@@ -43,18 +36,11 @@ async def handle_exception(site, savefile, e):
     if last_error[last_error.index('['):-1] != error:
         logging.error(error)
         await hestia.BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
-        
-# This is a seperate functions so that if the location of the settings changes, only these need to be updated
-def check_dev_mode():
-    return hestia.query_db("SELECT devmode_enabled FROM hestia.meta", fetchOne=True)["devmode_enabled"]
-    
-def check_scraper_halt():
-    return hestia.query_db("SELECT scraper_halted FROM hestia.meta", fetchOne=True)["scraper_halted"]
 
 async def broadcast(new_homes):
     subs = set()
     
-    if check_dev_mode():
+    if hestia.check_dev_mode():
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
     else:
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
@@ -196,5 +182,4 @@ async def scrape_site(item):
 
 
 if __name__ == '__main__':
-    initialize()
     run(main())

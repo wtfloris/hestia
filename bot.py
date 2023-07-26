@@ -9,27 +9,13 @@ from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS
 from targets import targets
 from time import sleep
 
-DEVMODE = False
-
 def initialize():
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)s]: %(message)s",
-        level=logging.WARNING,
-        filename=hestia.WORKDIR + "hestia-bot.log"
-    )
-
     logging.warning("Initializing application...")
 
-    if not os.path.exists(hestia.WORKDIR + "subscribers"):
-        logging.warning("Initializing new subscribers database file...")
-        with open(hestia.WORKDIR + "subscribers", 'wb') as file:
-            pickle.dump(set([OWN_CHAT_ID]), file)
-
-    if os.path.exists(hestia.WORKDIR + "HALT"):
+    if hestia.check_scraper_halted():
         logging.warning("Scraper is halted.")
         
-    if os.path.exists(hestia.WORKDIR + "DEVMODE"):
-        DEVMODE = True
+    if hestia.check_dev_mode():
         logging.warning("Dev mode is enabled.")
     
 def privileged(update, context, command, check_only=True):
@@ -110,16 +96,19 @@ async def reply(update, context):
 
 async def announce(update, context):
     if not privileged(update, context, "announce", check_only=False): return
-
-    with open(hestia.WORKDIR + "subscribers", 'rb') as subscribers_file:
-        subs = pickle.load(subscribers_file)
+        
+    if hestia.check_dev_mode():
+        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Dev mode is enabled, message not broadcasted to all subscribers.")
+    else:
+        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
     for sub in subs:
         try:
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             await context.bot.send_message(sub, update.message.text[10:])
         except BaseException as e:
-            logging.warning(f"Exception while broadcasting announcement to {sub}: {repr(e)}")
+            logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             continue
             
 async def websites(update, context):
@@ -187,6 +176,7 @@ async def disable_dev(update, context):
     
     hestia.query_db(f"UPDATE hestia.meta SET devmode_enabled = false WHERE id = '{hestia.SETTINGS_ID}'")
     
+    message = "Dev mode disabled."
     await context.bot.send_message(update.effective_chat.id, message)
     
 # TODO implement status command with halt/dev status and amount of subscribers + homes broadcasted per agent in the last week/24h
