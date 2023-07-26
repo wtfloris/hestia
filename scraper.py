@@ -22,10 +22,10 @@ async def main():
         try:
             await scrape_site(target)
         except BaseException as e:
-            await handle_exception(target["id"], target["agent"], e)
+            await handle_exception(target["id"], target["agency"], e)
 
-async def handle_exception(id, agent, e):
-    error = f"[{id}: {agent}] {repr(e)}"
+async def handle_exception(id, agency, e):
+    error = f"[{id}: {agency}] {repr(e)}"
     last_error = "["
 
     # If the error was already logged, do not log it again
@@ -61,7 +61,7 @@ async def broadcast(new_homes):
                 pass
 
 async def scrape_site(target):
-    agent = target["agent"]
+    agency = target["agency"]
     url = target["queryurl"]
     method = target["method"]
     
@@ -82,15 +82,15 @@ async def scrape_site(target):
 #    with open(hestia.WORKDIR + savefile, 'rb') as prev_homes_file:
 #        prev_homes = pickle.load(prev_homes_file)
         
-    # TODO get previously broadcasted homes of current agent from db
+    # TODO get previously broadcasted homes of current agency from db
     
-    for home in hestia.query_db(f"SELECT url FROM hestia.homes WHERE agent = '{agent}'"):
+    for home in hestia.query_db(f"SELECT url FROM hestia.homes WHERE agency = '{agency}'"):
         prev_homes.add(home["url"])
     
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
         
-    if agent == "vesteda":
+    if agency == "vesteda":
         results = json.loads(r.content)["results"]["items"]
         
         for res in results:
@@ -106,6 +106,7 @@ async def scrape_site(target):
             print()
             print()
             print()
+            break
             address = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
                 address += f"{res['houseNumberAddition']}"
@@ -114,29 +115,22 @@ async def scrape_site(target):
                 new_homes.add((address, url))
                 prev_homes.add(address)
                 
-    elif agent == "vbt":
+    elif agency == "vbt":
         results = json.loads(r.content)["houses"]
         
         for res in results:
             # Filter Bouwinvest results to not have double results
             if res["isBouwinvest"]:
                 continue
-            print()
-            print()
-            print()
-            print(agent)
-            print(res)
-            print()
-            print()
-            print()
         
             address = res["address"]["house"]
+            city = res["address"]["city"]
             url = res["source"]["externalLink"]
             if url not in prev_homes:
                 new_homes.add((address, url))
                 prev_homes.add(address)
         
-    elif agent == "alliantie":
+    elif agency == "alliantie":
         results = json.loads(r.content)["data"]
         
         for res in results:
@@ -152,6 +146,7 @@ async def scrape_site(target):
             print()
             print()
             print()
+            break
                 
             address = res["address"]
             url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
@@ -159,7 +154,7 @@ async def scrape_site(target):
                 new_homes.add((address, url))
                 prev_homes.add(address)
         
-    elif agent == "woningnet":
+    elif agency == "woningnet":
         results = json.loads(r.content)["Resultaten"]
         
         for res in results:
@@ -174,6 +169,7 @@ async def scrape_site(target):
             print()
             print()
             print()
+            break
                 
             address = res["Adres"]
             url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
@@ -181,7 +177,7 @@ async def scrape_site(target):
                 new_homes.add((address, url))
                 prev_homes.add(address)
     
-    elif agent == "bouwinvest":
+    elif agency == "bouwinvest":
         results = json.loads(r.content)["data"]
 
         for res in results:
@@ -196,6 +192,7 @@ async def scrape_site(target):
             print()
             print()
             print()
+            break
 
             address = res["name"]
             url = res["url"]
@@ -203,7 +200,7 @@ async def scrape_site(target):
                 new_homes.add((address, url))
                 prev_homes.add(address)
 
-    elif agent == "ikwilhuren":
+    elif agency == "ikwilhuren":
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
@@ -215,6 +212,7 @@ async def scrape_site(target):
             print()
             print()
             print()
+            break
             address = str(res.find(class_="street-name").contents[0])
             url = res.find(class_="search-result-title").a["href"]
             if url not in prev_homes:

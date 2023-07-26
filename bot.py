@@ -180,7 +180,7 @@ async def disable_dev(update, context):
     message = "Dev mode disabled."
     await context.bot.send_message(update.effective_chat.id, message)
     
-# TODO implement status command with halt/dev status and amount of subscribers + homes broadcasted per agent in the last week/24h
+# TODO implement status command with halt/dev status and amount of subscribers + homes broadcasted per agency in the last week/24h
 # TODO implement /getallsubs looping over /getsubinfo
 
 async def help(update, context):
