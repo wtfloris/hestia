@@ -24,7 +24,8 @@ def query_db(query, fetchOne=False):
             result = cursor.fetchall()
     except:
         result = None
-        
+    
+    db.commit()
     cursor.close()
     db.close()
     
