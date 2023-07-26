@@ -16,10 +16,14 @@ def query_db(query, fetchOne=False):
     cursor = db.cursor(cursor_factory=RealDictCursor)
     cursor.execute(query)
     
-    if fetchOne:
-        result = cursor.fetchone()
-    else:
-        result = cursor.fetchall()
+    # Try, because not all queries will return data
+    try:
+        if fetchOne:
+            result = cursor.fetchone()
+        else:
+            result = cursor.fetchall()
+    except:
+        result = None
         
     cursor.close()
     db.close()
