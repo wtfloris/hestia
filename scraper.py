@@ -25,7 +25,7 @@ async def main():
             await handle_exception(target["id"], target["agency"], e)
 
 async def handle_exception(id, agency, e):
-    error = f"[{id}: {agency}] {repr(e)}"
+    error = f"[{agency} ({id})] {repr(e)}"
     last_error = "["
 
     # If the error was already logged, do not log it again
@@ -72,6 +72,7 @@ async def scrape_site(target):
     prev_homes = []
     new_homes = []
     
+    # Because of the diversity in the scraped data, we use the URL as an ID for a home
     for home in hestia.query_db(f"SELECT url FROM hestia.homes WHERE agency = '{agency}'"):
         prev_homes.append(home["url"])
     
@@ -121,7 +122,7 @@ async def scrape_site(target):
             address = res["address"]
             # TODO check this parse because this is a dirty hack for a site that does not
             # include the city AT ALL in their FUCKING API RESPONSES
-            city_start = res["url"].index('/')
+            city_start = res["url"].index('/') + 1
             city_end = res["url"][city_start:].index('/')
             city = res["url"][city_start:city_end].capitalize()
             url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
@@ -137,7 +138,6 @@ async def scrape_site(target):
                 continue
                 
             address = res["Adres"]
-            # TODO test this city parsing
             city = res["PlaatsWijk"].split('-')[0][:-1]
             url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
             if url not in prev_homes:
@@ -163,7 +163,7 @@ async def scrape_site(target):
         for res in results:
             address = str(res.find(class_="street-name").contents[0])
             # TODO test this city parsing
-            city = str(res.find(class_="plaats").contents[0].split(' ')[2:])
+            city = str(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
             url = res.find(class_="search-result-title").a["href"]
             if url not in prev_homes:
                 new_homes.append({"address":address, "city":city, "url":url})
