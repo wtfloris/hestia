@@ -87,6 +87,7 @@ async def start(update, context):
     checksubquery = db.cursor(cursor_factory=RealDictCursor)
     checksubquery.execute(f"SELECT * FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'")
     checksub = checksubquery.fetchone()
+    db.commit()
     checksubquery.close()
     
     if checksub is not None:
@@ -102,6 +103,7 @@ async def stop(update, context):
     checksubquery = db.cursor(cursor_factory=RealDictCursor)
     checksubquery.execute(f"SELECT * FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'")
     checksub = checksubquery.fetchone()
+    db.commit()
     checksubquery.close()
 
     if checksub is not None:

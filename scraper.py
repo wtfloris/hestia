@@ -58,7 +58,8 @@ async def handle_exception(site, savefile, e):
 def check_dev_mode():
     checkdevquery = db.cursor(cursor_factory=RealDictCursor)
     checkdevquery.execute("SELECT devmode_enabled FROM hestia.meta")
-    devmode_enabled = checkdevquery.fetchone()[0]
+    devmode_enabled = checkdevquery.fetchone()["devmode_enabled"]
+    db.commit()
     checkdevquery.close()
     return devmode_enabled
 
@@ -82,9 +83,10 @@ async def broadcast(new_homes):
             try:
                 await BOT.send_message(text=message, chat_id=sub["telegram_id"])
             except:
-                logging.warning(f"Error transmitting to user {sub['username']}")
+                logging.warning(f"Error transmitting to user {sub['id']}")
                 pass
     
+    db.commit()
     getsubsquery.close()
 
 async def scrape_site(item):
