@@ -23,6 +23,7 @@ async def main():
             await scrape_site(target)
         except BaseException as e:
             await handle_exception(target["id"], target["agency"], e)
+            continue
 
 async def handle_exception(id, agency, e):
     error = f"[{agency} ({id})] {repr(e)}"
