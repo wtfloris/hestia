@@ -95,7 +95,7 @@ async def scrape_site(target):
             home["city"] = res["city"]
             home["url"] = "https://vesteda.com" + res["url"]
             home["price"] = int(res["priceUnformatted"])
-            if url not in prev_homes:
+            if home["url"] not in prev_homes:
                 new_homes.append(home)
                 
     elif agency == "vbt":
@@ -111,7 +111,7 @@ async def scrape_site(target):
             home["city"] = res["address"]["city"]
             home["url"] = res["source"]["externalLink"]
             home["price"] = res["prices"]["rental"]["price"]
-            if url not in prev_homes:
+            if home["url"] not in prev_homes:
                 new_homes.append(home)
         
     elif agency == "alliantie":
@@ -132,7 +132,7 @@ async def scrape_site(target):
             home["city"] = res["url"][city_start:city_end].capitalize()
             home["url"] = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
             home["price"] = res["price"][2:].replace('.', '')
-            if url not in prev_homes:
+            if home["url"] not in prev_homes:
                 new_homes.append(home)
         
     elif agency == "woningnet":
@@ -148,7 +148,7 @@ async def scrape_site(target):
             home["city"] = res["PlaatsWijk"].split('-')[0][:-1]
             home["url"] = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
             home["price"] = res["Prijs"][2:-3].replace('.', '')
-            if url not in prev_homes:
+            if home["url"] not in prev_homes:
                 new_homes.append(home)
     
     elif agency == "bouwinvest":
@@ -176,7 +176,7 @@ async def scrape_site(target):
             home["city"] = ''.join(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
             home["url"] = res.find(class_="search-result-title").a["href"]
             home["price"] = str(res.find(class_="page-price").contents[0])[1:].replace('.', '')
-            if url not in prev_homes:
+            if home["url"] not in prev_homes:
                 new_homes.append(home)
 
     # Write new homes to database
