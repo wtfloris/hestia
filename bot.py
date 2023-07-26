@@ -131,11 +131,14 @@ async def get_sub_info(update, context):
     if not privileged(update, context, "get_sub_info", check_only=False): return
         
     sub = update.message.text.split(' ')[1]
-    chat = await context.bot.get_chat(sub)
-    
-    message = f"Username: {chat.username}\n"
-    message += f"Name: {chat.first_name} {chat.last_name}\n"
-    message += f"Bio: {chat.bio}"
+    try:
+        chat = await context.bot.get_chat(sub)
+        message = f"Username: {chat.username}\n"
+        message += f"Name: {chat.first_name} {chat.last_name}\n"
+        message += f"Bio: {chat.bio}"
+    except:
+        logging.error(f"/getsubinfo for unknown chat id: {sub}")
+        message = f"Unknown chat id."
     
     await context.bot.send_message(update.effective_chat.id, message)
     
@@ -165,7 +168,7 @@ async def resume(update, context):
     await context.bot.send_message(update.effective_chat.id, message)
 
 async def enable_dev(update, context):
-    if not privileged(update, context, "resume", check_only=False): return
+    if not privileged(update, context, "dev", check_only=False): return
     
     hestia.query_db(f"UPDATE hestia.meta SET devmode_enabled = true WHERE id = '{hestia.SETTINGS_ID}'")
     
@@ -173,7 +176,7 @@ async def enable_dev(update, context):
     await context.bot.send_message(update.effective_chat.id, message)
     
 async def disable_dev(update, context):
-    if not privileged(update, context, "resume", check_only=False): return
+    if not privileged(update, context, "nodev", check_only=False): return
     
     hestia.query_db(f"UPDATE hestia.meta SET devmode_enabled = false WHERE id = '{hestia.SETTINGS_ID}'")
     

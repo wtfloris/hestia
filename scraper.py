@@ -120,7 +120,7 @@ async def scrape_site(target):
                 continue
                 
             address = res["address"]
-            # TODO check this parse because this is a dirty hack for a site that does not
+            # this is a dirty hack because what website with rental homes does not
             # include the city AT ALL in their FUCKING API RESPONSES
             city_start = res["url"].index('/') + 1
             city_end = res["url"][city_start:].index('/') + city_start
