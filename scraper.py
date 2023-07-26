@@ -87,14 +87,16 @@ async def scrape_site(target):
             # Status 0 seems to be that the property is a project/complex
             if res["status"] != 1:
                 continue
-                
-            address = f"{res['street']} {res['houseNumber']}"
+            
+            home = {}
+            home["address"] = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
-                address += f" {res['houseNumberAddition']}"
-            city = res["city"]
-            url = "https://vesteda.com" + res["url"]
+                home["address"] += f" {res['houseNumberAddition']}"
+            home["city"] = res["city"]
+            home["url"] = "https://vesteda.com" + res["url"]
+            home["price"] = int(res["priceUnformatted"])
             if url not in prev_homes:
-                new_homes.append({"address":address, "city":city, "url":url})
+                new_homes.append(home)
                 
     elif agency == "vbt":
         results = json.loads(r.content)["houses"]
@@ -103,12 +105,14 @@ async def scrape_site(target):
             # Filter Bouwinvest results to not have double results
             if res["isBouwinvest"]:
                 continue
-        
-            address = res["address"]["house"]
-            city = res["address"]["city"]
-            url = res["source"]["externalLink"]
+            
+            home = {}
+            home["address"] = res["address"]["house"]
+            home["city"] = res["address"]["city"]
+            home["url"] = res["source"]["externalLink"]
+            home["price"] = res["prices"]["rental"]["price"]
             if url not in prev_homes:
-                new_homes.append({"address":address, "city":city, "url":url})
+                new_homes.append(home)
         
     elif agency == "alliantie":
         results = json.loads(r.content)["data"]
@@ -119,15 +123,17 @@ async def scrape_site(target):
             if not res["isInSelection"]:
                 continue
                 
-            address = res["address"]
+            home = {}
+            home["address"] = res["address"]
             # this is a dirty hack because what website with rental homes does not
             # include the city AT ALL in their FUCKING API RESPONSES
             city_start = res["url"].index('/') + 1
             city_end = res["url"][city_start:].index('/') + city_start
-            city = res["url"][city_start:city_end].capitalize()
-            url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
+            home["city"] = res["url"][city_start:city_end].capitalize()
+            home["url"] = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
+            home["price"] = res["price"][2:].replace('.', '')
             if url not in prev_homes:
-                new_homes.append({"address":address, "city":city, "url":url})
+                new_homes.append(home)
         
     elif agency == "woningnet":
         results = json.loads(r.content)["Resultaten"]
@@ -136,12 +142,14 @@ async def scrape_site(target):
             # Filter senior & family priority results
             if res["WoningTypeCssClass"] == "Type03":
                 continue
-                
-            address = res["Adres"]
-            city = res["PlaatsWijk"].split('-')[0][:-1]
-            url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
+            
+            home = {}
+            home["address"] = res["Adres"]
+            home["city"] = res["PlaatsWijk"].split('-')[0][:-1]
+            home["url"] = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
+            home["price"] = res["Prijs"][2:-3].replace('.', '')
             if url not in prev_homes:
-                new_homes.append({"address":address, "city":city, "url":url})
+                new_homes.append(home)
     
     elif agency == "bouwinvest":
         results = json.loads(r.content)["data"]
@@ -151,26 +159,29 @@ async def scrape_site(target):
             if res["class"] == "Project":
                 continue
 
-            address = res["name"]
-            city = res["address"]["city"]
-            url = res["url"]
-            if url not in prev_homes:
-                new_homes.append({"address":address, "city":city, "url":url})
+            home = {}
+            home["address"] = res["name"]
+            home["city"] = res["address"]["city"]
+            home["url"] = res["url"]
+            home["price"] = res["price"]["price"]
+            if home["url"] not in prev_homes:
+                new_homes.append(home)
 
     elif agency == "ikwilhuren":
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
-            address = str(res.find(class_="street-name").contents[0])
-            # TODO test this city parsing
-            city = ''.join(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
-            url = res.find(class_="search-result-title").a["href"]
+            home = {}
+            home["address"] = str(res.find(class_="street-name").contents[0])
+            home["city"] = ''.join(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
+            home["url"] = res.find(class_="search-result-title").a["href"]
+            home["price"] = str(res.find(class_="page-price").contents[0])[1:].replace('.', '')
             if url not in prev_homes:
                 new_homes.append({"address":address, "city":city, "url":url})
 
     # Write new homes to database
     for home in new_homes:
-        hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', '{home['city']}', DEFAULT, '{agency}', '{datetime.now().isoformat()}')")
+        hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', '{home['city']}', '{home['price']}', '{agency}', '{datetime.now().isoformat()}')")
 
     await broadcast(new_homes)
 
