@@ -117,9 +117,9 @@ async def websites(update, context):
     message = "Here are the websites I scrape, and with which search parameters (these differ per website):\n\n"
     
     for target in targets:
-        message += f"Agency: {target['info']['agency']}\n"
-        message += f"Website: {target['info']['website']}\n"
-        message += f"Search parameters: {target['info']['parameters']}\n"
+        message += f"Agency: {target['user_info']['agency']}\n"
+        message += f"Website: {target['user_info']['website']}\n"
+        message += f"Search parameters: {target['user_info']['parameters']}\n"
         message += f"\n"
         
     await context.bot.send_message(update.effective_chat.id, message[:-1])
