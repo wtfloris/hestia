@@ -54,21 +54,25 @@ async def handle_exception(site, savefile, e):
     if last_error[last_error.index('['):-1] != error:
         logging.error(error)
         await BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
+        
+def check_dev_mode():
+    checkdevquery = db.cursor(cursor_factory=RealDictCursor)
+    checkdevquery.execute("SELECT devmode_enabled FROM hestia.meta")
+    devmode_enabled = checkdevquery.fetchone()[0]
+    checkdevquery.close()
+    return devmode_enabled
 
 async def broadcast(new_homes):
     subs = set()
 
-    subquery = db.cursor(cursor_factory=RealDictCursor)
-    subquery.execute("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
-
-    ### Disabled for testing db
-    # Overwrite subs if DEVMODE is enabled
-#    if os.path.exists(WORKDIR + "DEVMODE"):
-#        logging.warning("Dev mode is enabled.")
-#        subs = set([OWN_CHAT_ID])
+    getsubsquery = db.cursor(cursor_factory=RealDictCursor)
+    if check_dev_mode():
+        getsubsquery.execute("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
+    else:
+        getsubsquery.execute("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
     for home in new_homes:
-        for sub in subquery.fetchall():
+        for sub in getsubsquery.fetchall():
             # TODO check if home is within user parameters
             
             message = f"{HOUSE_EMOJI} {home[0]}\n"
@@ -81,7 +85,7 @@ async def broadcast(new_homes):
                 logging.warning(f"Error transmitting to user {sub['username']}")
                 pass
     
-    subquery.close()
+    getsubsquery.close()
 
 async def scrape_site(item):
     site = item["site"]

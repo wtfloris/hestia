@@ -105,7 +105,7 @@ async def stop(update, context):
     checksubquery.close()
 
     if checksub is not None:
-        if not checksub["telegram_enabled"]:
+        if checksub["telegram_enabled"]:
             # Disabling is setting telegram_enabled to false in the db
             disablesubquery = db.cursor()
             disablesubquery.execute(f"UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = '{update.effective_chat.id}'")
