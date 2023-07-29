@@ -23,21 +23,9 @@ async def main():
         try:
             await scrape_site(target)
         except BaseException as e:
-            await handle_exception(target["id"], target["agency"], e)
-
-async def handle_exception(id, agency, e):
-    error = f"[{agency} ({id})] {repr(e)}"
-    last_error = "["
-
-    # If the error was already logged, do not log it again
-    # This is to prevent the same error popping up every time cron runs the scraper
-    if os.path.exists(hestia.WORKDIR + "error.log"):
-        with open(hestia.WORKDIR + "error.log", 'r') as err:
-            last_error = err.readlines()[-1]
-
-    if last_error[last_error.index('['):-1] != error:
-        logging.error(error)
-        await hestia.BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
+            error = f"[{agency} ({id})] {repr(e)}"
+            logging.error(error)
+            await hestia.BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
 
 async def broadcast(homes):
     subs = set()
