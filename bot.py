@@ -90,7 +90,7 @@ async def stop(update, context):
 async def reply(update, context):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="Sorry, I can't talk to you, I'm a just a scraper. If you want to see what commands I support, say /help. If you are lonely and want to chat, try ChatGPT."
+        text="Sorry, I can't talk to you, I'm just a scraper. If you want to see what commands I support, say /help. If you are lonely and want to chat, try ChatGPT."
     )
 
 async def announce(update, context):
@@ -183,8 +183,21 @@ async def disable_dev(update, context):
     message = "Dev mode disabled."
     await context.bot.send_message(update.effective_chat.id, message)
     
-# TODO implement status command with halt/dev status and amount of subscribers + homes broadcasted per agency in the last week/24h
-# TODO implement /getallsubs looping over /getsubinfo
+async def get_all_subs(update, context):
+    if not privileged(update, context, "get_all_subs", check_only=False): return
+    
+    subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+    
+    message = "Current active subscribers:\n\n"
+    for sub in subs:
+        chat = await context.bot.get_chat(sub["telegram_id"])
+        message += f"{sub['telegram_id']} {chat.username} ({chat.first_name} {chat.last_name})\n"
+    
+    await context.bot.send_message(update.effective_chat.id, message)
+    
+async def status(update, context):
+    if not privileged(update, context, "status", check_only=False): return
+    # TODO implement status command with halt/dev status and amount of subscribers + homes broadcasted per agency in the last week/24h
 
 async def help(update, context):
     message = f"I can do the following for you:\n"
@@ -198,7 +211,9 @@ async def help(update, context):
         message += "\n\n"
         message += "Admin commands:\n"
         message += "/announce - Broadcast a message to all subscribers\n"
+        message += "/getallsubs - Get all subscriber info\n"
         message += "/getsubinfo <sub_id> - Get info by subscriber ID\n"
+        message += "/status - Get system status\n"
         message += "/halt - Halts the scraper\n"
         message += "/resume - Resumes the scraper\n"
         message += "/dev - Enables dev mode\n"
@@ -216,6 +231,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("announce", announce))
     application.add_handler(CommandHandler("websites", websites))
     application.add_handler(CommandHandler("getsubinfo", get_sub_info))
+    application.add_handler(CommandHandler("getallsubs", get_all_subs))
+    application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("halt", halt))
     application.add_handler(CommandHandler("resume", resume))
     application.add_handler(CommandHandler("dev", enable_dev))
