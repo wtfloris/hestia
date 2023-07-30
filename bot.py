@@ -235,8 +235,8 @@ async def status(update, context):
 async def filter(update, context):
     cmd = [token.lower() for token in update.message.text.split(' ')]
     
-    # '/filter' only or a mistake with no arguments
-    if len(cmd) == 1 or len(cmd) == 2:
+    # '/filter' only, and any mistakes
+    if len(cmd) == 1 or len(cmd) == 2 or len(cmd) > 3:
         sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
         filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
         
@@ -284,11 +284,13 @@ async def filter(update, context):
             message = f"Max. price filter set to {maxprice}!"
             
         elif cmd[1] == "city":
-            city = cmd[2].capitalize()
+            # SQL injection is not possible here but you can call me paranoid that's fine
+            city = cmd[2].replace(';', '').replace('"', '').replace("'", '')
+            
             filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
             
-            if city not in filter_cities:
-                message = f"Invalid city: {city}. Possibilities are: "
+            if city not in [c.lower() for c in filter_cities]:
+                message = f"Invalid city: {city}.\n\nPossibilities are: "
                 for city in filter_cities:
                     message += f"{city}, "
                 # Skim the trailing comma
