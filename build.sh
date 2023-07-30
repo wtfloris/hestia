@@ -12,6 +12,7 @@ docker build --tag wtfloris/hestia-scraper:$TAG -f Dockerfile.scraper .
 
 if [[ $2 -eq -y ]]; then
         docker compose $DEVARGS up -d
+        exit
 fi
 
 read -p "Run the containers? [y/N]" -n 1 -r
