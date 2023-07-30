@@ -47,7 +47,7 @@ async def new_sub(update, context, reenable=False):
     if reenable:
         hestia.query_db(f"UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = '{update.effective_chat.id}'")
     else:
-        hestia.query_db(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, NULL, true, '{update.effective_chat.id}')")
+        hestia.query_db(f"INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, DEFAULT, true, '{update.effective_chat.id}')")
         
     message ="""Hi there!
 
