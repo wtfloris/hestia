@@ -233,7 +233,7 @@ async def status(update, context):
     
 # TODO support for multiple cities
 async def filter(update, context):
-    cmd = update.message.text.split(' ')
+    cmd = [token.lower() for token in update.message.text.split(' ')]
     
     # '/filter' only or a mistake with no arguments
     if len(cmd) == 1 or len(cmd) == 2:
