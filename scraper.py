@@ -181,7 +181,7 @@ async def scrape_site(target):
 
     # Write new homes to database
     for home in new_homes:
-        hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', \"{home['city'].lower()}\", '{home['price']}', '{agency}', '{datetime.now().isoformat()}')")
+        hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', '{home['city'].lower()}', '{home['price']}', '{agency}', '{datetime.now().isoformat()}')")
 
     await broadcast(new_homes)
     
