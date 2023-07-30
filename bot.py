@@ -200,7 +200,7 @@ async def get_all_subs(update, context):
     
 async def status(update, context):
     if not privileged(update, context, "status", check_only=False): return
-    logging.warning('1')
+
     settings = hestia.query_db(f"SELECT * FROM hestia.meta WHERE id = '{hestia.SETTINGS_ID}'", fetchOne=True)
     
     message = "Status:\n\n"
@@ -214,21 +214,20 @@ async def status(update, context):
         message += "Scraper: halted\n"
     else:
         message += "Scraper: active\n"
-    logging.warning('2')
+
     sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers WHERE telegram_enabled = true")
     message += "\n"
     message += f"Active subscriber count: {sub_count}"
-    logging.warning('3')
+
     targets = hestia.query_db("SELECT * FROM hestia.targets")
     message += "\n"
     message += "Targets (agency: homes past 7d):\n"
         
     for target in targets:
-        logging.warning(agency)
         agency = target["agency"]
         count = hestia.query_db(f"SELECT COUNT(*) FROM hestia.homes WHERE agency = {agency} AND date_added > now() - '1 week'::interval")
         message += f"{agency}: {count} listings\n"
-    logging.warning('4')
+
     await context.bot.send_message(update.effective_chat.id, message)
 
 async def help(update, context):
