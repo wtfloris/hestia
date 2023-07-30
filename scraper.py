@@ -23,7 +23,7 @@ async def main():
         try:
             await scrape_site(target)
         except BaseException as e:
-            error = f"[{agency} ({id})] {repr(e)}"
+            error = f"[{target['agency']} ({target['id']})] {repr(e)}"
             logging.error(error)
             await hestia.BOT.send_message(text=error, chat_id=secrets.OWN_CHAT_ID)
 
@@ -38,7 +38,7 @@ async def broadcast(homes):
     for home in homes:
         for sub in subs:
 
-            if home["price"] < sub["min_price"] or home["price"] > sub["max_price"]:
+            if home["price"] < sub["filter_min_price"] or home["price"] > sub["filter_max_price"]:
                 continue
 
             if home["city"] not in sub["filter_cities"]:
