@@ -237,7 +237,7 @@ async def filter(update, context):
     
     # '/filter' only or a mistake with no arguments
     if len(cmd) == 1 or len(cmd) == 2:
-        sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id == '{update.effective_chat.id}'", fetchOne=True)
+        sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
         filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
         
         message = "**Currently, your filters are:**\n"
