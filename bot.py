@@ -19,7 +19,7 @@ def initialize():
     
 def privileged(update, context, command, check_only=True):
     admins = hestia.query_db("SELECT * FROM hestia.subscribers WHERE user_level = 9")
-    admin_chat_ids = [admin["telegram_id"] for admin in admins]
+    admin_chat_ids = [int(admin["telegram_id"]) for admin in admins]
     
     if update.effective_chat.id in admin_chat_ids:
         if not check_only:
