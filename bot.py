@@ -51,7 +51,7 @@ async def new_sub(update, context, reenable=False):
         
     message ="""Hi there!
 
-I scrape real estate websites for new rental homes in The Netherlands. For more info on which websites I scrape, say /websites. To see and modify your personal filters, say /filters.
+I scrape real estate websites for new rental homes in The Netherlands. For more info on which websites I scrape, say /websites. To see and modify your personal filters, say /filter.
 
 Please note that some real estate websites provide their paid members with early access, so some of the homes I send you will be unavailable.
 
@@ -232,6 +232,7 @@ async def status(update, context):
     await context.bot.send_message(update.effective_chat.id, message)
     
 # TODO support for multiple cities
+# TODO check if user is in db (and enabled)
 async def filter(update, context):
     cmd = [token.lower() for token in update.message.text.split(' ')]
     
