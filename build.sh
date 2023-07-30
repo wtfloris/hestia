@@ -9,7 +9,7 @@ if [[ $1 -eq -y ]]; then
         if [[ $2 -eq dev ]]; then
                 ARGS='-f docker-compose-dev.yml'
         fi
-        docker compose up -d $ARGS
+        docker compose $ARGS up -d
         exit
 fi
 
