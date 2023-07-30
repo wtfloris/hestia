@@ -292,7 +292,7 @@ async def filter(update, context):
             if city not in [c.lower() for c in filter_cities]:
                 message = f"Invalid city: {city}.\n\nPossibilities are: "
                 for city in filter_cities:
-                    message += f"{city}.title(), "
+                    message += f"{city.title()}, "
                 # Skim the trailing comma
                 message = message[:-2]
                 await context.bot.send_message(update.effective_chat.id, message)
