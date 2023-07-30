@@ -37,7 +37,12 @@ async def broadcast(homes):
 
     for home in homes:
         for sub in subs:
-            # TODO check if home is within user parameters
+
+            if home["price"] < sub["min_price"] or home["price"] > sub["max_price"]:
+                continue
+
+            if home["city"] not in sub["filter_cities"]:
+                continue
             
             message = f"{hestia.HOUSE_EMOJI} {home['address']}, {home['city']}\n"
             message += f"{hestia.LINK_EMOJI} {home['url']}"

@@ -221,7 +221,7 @@ async def status(update, context):
 
     targets = hestia.query_db("SELECT * FROM hestia.targets")
     message += "\n"
-    message += "Targets (agency: homes past 7d):\n"
+    message += "Targets (id): listings in past 7 days\n"
         
     for target in targets:
         agency = target["agency"]
