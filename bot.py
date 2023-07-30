@@ -293,6 +293,7 @@ async def filter(update, context):
                     message += f"{city}, "
                 # Skim the trailing comma
                 message = message[:-2]
+                await context.bot.send_message(update.effective_chat.id, message)
                 return
             
             hestia.query_db(f"UPDATE subscribers SET filter_cities = [\"{city}\"] WHERE telegram_id = '{update.effective_chat.id}'")
@@ -300,9 +301,9 @@ async def filter(update, context):
             message = f"City filter set to {city}!"
             
         else:
-            message = "Invalid filter command"
+            message = "Invalid filter command, say /filter to see options."
         
-    await context.bot.send_message(update.effective_chat.id, message)
+    await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 async def help(update, context):
     message = f"**I can do the following for you:**\n"
@@ -325,7 +326,7 @@ async def help(update, context):
         message += "/dev - Enables dev mode\n"
         message += "/nodev - Disables dev mode"
 
-    await context.bot.send_message(update.effective_chat.id, message)
+    await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 if __name__ == '__main__':
     initialize()
