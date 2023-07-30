@@ -104,7 +104,7 @@ async def scrape_site(target):
             home["address"] = res["address"]["house"]
             home["city"] = res["address"]["city"]
             home["url"] = res["source"]["externalLink"]
-            home["price"] = res["prices"]["rental"]["price"]
+            home["price"] = int(res["prices"]["rental"]["price"])
             if home["url"] not in prev_homes:
                 new_homes.append(home)
         
@@ -125,7 +125,7 @@ async def scrape_site(target):
             city_end = res["url"][city_start:].index('/') + city_start
             home["city"] = res["url"][city_start:city_end].capitalize()
             home["url"] = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
-            home["price"] = res["price"][2:].replace('.', '')
+            home["price"] = int(res["price"][2:].replace('.', ''))
             if home["url"] not in prev_homes:
                 new_homes.append(home)
         
@@ -141,7 +141,7 @@ async def scrape_site(target):
             home["address"] = res["Adres"]
             home["city"] = res["PlaatsWijk"].split('-')[0][:-1]
             home["url"] = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
-            home["price"] = res["Prijs"][2:-3].replace('.', '')
+            home["price"] = int(res["Prijs"][2:-3].replace('.', ''))
             if home["url"] not in prev_homes:
                 new_homes.append(home)
     
@@ -157,7 +157,7 @@ async def scrape_site(target):
             home["address"] = res["name"]
             home["city"] = res["address"]["city"]
             home["url"] = res["url"]
-            home["price"] = res["price"]["price"]
+            home["price"] = int(res["price"]["price"])
             if home["url"] not in prev_homes:
                 new_homes.append(home)
 
@@ -169,7 +169,7 @@ async def scrape_site(target):
             home["address"] = str(res.find(class_="street-name").contents[0])
             home["city"] = ''.join(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
             home["url"] = res.find(class_="search-result-title").a["href"]
-            home["price"] = str(res.find(class_="page-price").contents[0])[1:].replace('.', '')
+            home["price"] = int(str(res.find(class_="page-price").contents[0])[1:].replace('.', ''))
             if home["url"] not in prev_homes:
                 new_homes.append(home)
 
