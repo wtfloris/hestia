@@ -7,12 +7,11 @@ ARGS=''
 
 if [[ $1 -eq -y ]]; then
         if [[ $2 -eq dev ]]; then
-                ARGS='-f docker-compose-dev.yml'
+                DEVARGS='-f docker-compose-dev.yml'
         fi
-        docker compose $ARGS up -d
+        docker compose $DEVARGS up -d
         exit
 fi
-
 
 read -p "Run the containers? [y/N]" -n 1 -r
 echo
