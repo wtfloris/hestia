@@ -217,7 +217,7 @@ async def status(update, context):
 
     sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers WHERE telegram_enabled = true")
     message += "\n"
-    message += f"Active subscriber count: {sub_count}"
+    message += f"Active subscriber count: {sub_count['count']}"
 
     targets = hestia.query_db("SELECT * FROM hestia.targets")
     message += "\n"
@@ -226,7 +226,7 @@ async def status(update, context):
     for target in targets:
         agency = target["agency"]
         count = hestia.query_db(f"SELECT COUNT(*) FROM hestia.homes WHERE agency = '{agency}' AND date_added > now() - '1 week'::interval")
-        message += f"{agency}: {count} listings\n"
+        message += f"{agency}: {count['count']} listings\n"
 
     await context.bot.send_message(update.effective_chat.id, message)
 
