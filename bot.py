@@ -296,7 +296,7 @@ async def filter(update, context):
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
             
-            hestia.query_db(f"UPDATE subscribers SET filter_cities = [\"{city}\"] WHERE telegram_id = '{update.effective_chat.id}'")
+            hestia.query_db(f"UPDATE subscribers SET filter_cities = '[\"{city}\"]' WHERE telegram_id = '{update.effective_chat.id}'")
             
             message = f"City filter set to {city}!"
             
@@ -306,8 +306,7 @@ async def filter(update, context):
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 async def help(update, context):
-    message = f"*I can do the following for you:*\n"
-    message += "\n"
+    message = "*I can do the following for you:*\n"
     message += "/help - Show this message\n"
     message += "/start - Subscribe to updates\n"
     message += "/stop - Stop recieving updates\n\n"
@@ -319,7 +318,7 @@ async def help(update, context):
         message += "*Admin commands:*\n"
         message += "/announce - Broadcast a message to all subscribers\n"
         message += "/getallsubs - Get all subscriber info\n"
-        message += "/getsubinfo <sub_id> - Get info by subscriber ID\n"
+        message += "/getsubinfo <id> - Get info by Telegram chat ID\n"
         message += "/status - Get system status\n"
         message += "/halt - Halts the scraper\n"
         message += "/resume - Resumes the scraper\n"
