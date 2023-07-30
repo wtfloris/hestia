@@ -41,7 +41,7 @@ async def broadcast(homes):
             if home["price"] < sub["filter_min_price"] or home["price"] > sub["filter_max_price"]:
                 continue
 
-            if home["city"] not in sub["filter_cities"]:
+            if home["city"].lower() not in sub["filter_cities"]:
                 continue
             
             message = f"{hestia.HOUSE_EMOJI} {home['address']}, {home['city']}\n"
@@ -175,7 +175,7 @@ async def scrape_site(target):
 
     # Write new homes to database
     for home in new_homes:
-        hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', '{home['city']}', '{home['price']}', '{agency}', '{datetime.now().isoformat()}')")
+        hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', '{home['city'].lower()}', '{home['price']}', '{agency}', '{datetime.now().isoformat()}')")
 
     await broadcast(new_homes)
 

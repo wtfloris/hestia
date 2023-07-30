@@ -243,7 +243,7 @@ async def filter(update, context):
         message = "*Currently, your filters are:*\n"
         message += f"Min. price: {sub['filter_min_price']}\n"
         message += f"Max. price: {sub['filter_max_price']}\n"
-        message += f"City: {sub['filter_cities'][0]}\n\n"
+        message += f"City: {sub['filter_cities'][0].title()}\n\n"
         message += "*To change your filters, you can say:*\n"
         message += "`/filter minprice 1200`\n"
         message += "`/filter maxprice 1800`\n"
@@ -252,7 +252,7 @@ async def filter(update, context):
         # TODO use Telegram's UI to present a list of city options
         
         for city in filter_cities:
-            message += f"{city}, "
+            message += f"{city.title()}, "
             
         # Skim the trailing comma
         message = message[:-2]
@@ -292,7 +292,7 @@ async def filter(update, context):
             if city not in [c.lower() for c in filter_cities]:
                 message = f"Invalid city: {city}.\n\nPossibilities are: "
                 for city in filter_cities:
-                    message += f"{city}, "
+                    message += f"{city}.title(), "
                 # Skim the trailing comma
                 message = message[:-2]
                 await context.bot.send_message(update.effective_chat.id, message)
@@ -300,7 +300,7 @@ async def filter(update, context):
             
             hestia.query_db(f"UPDATE subscribers SET filter_cities = '[\"{city}\"]' WHERE telegram_id = '{update.effective_chat.id}'")
             
-            message = f"City filter set to {city}!"
+            message = f"City filter set to {city.title()}!"
             
         else:
             message = "Invalid filter command, say /filter to see options."
