@@ -240,11 +240,11 @@ async def filter(update, context):
         sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
         filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
         
-        message = "**Currently, your filters are:**\n"
+        message = "*Currently, your filters are:*\n"
         message += f"Min. price: {sub['filter_min_price']}\n"
         message += f"Max. price: {sub['filter_max_price']}\n"
         message += f"City: {sub['filter_cities'][0]}\n\n"
-        message += "**To change your filters, you can say:**\n"
+        message += "*To change your filters, you can say:*\n"
         message += "`/filter minprice 1200`\n"
         message += "`/filter maxprice 1800`\n"
         message += "`/filter city Amsterdam`\n\n"
@@ -306,7 +306,7 @@ async def filter(update, context):
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 async def help(update, context):
-    message = f"**I can do the following for you:**\n"
+    message = f"*I can do the following for you:*\n"
     message += "\n"
     message += "/help - Show this message\n"
     message += "/start - Subscribe to updates\n"
@@ -316,7 +316,7 @@ async def help(update, context):
     
     if privileged(update, context, "help", check_only=True):
         message += "\n\n"
-        message += "**Admin commands:**\n"
+        message += "*Admin commands:*\n"
         message += "/announce - Broadcast a message to all subscribers\n"
         message += "/getallsubs - Get all subscriber info\n"
         message += "/getsubinfo <sub_id> - Get info by subscriber ID\n"
