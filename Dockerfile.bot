@@ -9,8 +9,8 @@ COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 COPY secrets.py secrets.py
-COPY targets.py targets.py
 COPY hestia.py hestia.py
+COPY bot.py bot.py
 
-CMD ["python3", "hestia.py"]
+CMD ["python3", "bot.py"]
 

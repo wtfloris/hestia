@@ -1,98 +1,74 @@
+import hestia
+import logging
 import os
-import telegram
 import requests
 import pickle
 import json
-import logging
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from datetime import datetime
 from asyncio import run
-from targets import targets
-from secrets import OWN_CHAT_ID, TOKEN, WORKDIR
-
-BOT = telegram.Bot(TOKEN)
-
-HOUSE_EMOJI = "\U0001F3E0"
-LINK_EMOJI = "\U0001F517"
-
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s]: %(message)s",
-    level=logging.WARNING,
-    filename=WORKDIR + "hestia-scraper.log"
-)
+from secrets import OWN_CHAT_ID
+from time import sleep
 
 async def main():
-    if os.path.exists(WORKDIR + "HALT"):
+    if hestia.check_scraper_halted():
         logging.warning("Scraper is halted.")
         exit()
-
-    for item in targets:
-        try:
-            await scrape_site(item)
-        except BaseException as e:
-            await handle_exception(item["site"], item["savefile"], e)
-
-async def handle_exception(site, savefile, e):
-    error = f"[{site}: {savefile}] {repr(e)}"
-    last_error = "["
-
-    # If the error was already logged, do not log it again
-    # This is to prevent the same error popping up every time cron runs the scraper
-    if os.path.exists(WORKDIR + "error.log"):
-        with open(WORKDIR + "error.log", 'r') as err:
-            last_error = err.readlines()[-1]
-
-    if last_error[last_error.index('['):-1] != error:
-        logging.error(error)
-        await BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
-
-async def broadcast(new_homes):
-    with open(WORKDIR + "subscribers", 'rb') as subscribers_file:
-        subs = pickle.load(subscribers_file)
         
-    # Overwrite subs if DEVMODE is enabled
-    if os.path.exists(WORKDIR + "DEVMODE"):
-        logging.warning("Dev mode is enabled.")
-        subs = set([OWN_CHAT_ID])
+    targets = hestia.query_db("SELECT * FROM hestia.targets WHERE enabled = true")
 
-    for home in new_homes:
+    for target in targets:
+        try:
+            await scrape_site(target)
+        except BaseException as e:
+            error = f"[{agency} ({id})] {repr(e)}"
+            logging.error(error)
+            await hestia.BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
+
+async def broadcast(homes):
+    subs = set()
+    
+    if hestia.check_dev_mode():
+        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
+    else:
+        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+
+    for home in homes:
         for sub in subs:
+            # TODO check if home is within user parameters
+            
+            message = f"{hestia.HOUSE_EMOJI} {home['address']}, {home['city']}\n"
+            message += f"{hestia.LINK_EMOJI} {home['url']}"
+            
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
-                message = f"{HOUSE_EMOJI} {home[0]}\n"
-                message += f"{LINK_EMOJI} {home[1]}"
-                await BOT.send_message(text=message, chat_id=sub)
+                await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"])
             except:
-                continue
+                pass
 
-async def scrape_site(item):
-    site = item["site"]
-    savefile = item["savefile"]
-    url = item["url"]
-    method = item["method"]
+async def scrape_site(target):
+    agency = target["agency"]
+    url = target["queryurl"]
+    method = target["method"]
     
     if method == "GET":
         r = requests.get(url)
     elif method == "POST":
-        r = requests.post(url, json=item["data"], headers=item["headers"])
+        r = requests.post(url, json=target["post_data"], headers=target["headers"])
     
-    houses = []
-    prev_homes = set()
-    new_homes = set()
+    prev_homes = []
+    new_homes = []
     
-    # Create savefile if it does not exist
-    if not os.path.exists(WORKDIR + savefile):
-        with open(WORKDIR + savefile, 'wb') as w:
-            pickle.dump(set([]), w)
-
-    # Get the previously broadcasted homes
-    with open(WORKDIR + savefile, 'rb') as prev_homes_file:
-        prev_homes = pickle.load(prev_homes_file)
+    # Because of the diversity in the scraped data, we use the URL as an ID for a home
+    for home in hestia.query_db(f"SELECT url FROM hestia.homes WHERE agency = '{agency}'"):
+        prev_homes.append(home["url"])
     
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}.")
         
-    if site == "vesteda":
+    if agency == "vesteda":
         results = json.loads(r.content)["results"]["items"]
         
         for res in results:
@@ -100,30 +76,34 @@ async def scrape_site(item):
             # Status 0 seems to be that the property is a project/complex
             if res["status"] != 1:
                 continue
-                
-            house = f"{res['street']} {res['houseNumber']}"
+            
+            home = {}
+            home["address"] = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
-                house += f" {res['houseNumberAddition']}"
-            link = "https://vesteda.com" + res["url"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+                home["address"] += f" {res['houseNumberAddition']}"
+            home["city"] = res["city"]
+            home["url"] = "https://vesteda.com" + res["url"]
+            home["price"] = int(res["priceUnformatted"])
+            if home["url"] not in prev_homes:
+                new_homes.append(home)
                 
-    elif site == "vbt":
+    elif agency == "vbt":
         results = json.loads(r.content)["houses"]
         
         for res in results:
             # Filter Bouwinvest results to not have double results
             if res["isBouwinvest"]:
                 continue
+            
+            home = {}
+            home["address"] = res["address"]["house"]
+            home["city"] = res["address"]["city"]
+            home["url"] = res["source"]["externalLink"]
+            home["price"] = res["prices"]["rental"]["price"]
+            if home["url"] not in prev_homes:
+                new_homes.append(home)
         
-            house = res["address"]["house"]
-            link = res["source"]["externalLink"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
-        
-    elif site == "alliantie":
+    elif agency == "alliantie":
         results = json.loads(r.content)["data"]
         
         for res in results:
@@ -132,27 +112,35 @@ async def scrape_site(item):
             if not res["isInSelection"]:
                 continue
                 
-            house = res["address"]
-            link = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            home = {}
+            home["address"] = res["address"]
+            # this is a dirty hack because what website with rental homes does not
+            # include the city AT ALL in their FUCKING API RESPONSES
+            city_start = res["url"].index('/') + 1
+            city_end = res["url"][city_start:].index('/') + city_start
+            home["city"] = res["url"][city_start:city_end].capitalize()
+            home["url"] = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
+            home["price"] = res["price"][2:].replace('.', '')
+            if home["url"] not in prev_homes:
+                new_homes.append(home)
         
-    elif site == "woningnet":
+    elif agency == "woningnet":
         results = json.loads(r.content)["Resultaten"]
         
         for res in results:
             # Filter senior & family priority results
             if res["WoningTypeCssClass"] == "Type03":
                 continue
-                
-            house = res["Adres"]
-            link = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            
+            home = {}
+            home["address"] = res["Adres"]
+            home["city"] = res["PlaatsWijk"].split('-')[0][:-1]
+            home["url"] = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
+            home["price"] = res["Prijs"][2:-3].replace('.', '')
+            if home["url"] not in prev_homes:
+                new_homes.append(home)
     
-    elif site == "bouwinvest":
+    elif agency == "bouwinvest":
         results = json.loads(r.content)["data"]
 
         for res in results:
@@ -160,25 +148,29 @@ async def scrape_site(item):
             if res["class"] == "Project":
                 continue
 
-            house = res["name"]
-            link = res["url"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            home = {}
+            home["address"] = res["name"]
+            home["city"] = res["address"]["city"]
+            home["url"] = res["url"]
+            home["price"] = res["price"]["price"]
+            if home["url"] not in prev_homes:
+                new_homes.append(home)
 
-    elif site == "ikwilhuren":
+    elif agency == "ikwilhuren":
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
-            house = str(res.find(class_="street-name").contents[0])
-            link = res.find(class_="search-result-title").a["href"]
-            if house not in prev_homes:
-                new_homes.add((house, link))
-                prev_homes.add(house)
+            home = {}
+            home["address"] = str(res.find(class_="street-name").contents[0])
+            home["city"] = ''.join(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
+            home["url"] = res.find(class_="search-result-title").a["href"]
+            home["price"] = str(res.find(class_="page-price").contents[0])[1:].replace('.', '')
+            if home["url"] not in prev_homes:
+                new_homes.append(home)
 
-    # Write new homes to savefile
-    with open(WORKDIR + savefile, 'wb') as prev_homes_file:
-        pickle.dump(prev_homes, prev_homes_file)
+    # Write new homes to database
+    for home in new_homes:
+        hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', '{home['city']}', '{home['price']}', '{agency}', '{datetime.now().isoformat()}')")
 
     await broadcast(new_homes)
 

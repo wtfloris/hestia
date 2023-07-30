@@ -2,3 +2,4 @@ python-telegram-bot >= 20.2
 asyncio >= 3.4.3
 beautifulsoup4 >= 4.12.2
 requests >= 2.28.2
+psycopg2-binary >= 2.9.6

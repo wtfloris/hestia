@@ -1,23 +1,49 @@
 version: '3.7'
+
+networks:
+  hestia-network:
+    name: hestia-network
+
+volumes:
+  hestia-database-volume:
+    name: hestia-database-volume
+
 services:
   hestia-bot:
     container_name: hestia-bot
-    image: wtfloris/hestia-bot:latest
-    restart: unless-stopped
-    working_dir: /hestia
-    volumes:
-      - /root/hestia/data:/data
     healthcheck:
       test: cat /proc/1/cmdline || exit 1
       start_period: 5s
+    image: wtfloris/hestia-bot:latest
+    networks: 
+      - hestia-network
+    restart: unless-stopped
+    volumes:
+      - /root/hestia/data:/data
+    working_dir: /hestia
 
   hestia-scraper:
     container_name: hestia-scraper
-    image: wtfloris/hestia-scraper:latest
-    restart: unless-stopped
-    working_dir: /scraper
-    volumes:
-      - /root/hestia/data:/data
     healthcheck:
       test: pgrep cron || exit 1
       start_period: 5s
+    image: wtfloris/hestia-scraper:latest
+    networks: 
+      - hestia-network
+    restart: unless-stopped
+    volumes:
+      - /root/hestia/data:/data
+    working_dir: /scraper
+
+  hestia-database:
+    container_name: hestia-database
+    environment:
+      POSTGRES_PASSWORD: A3kZi9j8zT3JRsu0RDcbxjIr
+    image: postgres:latest
+    networks: 
+      - hestia-network
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped 
+    volumes:
+      - hestia-database-volume:/var/lib/postgresql/data
