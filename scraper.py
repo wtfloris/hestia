@@ -174,9 +174,9 @@ async def scrape_site(target):
                 new_homes.append(home)
 
     # Handle duplicate city names
-    if home["city"] == "'s-Hertogenbosch":
+    if home["city"].lower() == "'s-hertogenbosch":
         home["city"] = "Den Bosch"
-    if home["city"] == "'s-Gravenhage":
+    if home["city"].lower() == "'s-gravenhage":
         home["city"] = "Den Haag"
 
     # Write new homes to database
