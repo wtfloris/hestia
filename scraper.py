@@ -173,14 +173,14 @@ async def scrape_site(target):
             if home["url"] not in prev_homes:
                 new_homes.append(home)
 
-    # Handle duplicate city names
-    if home["city"].lower() == "'s-hertogenbosch":
-        home["city"] = "Den Bosch"
-    if home["city"].lower() == "'s-gravenhage":
-        home["city"] = "Den Haag"
-
     # Write new homes to database
     for home in new_homes:
+        # Handle duplicate city names
+        if home["city"].lower() == "'s-hertogenbosch":
+            home["city"] = "Den Bosch"
+        if home["city"].lower() == "'s-gravenhage":
+            home["city"] = "Den Haag"
+            
         hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home['url']}', '{home['address']}', '{home['city'].lower()}', '{home['price']}', '{agency}', '{datetime.now().isoformat()}')")
 
     await broadcast(new_homes)
