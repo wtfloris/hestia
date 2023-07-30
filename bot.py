@@ -207,12 +207,12 @@ async def status(update, context):
     
     if settings["devmode_enabled"]:
         message += "Dev mode: enabled\n"
-    else
+    else:
         message += "Dev mode: disabled\n"
         
     if settings["scraper_halted"]:
         message += "Scraper: halted\n"
-    else
+    else:
         message += "Scraper: active\n"
     logging.warning('2')
     sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers WHERE telegram_enabled = true")
