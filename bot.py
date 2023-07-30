@@ -51,11 +51,11 @@ async def new_sub(update, context, reenable=False):
         
     message ="""Hi there!
 
-I scrape real estate websites for new rental homes in and around Amsterdam. For more info on which websites I scrape with which parameters, say /websites.
+I scrape real estate websites for new rental homes in The Netherlands. For more info on which websites I scrape, say /websites. To see and modify your personal filters, say /filters.
 
-Please note that some real estate websites provide paid members with early access, so some of the homes I send you will be unavailable.
+Please note that some real estate websites provide their paid members with early access, so some of the homes I send you will be unavailable.
 
-You are now recieving updates when I find something new! If you want me to stop, just say /stop.
+You will receive a message when I find a new home that matches your filters! If you want me to stop, just say /stop.
 
 If you have any issues or questions, let @WTFloris know!"""
     await context.bot.send_message(update.effective_chat.id, message)
@@ -221,7 +221,7 @@ async def status(update, context):
 
     targets = hestia.query_db("SELECT * FROM hestia.targets")
     message += "\n"
-    message += "Targets (agency: homes past 7d):\n"
+    message += "Targets (id): listings in past 7 days\n"
         
     for target in targets:
         agency = target["agency"]
@@ -230,28 +230,104 @@ async def status(update, context):
         message += f"{agency} ({target_id}): {count['count']} listings\n"
 
     await context.bot.send_message(update.effective_chat.id, message)
+    
+# TODO support for multiple cities
+async def filter(update, context):
+    cmd = [token.lower() for token in update.message.text.split(' ')]
+    
+    # '/filter' only, and any mistakes
+    if len(cmd) == 1 or len(cmd) == 2 or len(cmd) > 3:
+        sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
+        filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
+        
+        message = "*Currently, your filters are:*\n"
+        message += f"Min. price: {sub['filter_min_price']}\n"
+        message += f"Max. price: {sub['filter_max_price']}\n"
+        message += f"City: {sub['filter_cities'][0].title()}\n\n"
+        message += "*To change your filters, you can say:*\n"
+        message += "`/filter minprice 1200`\n"
+        message += "`/filter maxprice 1800`\n"
+        message += "`/filter city Amsterdam`\n\n"
+        message += "Options for the city filter are: "
+        # TODO use Telegram's UI to present a list of city options
+        
+        for city in filter_cities:
+            message += f"{city.title()}, "
+            
+        # Skim the trailing comma
+        message = message[:-2]
+        
+    # Set filter
+    elif len(cmd) == 3:
+        if cmd[1] == "minprice":
+            try:
+                minprice = int(cmd[2])
+            except ValueError:
+                message = f"Invalid value: {cmd[2]} is not a number."
+                await context.bot.send_message(update.effective_chat.id, message)
+                return
+                
+            hestia.query_db(f"UPDATE subscribers SET filter_min_price = {minprice} WHERE telegram_id = '{update.effective_chat.id}'")
+            
+            message = f"Min. price filter set to {minprice}!"
+                
+        elif cmd[1] == "maxprice":
+            try:
+                maxprice = int(cmd[2])
+            except ValueError:
+                message = f"Invalid value: {cmd[2]} is not a number."
+                await context.bot.send_message(update.effective_chat.id, message)
+                return
+                
+            hestia.query_db(f"UPDATE subscribers SET filter_max_price = {maxprice} WHERE telegram_id = '{update.effective_chat.id}'")
+            
+            message = f"Max. price filter set to {maxprice}!"
+            
+        elif cmd[1] == "city":
+            # SQL injection is not possible here but you can call me paranoid that's fine
+            city = cmd[2].replace(';', '').replace('"', '').replace("'", '')
+            
+            filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
+            
+            if city not in [c.lower() for c in filter_cities]:
+                message = f"Invalid city: {city}.\n\nPossibilities are: "
+                for city in filter_cities:
+                    message += f"{city.title()}, "
+                # Skim the trailing comma
+                message = message[:-2]
+                await context.bot.send_message(update.effective_chat.id, message)
+                return
+            
+            hestia.query_db(f"UPDATE subscribers SET filter_cities = '[\"{city}\"]' WHERE telegram_id = '{update.effective_chat.id}'")
+            
+            message = f"City filter set to {city.title()}!"
+            
+        else:
+            message = "Invalid filter command, say /filter to see options."
+        
+    await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 async def help(update, context):
-    message = f"I can do the following for you:\n"
-    message += "\n"
+    message = "*I can do the following for you:*\n"
     message += "/help - Show this message\n"
     message += "/start - Subscribe to updates\n"
-    message += "/stop - Stop recieving updates\n"
+    message += "/stop - Stop recieving updates\n\n"
+    message += "/filter - Show and modify your personal filters\n"
     message += "/websites - Show info about the websites I scrape"
     
     if privileged(update, context, "help", check_only=True):
         message += "\n\n"
-        message += "Admin commands:\n"
+        message += "*Admin commands:*\n"
         message += "/announce - Broadcast a message to all subscribers\n"
         message += "/getallsubs - Get all subscriber info\n"
-        message += "/getsubinfo <sub_id> - Get info by subscriber ID\n"
+        message += "/getsubinfo <id> - Get info by Telegram chat ID\n"
         message += "/status - Get system status\n"
         message += "/halt - Halts the scraper\n"
         message += "/resume - Resumes the scraper\n"
         message += "/dev - Enables dev mode\n"
         message += "/nodev - Disables dev mode"
 
-    await context.bot.send_message(update.effective_chat.id, message)
+    await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 if __name__ == '__main__':
     initialize()
@@ -262,6 +338,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("stop", stop))
     application.add_handler(CommandHandler("announce", announce))
     application.add_handler(CommandHandler("websites", websites))
+    application.add_handler(CommandHandler("filter", filter))
     application.add_handler(CommandHandler("getsubinfo", get_sub_info))
     application.add_handler(CommandHandler("getallsubs", get_all_subs))
     application.add_handler(CommandHandler("status", status))
