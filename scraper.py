@@ -4,12 +4,12 @@ import os
 import requests
 import pickle
 import json
+import secrets
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from datetime import datetime
 from asyncio import run
-from secrets import OWN_CHAT_ID
 from time import sleep
 
 async def main():
@@ -25,7 +25,7 @@ async def main():
         except BaseException as e:
             error = f"[{agency} ({id})] {repr(e)}"
             logging.error(error)
-            await hestia.BOT.send_message(text=error, chat_id=OWN_CHAT_ID)
+            await hestia.BOT.send_message(text=error, chat_id=secrets.OWN_CHAT_ID)
 
 async def broadcast(homes):
     subs = set()

@@ -3,9 +3,9 @@ import logging
 import asyncio
 import pickle
 import os
+import secrets
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
-from secrets import OWN_CHAT_ID, TOKEN, PRIVILEGED_USERS
 from time import sleep
 
 def initialize():
@@ -18,7 +18,10 @@ def initialize():
         logging.warning("Dev mode is enabled.")
     
 def privileged(update, context, command, check_only=True):
-    if update.effective_chat.id in PRIVILEGED_USERS:
+    admins = hestia.query_db("SELECT * FROM hestia.subscribers WHERE user_level = 9")
+    admin_chat_ids = [admin["telegram_id"] for admin in admins]
+    
+    if update.effective_chat.id in admin_chat_ids:
         if not check_only:
             logging.warning(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
         return True
@@ -38,7 +41,7 @@ async def new_sub(update, context, reenable=False):
     name = await get_sub_name(update, context)
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
-    await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
+    await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
     
     # If the user existed before, then re-enable the telegram updates
     if reenable:
@@ -80,7 +83,7 @@ async def stop(update, context):
             name = await get_sub_name(update, context)
             log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
             logging.warning(log_msg)
-            await context.bot.send_message(chat_id=OWN_CHAT_ID, text=log_msg)
+            await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -224,7 +227,7 @@ async def help(update, context):
 if __name__ == '__main__':
     initialize()
 
-    application = ApplicationBuilder().token(TOKEN).build()
+    application = ApplicationBuilder().token(secrets.TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("stop", stop))
