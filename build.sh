@@ -10,7 +10,7 @@ fi
 docker build --tag wtfloris/hestia-bot:$TAG -f Dockerfile.bot .
 docker build --tag wtfloris/hestia-scraper:$TAG -f Dockerfile.scraper .
 
-if [[ $2 -eq -y ]]; then
+if [[ $1 -eq -y ]] || [[ $2 -eq -y ]]; then
         docker compose $DEVARGS up -d
         exit
 fi
