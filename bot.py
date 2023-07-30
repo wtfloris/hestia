@@ -51,11 +51,11 @@ async def new_sub(update, context, reenable=False):
         
     message ="""Hi there!
 
-I scrape real estate websites for new rental homes in and around Amsterdam. For more info on which websites I scrape with which parameters, say /websites.
+I scrape real estate websites for new rental homes in The Netherlands. For more info on which websites I scrape, say /websites. To see and modify your personal filters, say /filters.
 
-Please note that some real estate websites provide paid members with early access, so some of the homes I send you will be unavailable.
+Please note that some real estate websites provide their paid members with early access, so some of the homes I send you will be unavailable.
 
-You are now recieving updates when I find something new! If you want me to stop, just say /stop.
+You will receive a message when I find a new home that matches your filters! If you want me to stop, just say /stop.
 
 If you have any issues or questions, let @WTFloris know!"""
     await context.bot.send_message(update.effective_chat.id, message)
