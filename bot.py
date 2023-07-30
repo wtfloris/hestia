@@ -233,6 +233,7 @@ async def status(update, context):
     
 # TODO support for multiple cities
 # TODO check if user is in db (and enabled)
+# TODO some restrictions on numeric filters: min, max etc
 async def filter(update, context):
     cmd = [token.lower() for token in update.message.text.split(' ')]
     
