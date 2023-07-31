@@ -165,6 +165,10 @@ async def scrape_site(target):
         results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
 
         for res in results:
+            # Filter rented properties
+            str(res.find(class_="page-price").contents[0]) = "verhuurd":
+                continue
+        
             home = {}
             home["address"] = str(res.find(class_="street-name").contents[0])
             home["city"] = ''.join(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
