@@ -81,6 +81,10 @@ async def scrape_site(target):
             # Status 0 seems to be that the property is a project/complex
             if res["status"] != 1:
                 continue
+                
+            # I don't think seniors are really into Telegram
+            if res["onlySixtyFivePlus"]:
+                continue
             
             home = {}
             home["address"] = f"{res['street']} {res['houseNumber']}"
