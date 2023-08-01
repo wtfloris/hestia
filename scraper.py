@@ -166,7 +166,7 @@ async def scrape_site(target):
 
         for res in results:
             # Filter rented properties
-            if str(res.find(class_="page-price").contents[0]) = "verhuurd":
+            if str(res.find(class_="page-price").contents[0]) == "verhuurd":
                 continue
         
             home = {}
