@@ -1,16 +1,9 @@
 import hestia
 import logging
-import os
 import requests
-import pickle
-import json
 import secrets
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from bs4 import BeautifulSoup
 from datetime import datetime
 from asyncio import run
-from time import sleep
 
 async def main():
     if hestia.check_scraper_halted():

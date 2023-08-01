@@ -1,8 +1,10 @@
 import psycopg2
 import telegram
 import logging
+import json
 import requests
 from psycopg2.extras import RealDictCursor
+from bs4 import BeautifulSoup
 from secrets import OWN_CHAT_ID, TOKEN, DB
 
 
