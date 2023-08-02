@@ -246,14 +246,19 @@ async def filter(update, context):
         sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
         filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
         
+        cities_str = ""
+        for c in filter_cities:
+            cities_str += f"{c.title()}, "
+        
         message = "*Currently, your filters are:*\n"
         message += f"Min. price: {sub['filter_min_price']}\n"
         message += f"Max. price: {sub['filter_max_price']}\n"
-        message += f"City: {sub['filter_cities'][0].title()}\n\n"
+        message += f"Cities: {cities_str[:-2]}\n\n"
         message += "*To change your filters, you can say:*\n"
         message += "`/filter minprice 1200`\n"
         message += "`/filter maxprice 1800`\n"
-        message += "`/filter city Amsterdam`\n\n"
+        message += "`/filter city add Amsterdam`\n"
+        message += "`/filter city remove Den Haag`\n\n"
         message += "Supported cities for the city filter are:\n"
         # TODO use Telegram's UI to present a list of city options
         
