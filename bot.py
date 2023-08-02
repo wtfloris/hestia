@@ -267,7 +267,7 @@ async def filter(update, context):
         
     # Set filter
     elif len(cmd) == 3:
-        if cmd[1] == "minprice":
+        if cmd[1] in ["minprice", "min"]:
             try:
                 minprice = int(cmd[2])
             except ValueError:
@@ -279,7 +279,7 @@ async def filter(update, context):
             
             message = f"Minimum price filter set to {minprice}!"
                 
-        elif cmd[1] == "maxprice":
+        elif cmd[1] in ["maxprice", "max"]:
             try:
                 maxprice = int(cmd[2])
             except ValueError:
