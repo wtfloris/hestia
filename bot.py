@@ -114,7 +114,7 @@ async def announce(update, context):
             continue
             
 async def websites(update, context):
-    targets = hestia.query_db("SELECT user_info FROM hestia.targets WHERE enabled = true")
+    targets = hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true")
 
     message = "Here are the websites I scrape every five minutes:\n\n"
     
@@ -238,83 +238,121 @@ async def status(update, context):
 
     await context.bot.send_message(update.effective_chat.id, message)
     
-# TODO support for multiple cities
 # TODO check if user is in db (and enabled)
 # TODO some restrictions on numeric filters: min, max etc
 async def filter(update, context):
     cmd = [token.lower() for token in update.message.text.split(' ')]
     
-    # '/filter' only, and any mistakes
-    if len(cmd) == 1 or len(cmd) == 2 or len(cmd) > 3:
+    # '/filter' only
+    if len(cmd) == 1:
         sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
-        filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
+        
+        cities_str = ""
+        for c in sub["filter_cities"]:
+            cities_str += f"{c.title()}, "
         
         message = "*Currently, your filters are:*\n"
         message += f"Min. price: {sub['filter_min_price']}\n"
         message += f"Max. price: {sub['filter_max_price']}\n"
-        message += f"City: {sub['filter_cities'][0].title()}\n\n"
+        message += f"Cities: {cities_str[:-2]}\n\n"
         message += "*To change your filters, you can say:*\n"
         message += "`/filter minprice 1200`\n"
         message += "`/filter maxprice 1800`\n"
-        message += "`/filter city Amsterdam`\n\n"
-        message += "Supported cities for the city filter are:\n"
-        # TODO use Telegram's UI to present a list of city options
+        message += "`/filter city add Amsterdam`\n"
+        message += "`/filter city remove Den Haag`\n\n"
+        message += "I will only send you homes in cities that you've included in your filter. Say  `/filter city`  to see the list of possible cities."
         
-        filter_cities.sort()
-        for city in filter_cities:
+    # Set minprice filter
+    elif len(cmd) == 3 and cmd[1] in ["minprice", "min"]:
+        try:
+            minprice = int(cmd[2])
+        except ValueError:
+            message = f"Invalid value: {cmd[2]} is not a number."
+            await context.bot.send_message(update.effective_chat.id, message)
+            return
+            
+        hestia.query_db(f"UPDATE subscribers SET filter_min_price = {minprice} WHERE telegram_id = '{update.effective_chat.id}'")
+        
+        message = f"Minimum price filter set to {minprice}!"
+    
+    # Set maxprice filter
+    elif len(cmd) == 3 and cmd[1] in ["maxprice", "max"]:
+        try:
+            maxprice = int(cmd[2])
+        except ValueError:
+            message = f"Invalid value: {cmd[2]} is not a number."
+            await context.bot.send_message(update.effective_chat.id, message)
+            return
+            
+        hestia.query_db(f"UPDATE subscribers SET filter_max_price = {maxprice} WHERE telegram_id = '{update.effective_chat.id}'")
+        
+        message = f"Maximum price filter set to {maxprice}!"
+            
+    # View city possibilities
+    elif len(cmd) == 2 and cmd[1] == "city":
+        all_filter_cities = [c["city"] for c in hestia.query_db(f"SELECT DISTINCT city FROM hestia.homes")]
+        all_filter_cities.sort()
+        
+        message = "Supported cities for the city filter are:\n\n"
+        for city in all_filter_cities:
             message += f"{city.title()}\n"
             
         # Skim the trailing newline
         message = message[:-1]
+            
+    # Modify city filter
+    elif len(cmd) >= 4 and cmd[1] == "city" and cmd[2] in ["add", "remove", "rm", "delete", "del"]:
+        city = ""
+        for token in cmd[3:]:
+            # SQL injection is not possible here but you can call me paranoid that's absolutely fine
+            city += token.replace(';', '').replace('"', '').replace("'", '') + ' '
+        city = city[:-1]
         
-    # Set filter
-    elif len(cmd) == 3:
-        if cmd[1] in ["minprice", "min"]:
-            try:
-                minprice = int(cmd[2])
-            except ValueError:
-                message = f"Invalid value: {cmd[2]} is not a number."
-                await context.bot.send_message(update.effective_chat.id, message)
+        # Get cities currently in filter of subscriber
+        sub_filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'", fetchOne=True)["filter_cities"]
+        
+        if cmd[2] == "add":
+            # Get possible cities from database
+            all_filter_cities = [c["city"] for c in hestia.query_db(f"SELECT DISTINCT city FROM hestia.homes")]
+            all_filter_cities.sort()
+            
+            # Check if the city is valid
+            if city not in [c.lower() for c in all_filter_cities]:
+                message = f"Invalid city: {city}\n\n"
+                message += "To see possible cities, say: `/filter city`"
+                await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
                 return
                 
-            hestia.query_db(f"UPDATE subscribers SET filter_min_price = {minprice} WHERE telegram_id = '{update.effective_chat.id}'")
-            
-            message = f"Minimum price filter set to {minprice}!"
-                
-        elif cmd[1] in ["maxprice", "max"]:
-            try:
-                maxprice = int(cmd[2])
-            except ValueError:
-                message = f"Invalid value: {cmd[2]} is not a number."
+            if city not in sub_filter_cities:
+                sub_filter_cities.append(city)
+            else:
+                message = f"{city.title()} is already in your filter, so nothing has been changed."
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
-                
-            hestia.query_db(f"UPDATE subscribers SET filter_max_price = {maxprice} WHERE telegram_id = '{update.effective_chat.id}'")
-            
-            message = f"Maximum price filter set to {maxprice}!"
-            
-        elif cmd[1] == "city":
-            # SQL injection is not possible here but you can call me paranoid that's fine
-            city = cmd[2].replace(';', '').replace('"', '').replace("'", '')
-            
-            filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
-            filter_cities.sort()
-            
-            if city not in [c.lower() for c in filter_cities]:
-                message = f"Invalid city: {city}.\n\nPossibilities are:\n"
-                for city in filter_cities:
-                    message += f"{city.title()}\n"
-                # Skim the trailing newline
-                message = message[:-1]
-                await context.bot.send_message(update.effective_chat.id, message)
-                return
-            
-            hestia.query_db(f"UPDATE subscribers SET filter_cities = '[\"{city}\"]' WHERE telegram_id = '{update.effective_chat.id}'")
-            
-            message = f"City filter set to {city.title()}!"
-            
+        
+            # Make the string safe for SQL
+            safe_sub_filter_cities = str(sub_filter_cities).replace("'", '"')
+            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{safe_sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
+            message = f"{city.title()} added to your city filter."
+        
         else:
-            message = "Invalid filter command, say /filter to see options."
+            if city in sub_filter_cities:
+                sub_filter_cities.remove(city)
+            else:
+                message = f"{city.title()} is not in your filter, so nothing has been changed."
+                await context.bot.send_message(update.effective_chat.id, message)
+                return
+                
+            # Make the string safe for SQL
+            safe_sub_filter_cities = str(sub_filter_cities).replace("'", '"')
+            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{safe_sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
+        
+            message = f"{city.title()} removed from your city filter."
+            
+            if len(sub_filter_cities) == 0:
+                message += "\n\nYour city filter is now empty, you will not receive messages about any homes."
+    else:
+        message = "Invalid filter command, say /filter to see options."
         
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
