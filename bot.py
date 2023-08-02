@@ -258,7 +258,7 @@ async def filter(update, context):
         message += "`/filter maxprice 1800`\n"
         message += "`/filter city add Amsterdam`\n"
         message += "`/filter city remove Den Haag`\n\n"
-        message += "Say  `/filter city`  to see the list of possible cities"
+        message += "I will only send you homes in cities that you've included in your filter. Say  `/filter city`  to see the list of possible cities."
         
     # Set minprice filter
     elif len(cmd) == 3 and cmd[1] in ["minprice", "min"]:
