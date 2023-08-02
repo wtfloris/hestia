@@ -242,7 +242,7 @@ async def filter(update, context):
     cmd = [token.lower() for token in update.message.text.split(' ')]
     
     # '/filter' only, and any mistakes
-    if len(cmd) == 1 or len(cmd) == 2 or len(cmd) > 3:
+    if len(cmd) == 1 or len(cmd) == 2:
         sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
         filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
         
