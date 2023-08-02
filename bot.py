@@ -247,7 +247,7 @@ async def filter(update, context):
         filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
         
         cities_str = ""
-        for c in filter_cities:
+        for c in sub["filter_cities"]:
             cities_str += f"{c.title()}, "
         
         message = "*Currently, your filters are:*\n"
