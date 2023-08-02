@@ -300,7 +300,8 @@ async def filter(update, context):
         city = ""
         for token in cmd[3:]:
             # SQL injection is not possible here but you can call me paranoid that's absolutely fine
-            city += token.replace(';', '').replace('"', '').replace("'", '').replace(')', '')
+            city += token.replace(';', '').replace('"', '').replace("'", '').replace(')', '') + ' '
+        city = city[:-1]
         
         # Get cities currently in filter of subscriber
         sub_filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.subscribers WHERE telegram_id = '{update.effective_chat.id}'", fetchOne=True)["filter_cities"]
