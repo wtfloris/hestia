@@ -114,7 +114,7 @@ async def announce(update, context):
             continue
             
 async def websites(update, context):
-    targets = hestia.query_db("SELECT user_info FROM hestia.targets WHERE enabled = true")
+    targets = hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true")
 
     message = "Here are the websites I scrape every five minutes:\n\n"
     
