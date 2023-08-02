@@ -244,7 +244,7 @@ async def filter(update, context):
     # '/filter' only, and any mistakes
     if len(cmd) == 1 or len(cmd) == 2:
         sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
-        filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
+        all_filter_cities = [c["city"] for c in hestia.query_db(f"SELECT DISTINCT city FROM hestia.homes")]
         
         cities_str = ""
         for c in sub["filter_cities"]:
@@ -262,8 +262,8 @@ async def filter(update, context):
         message += "Supported cities for the city filter are:\n"
         # TODO use Telegram's UI to present a list of city options
         
-        filter_cities.sort()
-        for city in filter_cities:
+        all_filter_cities.sort()
+        for city in all_filter_cities:
             message += f"{city.title()}\n"
             
         # Skim the trailing newline
@@ -308,13 +308,13 @@ async def filter(update, context):
         
         if cmd[2] == "add":
             # Get possible cities from database
-            filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
-            filter_cities.sort()
+            all_filter_cities = [c["city"] for c in hestia.query_db(f"SELECT DISTINCT city FROM hestia.homes")]
+            all_filter_cities.sort()
             
             # If the city is not possible, send possibilities
-            if city not in [c.lower() for c in filter_cities]:
+            if city not in [c.lower() for c in all_filter_cities]:
                 message = f"Invalid city: {city}\n\nPossibilities are:\n"
-                for city in filter_cities:
+                for city in all_filter_cities:
                     message += f"{city.title()}\n"
                 # Skim the trailing newline
                 message = message[:-1]
