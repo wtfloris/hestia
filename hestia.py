@@ -34,6 +34,12 @@ class Home:
         
     @city.setter
     def city(self, city):
+        # Handle cities with two names
+        if city == "'s-Gravenhage":
+            city = "Den Haag"
+        elif city == "'s-Hertogenbosch":
+            city = "Den Bosch"
+    
         self._raw_city = city
         self.safe_city = city.replace("'", "''")
     
