@@ -241,10 +241,9 @@ async def status(update, context):
 async def filter(update, context):
     cmd = [token.lower() for token in update.message.text.split(' ')]
     
-    # '/filter' only, and any mistakes
-    if len(cmd) == 1 or len(cmd) == 2:
+    # '/filter' only
+    if len(cmd) == 1:
         sub = hestia.query_db(f"SELECT * FROM hestia.subscribers WHERE telegram_id =  '{update.effective_chat.id}'", fetchOne=True)
-        all_filter_cities = [c["city"] for c in hestia.query_db(f"SELECT DISTINCT city FROM hestia.homes")]
         
         cities_str = ""
         for c in sub["filter_cities"]:
@@ -259,15 +258,7 @@ async def filter(update, context):
         message += "`/filter maxprice 1800`\n"
         message += "`/filter city add Amsterdam`\n"
         message += "`/filter city remove Den Haag`\n\n"
-        message += "Supported cities for the city filter are:\n"
-        # TODO use Telegram's UI to present a list of city options
-        
-        all_filter_cities.sort()
-        for city in all_filter_cities:
-            message += f"{city.title()}\n"
-            
-        # Skim the trailing newline
-        message = message[:-1]
+        message += "Say `/filter city` to see the list of possible cities"
         
     # Set minprice filter
     elif len(cmd) == 3 and cmd[1] in ["minprice", "min"]:
@@ -295,6 +286,18 @@ async def filter(update, context):
         
         message = f"Maximum price filter set to {maxprice}!"
             
+    # View city possibilities
+    elif len(cmd) == 2 and cmd[1] == "city":
+        all_filter_cities = [c["city"] for c in hestia.query_db(f"SELECT DISTINCT city FROM hestia.homes")]
+        all_filter_cities.sort()
+        
+        message += "Supported cities for the city filter are:\n"
+        for city in all_filter_cities:
+            message += f"{city.title()}\n"
+            
+        # Skim the trailing newline
+        message = message[:-1]
+            
     # Modify city filter
     elif len(cmd) >= 4 and cmd[1] == "city" and cmd[2] in ["add", "remove", "rm", "delete", "del"]:
         city = ""
@@ -311,15 +314,11 @@ async def filter(update, context):
             all_filter_cities = [c["city"] for c in hestia.query_db(f"SELECT DISTINCT city FROM hestia.homes")]
             all_filter_cities.sort()
             
-            # If the city is not possible, send possibilities
+            # Check if the city is valid
             if city not in [c.lower() for c in all_filter_cities]:
-                message = f"Invalid city: {city}\n\nPossibilities are:\n"
-                for city in all_filter_cities:
-                    message += f"{city.title()}\n"
-                # Skim the trailing newline
-                message = message[:-1]
-                
-                await context.bot.send_message(update.effective_chat.id, message)
+                message = f"Invalid city: {city}\n\n"
+                message += "To see possible cities, say: `/filter city`"
+                await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
                 return
                 
             if city not in sub_filter_cities:
