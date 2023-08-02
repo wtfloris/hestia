@@ -329,7 +329,9 @@ async def filter(update, context):
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
         
-            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
+            # Make the string safe for SQL
+            safe_sub_filter_cities = str(sub_filter_cities).replace("'", '"')
+            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{safe_sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
             message = f"{city.title()} added to your city filter."
         
         else:
@@ -340,7 +342,9 @@ async def filter(update, context):
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
                 
-            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
+            # Make the string safe for SQL
+            safe_sub_filter_cities = str(sub_filter_cities).replace("'", '"')
+            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{safe_sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
         
             message = f"{city.title()} removed from your city filter."
     else:
