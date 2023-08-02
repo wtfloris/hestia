@@ -257,18 +257,19 @@ async def filter(update, context):
         message += "`/filter minprice 1200`\n"
         message += "`/filter maxprice 1800`\n"
         message += "`/filter city Amsterdam`\n\n"
-        message += "Options for the city filter are: "
+        message += "Supported cities for the city filter are:\n"
         # TODO use Telegram's UI to present a list of city options
         
+        filter_cities.sort()
         for city in filter_cities:
-            message += f"{city.title()}, "
+            message += f"{city.title()}\n"
             
-        # Skim the trailing comma
-        message = message[:-2]
+        # Skim the trailing newline
+        message = message[:-1]
         
     # Set filter
     elif len(cmd) == 3:
-        if cmd[1] == "minprice":
+        if cmd[1] in ["minprice", "min"]:
             try:
                 minprice = int(cmd[2])
             except ValueError:
@@ -278,9 +279,9 @@ async def filter(update, context):
                 
             hestia.query_db(f"UPDATE subscribers SET filter_min_price = {minprice} WHERE telegram_id = '{update.effective_chat.id}'")
             
-            message = f"Min. price filter set to {minprice}!"
+            message = f"Minimum price filter set to {minprice}!"
                 
-        elif cmd[1] == "maxprice":
+        elif cmd[1] in ["maxprice", "max"]:
             try:
                 maxprice = int(cmd[2])
             except ValueError:
@@ -290,20 +291,21 @@ async def filter(update, context):
                 
             hestia.query_db(f"UPDATE subscribers SET filter_max_price = {maxprice} WHERE telegram_id = '{update.effective_chat.id}'")
             
-            message = f"Max. price filter set to {maxprice}!"
+            message = f"Maximum price filter set to {maxprice}!"
             
         elif cmd[1] == "city":
             # SQL injection is not possible here but you can call me paranoid that's fine
             city = cmd[2].replace(';', '').replace('"', '').replace("'", '')
             
             filter_cities = hestia.query_db(f"SELECT filter_cities FROM hestia.meta", fetchOne=True)["filter_cities"]
+            filter_cities.sort()
             
             if city not in [c.lower() for c in filter_cities]:
-                message = f"Invalid city: {city}.\n\nPossibilities are: "
+                message = f"Invalid city: {city}.\n\nPossibilities are:\n"
                 for city in filter_cities:
-                    message += f"{city.title()}, "
-                # Skim the trailing comma
-                message = message[:-2]
+                    message += f"{city.title()}\n"
+                # Skim the trailing newline
+                message = message[:-1]
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
             
@@ -348,6 +350,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("announce", announce))
     application.add_handler(CommandHandler("websites", websites))
     application.add_handler(CommandHandler("filter", filter))
+    application.add_handler(CommandHandler("filters", filter))
     application.add_handler(CommandHandler("getsubinfo", get_sub_info))
     application.add_handler(CommandHandler("getallsubs", get_all_subs))
     application.add_handler(CommandHandler("status", status))
