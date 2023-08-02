@@ -347,6 +347,9 @@ async def filter(update, context):
             hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{safe_sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
         
             message = f"{city.title()} removed from your city filter."
+            
+            if len(sub_filter_cities) == 0:
+                message += "\n\nYour city filter is now empty, you will not receive messages about any homes."
     else:
         message = "Invalid filter command, say /filter to see options."
         
