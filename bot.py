@@ -116,12 +116,19 @@ async def announce(update, context):
 async def websites(update, context):
     targets = hestia.query_db("SELECT user_info FROM hestia.targets WHERE enabled = true")
 
-    message = "Here are the websites I scrape, and with which search parameters (these differ per website):\n\n"
+    message = "Here are the websites I scrape every five minutes:\n\n"
+    
+    # Some agencies have multiple targets, but that's duplicate information for the user
+    already_included = []
     
     for target in targets:
+        if target["agency"] in already_included:
+            continue
+            
+        already_included.append(target["agency"])
+        
         message += f"Agency: {target['user_info']['agency']}\n"
         message += f"Website: {target['user_info']['website']}\n"
-        message += f"Search parameters: {target['user_info']['parameters']}\n"
         message += f"\n"
         
     await context.bot.send_message(update.effective_chat.id, message[:-1])
