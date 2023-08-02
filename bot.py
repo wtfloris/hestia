@@ -200,7 +200,11 @@ async def get_all_subs(update, context):
     
     message = "Current active subscribers:\n\n"
     for sub in subs:
-        chat = await context.bot.get_chat(sub["telegram_id"])
+        try:
+            chat = await context.bot.get_chat(sub["telegram_id"])
+        except telegram.error.BadRequest:
+            # This means a user in the db has blocked the bot without unsubscribing
+            continue
         message += f"{sub['telegram_id']} {chat.username} ({chat.first_name} {chat.last_name})\n"
     
     await context.bot.send_message(update.effective_chat.id, message)
