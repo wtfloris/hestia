@@ -258,7 +258,7 @@ async def filter(update, context):
         message += "`/filter maxprice 1800`\n"
         message += "`/filter city add Amsterdam`\n"
         message += "`/filter city remove Den Haag`\n\n"
-        message += "Say `/filter city` to see the list of possible cities"
+        message += "Say  `/filter city`  to see the list of possible cities"
         
     # Set minprice filter
     elif len(cmd) == 3 and cmd[1] in ["minprice", "min"]:
@@ -291,7 +291,7 @@ async def filter(update, context):
         all_filter_cities = [c["city"] for c in hestia.query_db(f"SELECT DISTINCT city FROM hestia.homes")]
         all_filter_cities.sort()
         
-        message += "Supported cities for the city filter are:\n"
+        message = "Supported cities for the city filter are:\n\n"
         for city in all_filter_cities:
             message += f"{city.title()}\n"
             
