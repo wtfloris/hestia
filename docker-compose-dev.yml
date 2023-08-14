@@ -37,8 +37,6 @@ services:
 
   hestia-database-dev:
     container_name: hestia-database-dev
-    environment:
-      POSTGRES_PASSWORD: A3kZi9j8zT3JRsu0RDcbxjIr
     image: postgres:latest
     networks: 
       - hestia-network-dev
