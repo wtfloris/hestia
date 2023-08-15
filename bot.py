@@ -276,7 +276,7 @@ async def filter(update, context):
             await context.bot.send_message(update.effective_chat.id, message)
             return
             
-        hestia.query_db(f"UPDATE subscribers SET filter_min_price = {minprice} WHERE telegram_id = '{update.effective_chat.id}'")
+        hestia.query_db("UPDATE subscribers SET filter_min_price = %s WHERE telegram_id = %s", params=(minprice, str(update.effective_chat.id)))
         
         message = f"Minimum price filter set to {minprice}!"
     
@@ -289,7 +289,7 @@ async def filter(update, context):
             await context.bot.send_message(update.effective_chat.id, message)
             return
             
-        hestia.query_db(f"UPDATE subscribers SET filter_max_price = {maxprice} WHERE telegram_id = '{update.effective_chat.id}'")
+        hestia.query_db(f"UPDATE subscribers SET filter_max_price = %s WHERE telegram_id = %s", params=(maxprice, str(update.effective_chat.id)))
         
         message = f"Maximum price filter set to {maxprice}!"
             
@@ -335,9 +335,7 @@ async def filter(update, context):
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
         
-            # Make the string safe for SQL
-            safe_sub_filter_cities = str(sub_filter_cities).replace("'", '"')
-            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{safe_sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
+            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", params=(str(sub_filter_cities).replace("'", '"'), str(update.effective_chat.id)))
             message = f"{city.title()} added to your city filter."
         
         else:
@@ -348,10 +346,7 @@ async def filter(update, context):
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
                 
-            # Make the string safe for SQL
-            safe_sub_filter_cities = str(sub_filter_cities).replace("'", '"')
-            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = '{safe_sub_filter_cities}' WHERE telegram_id = '{update.effective_chat.id}'")
-        
+            hestia.query_db(f"UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", params=(str(sub_filter_cities).replace("'", '"'), str(update.effective_chat.id)))
             message = f"{city.title()} removed from your city filter."
             
             if len(sub_filter_cities) == 0:
@@ -405,4 +400,3 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
     application.run_polling()
-

@@ -186,7 +186,7 @@ class HomeResults:
             self.homes.append(home)
             
 
-def query_db(query, fetchOne=False):
+def query_db(query, params=(), fetchOne=False):
 # TODO error handling
     db = psycopg2.connect(database=DB["database"],
                             host=DB["host"],
@@ -195,7 +195,7 @@ def query_db(query, fetchOne=False):
                             port=DB["port"])
     
     cursor = db.cursor(cursor_factory=RealDictCursor)
-    cursor.execute(query)
+    cursor.execute(query, params)
     
     # Try, because not all queries will return data
     try:
