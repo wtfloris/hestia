@@ -186,7 +186,7 @@ class HomeResults:
             self.homes.append(home)
             
 
-def query_db(query, params=(), fetchOne=False):
+def query_db(query, params=[], fetchOne=False):
 # TODO error handling
     db = psycopg2.connect(database=DB["database"],
                             host=DB["host"],

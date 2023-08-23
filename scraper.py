@@ -27,13 +27,13 @@ async def broadcast(homes):
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
     else:
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
-
+    
     for home in homes:
         for sub in subs:
-
+            
             if home.price < sub["filter_min_price"] or home.price > sub["filter_max_price"]:
                 continue
-
+            
             if home.city.lower() not in sub["filter_cities"]:
                 continue
             
@@ -62,7 +62,7 @@ async def scrape_site(target):
     new_homes = []
     
     # Check retrieved homes against previously scraped homes
-    for home in hestia.query_db(f"SELECT address, city FROM hestia.homes WHERE agency = '{agency}'"):
+    for home in hestia.query_db("SELECT address, city FROM hestia.homes WHERE agency = %s", params=[agency]):
         prev_homes.append(hestia.Home(home["address"], home["city"]))
     
     for home in hestia.HomeResults(agency, r):
@@ -71,7 +71,13 @@ async def scrape_site(target):
 
     # Write new homes to database
     for home in new_homes:
-        hestia.query_db(f"INSERT INTO hestia.homes VALUES ('{home.url}', '{home.safe_address}', '{home.safe_city}', '{home.price}', '{home.agency}', '{datetime.now().isoformat()}')")
+        hestia.query_db("INSERT INTO hestia.homes VALUES (%s, %s, %s, %s, %s, %s)",
+            (home.url,
+            home.safe_address,
+            home.safe_city,
+            home.price,
+            home.agency,
+            datetime.now().isoformat()))
 
     await broadcast(new_homes)
     
