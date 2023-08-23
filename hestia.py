@@ -78,6 +78,8 @@ class HomeResults:
             self.parse_alliantie(raw)
         elif source == "vbt":
             self.parse_vbt(raw)
+        elif source == "krk":
+            self.parse_krk(raw)
         elif source == "woningnet":
             self.parse_woningnet(raw)
         else:
