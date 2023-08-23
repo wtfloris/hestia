@@ -205,7 +205,7 @@ class HomeResults:
             self.homes.append(home)
             
     def parse_makelaarshuis(self, r):
-        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="data")
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="object")
     
         for res in results:
             # Filter rented properties
