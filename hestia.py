@@ -78,6 +78,10 @@ class HomeResults:
             self.parse_alliantie(raw)
         elif source == "vbt":
             self.parse_vbt(raw)
+        elif source == "krk":
+            self.parse_krk(raw)
+        elif source == "makelaarshuis":
+            self.parse_makelaarshuis(raw)
         elif source == "woningnet":
             self.parse_woningnet(raw)
         else:
@@ -183,6 +187,36 @@ class HomeResults:
             home.city = res["address"]["city"]
             home.url = res["url"]
             home.price = int(res["price"]["price"])
+            self.homes.append(home)
+    
+    def parse_krk(self, r):
+        results = json.loads(r.content)["objects"]
+    
+        for res in results:
+            # Filter non-rental and unavailable properties
+            if res["buy_or_rent"] != "rent" or res["availability_status"].lower() != "beschikbaar":
+                continue
+    
+            home = Home(agency="krk")
+            home.address = res["short_title"]
+            home.city = res["place"]
+            home.url = res["url"]
+            home.price = int(res["rent_price"])
+            self.homes.append(home)
+            
+    def parse_makelaarshuis(self, r):
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="object")
+    
+        for res in results:
+            # Filter rented properties
+            if 'rented' in str(res.find(class_="object_status")):
+                continue
+        
+            home = Home(agency="makelaarshuis")
+            home.address = str(res.find("span", class_="street").contents[0])
+            home.city = str(res.find("span", class_="locality").contents[0])
+            home.url = "https://yourexpatbroker.nl" + res.find("a", class_="saletitle")["href"].split('?')[0]
+            home.price = int(str(res.find("span", class_="obj_price").contents[0]).split('€')[1][1:6].split(',')[0].replace('.', ''))
             self.homes.append(home)
             
 
