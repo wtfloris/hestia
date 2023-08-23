@@ -215,7 +215,7 @@ class HomeResults:
             home = Home(agency="makelaarshuis")
             home.address = str(res.find("span", class_="street").contents[0])
             home.city = str(res.find("span", class_="locality").contents[0])
-            home.url = "https://yourexpatbroker.nl" + res.find("a", class_="saletitle")["href"]
+            home.url = "https://yourexpatbroker.nl" + res.find("a", class_="saletitle")["href"].split('?')[0]
             home.price = int(str(res.find("span", class_="obj_price").contents[0]).split('€')[1][1:6].split(',')[0].replace('.', ''))
             self.homes.append(home)
             
