@@ -49,11 +49,12 @@ async def broadcast(homes):
 async def scrape_site(target):
     agency = target["agency"]
     url = target["queryurl"]
+    headers = target["headers"]
     
     if target["method"] == "GET":
-        r = requests.get(url)
+        r = requests.get(url, headers=headers)
     elif target["method"] == "POST":
-        r = requests.post(url, json=target["post_data"], headers=target["headers"])
+        r = requests.post(url, json=target["post_data"], headers=headers)
         
     if not r.status_code == 200:
         raise ConnectionError(f"Got a non-OK status code: {r.status_code}")

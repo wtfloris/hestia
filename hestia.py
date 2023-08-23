@@ -184,6 +184,21 @@ class HomeResults:
             home.url = res["url"]
             home.price = int(res["price"]["price"])
             self.homes.append(home)
+    
+    def parse_krk(self, r):
+        results = json.loads(r.content)["objects"]
+    
+        for res in results:
+            # Filter non-rental and unavailable properties
+            if res["buy_or_rent"] != "rent" or res["availability_status"].lower() != "beschikbaar":
+                continue
+    
+            home = Home(agency="krk")
+            home.address = res["short_title"]
+            home.city = res["place"]
+            home.url = res["url"]
+            home.price = int(res["rent_price"])
+            self.homes.append(home)
             
 
 def query_db(query, params=[], fetchOne=False):
