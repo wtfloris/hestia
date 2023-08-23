@@ -238,7 +238,7 @@ async def status(update, context):
     for target in targets:
         agency = target["agency"]
         target_id = target["id"]
-        count = hestia.query_db("SELECT COUNT(*) FROM hestia.homes WHERE agency = %s AND date_added > now() - '1 week'::interval", params=[agency] fetchOne=True)
+        count = hestia.query_db("SELECT COUNT(*) FROM hestia.homes WHERE agency = %s AND date_added > now() - '1 week'::interval", params=[agency], fetchOne=True)
         message += f"{agency} ({target_id}): {count['count']} listings\n"
 
     await context.bot.send_message(update.effective_chat.id, message)
