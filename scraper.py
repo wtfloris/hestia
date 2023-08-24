@@ -18,7 +18,9 @@ async def main():
         except BaseException as e:
             error = f"[{target['agency']} ({target['id']})] {repr(e)}"
             logging.error(error)
-            await hestia.BOT.send_message(text=error, chat_id=secrets.OWN_CHAT_ID)
+            
+            if "Connection reset by peer" not in error:
+                await hestia.BOT.send_message(text=error, chat_id=secrets.OWN_CHAT_ID)
 
 async def broadcast(homes):
     subs = set()
