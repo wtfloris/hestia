@@ -53,7 +53,7 @@ async def scrape_site(target):
     agency = target["agency"]
     url = target["queryurl"]
     headers = target["headers"]
-    
+
     if target["method"] == "GET":
         r = requests.get(url, headers=headers)
     elif target["method"] == "POST":

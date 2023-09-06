@@ -110,18 +110,19 @@ class HomeResults:
             self.homes.append(home)
             
     def parse_ikwilhuren(self, r):
-        results = BeautifulSoup(r.content, "html.parser").find_all("li", class_="search-result")
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="card-woning")
     
         for res in results:
-            # Filter rented properties
-            if str(res.find(class_="page-price").contents[0]).lower() == "verhuurd":
+            # Filter "zorgwoningen"
+            if "Zorgwoning" in res:
                 continue
         
             home = Home(agency="ikwilhuren")
-            home.address = str(res.find(class_="street-name").contents[0])
-            home.city = ''.join(str(res.find(class_="plaats").contents[0]).split(' ')[2:])
-            home.url = res.find(class_="search-result-title").a["href"]
-            home.price = int(str(res.find(class_="page-price").contents[0])[1:].replace('.', ''))
+            home.address = str(res.find(class_="stretched-link").contents[0].strip())
+            postcodecity = str(res.find(class_="card-body").contents[3]).get_text()
+            home.city = ' '.join(postcodecity.split(' ')[1:])
+            home.url = "https://ikwilhuren.nu" + res.find(class_="stretched-link")["href"]
+            home.price = int(str(res.find(class_="fw-bold")).split(' ')[2].replace('.', '')[:-2])
             self.homes.append(home)
         
     def parse_vbt(self, r):
