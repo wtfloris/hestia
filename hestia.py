@@ -259,6 +259,7 @@ BOT = telegram.Bot(TOKEN)
 
 HOUSE_EMOJI = "\U0001F3E0"
 LINK_EMOJI = "\U0001F517"
+EURO_EMOJI = "\U0001F4B6"
 
 # The identifier of the used settings in the database (default = default)
 SETTINGS_ID = "default"

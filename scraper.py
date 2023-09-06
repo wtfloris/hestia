@@ -40,7 +40,8 @@ async def broadcast(homes):
                 continue
             
             message = f"{hestia.HOUSE_EMOJI} {home.address}, {home.city}\n"
-            message += f"{hestia.LINK_EMOJI} {home.url}"
+            message += f"{hestia.LINK_EMOJI} {home.url}\n"
+            message += f"{hestia.EURO_EMOJI} €{home.price}/m"
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
