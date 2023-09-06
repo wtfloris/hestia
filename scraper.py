@@ -45,7 +45,7 @@ async def broadcast(homes):
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
-                await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"])
+                await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
             except:
                 pass
 
