@@ -114,12 +114,12 @@ class HomeResults:
     
         for res in results:
             # Filter "zorgwoningen"
-            if "Zorgwoning" in res:
+            if "Zorgwoning" in res.get_text():
                 continue
         
             home = Home(agency="ikwilhuren")
             home.address = str(res.find(class_="stretched-link").contents[0].strip())
-            postcodecity = str(res.find(class_="card-body").contents[3]).get_text()
+            postcodecity = str(res.find(class_="card-body").contents[3].get_text())
             home.city = ' '.join(postcodecity.split(' ')[1:])
             home.url = "https://ikwilhuren.nu" + res.find(class_="stretched-link")["href"]
             home.price = int(str(res.find(class_="fw-bold")).split(' ')[2].replace('.', '')[:-2])
