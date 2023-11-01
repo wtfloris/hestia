@@ -87,6 +87,8 @@ class HomeResults:
             self.parse_woningnet(raw)
         elif source == "pararius":
             self.parse_pararius(raw)
+        elif source == "funda":
+            self.parse_funda(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -243,6 +245,17 @@ class HomeResults:
             home.url = "https://pararius.nl" + res.find("a", class_="listing-search-item__link--title")['href']
             raw_price = res.find("div", class_="listing-search-item__price").contents[0].strip().replace('\xa0', '')
             home.price = int(raw_price[1:].split(' ')[0].replace('.', ''))
+            self.homes.append(home)
+            
+    def parse_funda(self, r):
+        results = json.loads(r.content)["search_result"]["hits"]["hits"]
+        
+        for res in results:
+            home = Home(agency="funda")
+            home.address = res["_source"]["address"]["street_name"] + ' ' + res["_source"]["address"]["house_number"]
+            home.city = res["_source"]["address"]["city"]
+            home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
+            home.price = res["_source"]["price"]["rent_price"][0]
             self.homes.append(home)
             
 
