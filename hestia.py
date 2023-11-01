@@ -3,6 +3,7 @@ import telegram
 import logging
 import json
 import requests
+import re
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from secrets import OWN_CHAT_ID, TOKEN, DB
@@ -84,6 +85,8 @@ class HomeResults:
             self.parse_makelaarshuis(raw)
         elif source == "woningnet":
             self.parse_woningnet(raw)
+        elif source == "pararius":
+            self.parse_pararius(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -218,6 +221,28 @@ class HomeResults:
             home.city = str(res.find("span", class_="locality").contents[0])
             home.url = "https://yourexpatbroker.nl" + res.find("a", class_="saletitle")["href"].split('?')[0]
             home.price = int(str(res.find("span", class_="obj_price").contents[0]).split('€')[1][1:6].split(',')[0].replace('.', ''))
+            self.homes.append(home)
+            
+    def parse_pararius(self, r):
+        results = BeautifulSoup(r.content, "html.parser").find_all("section", class_="listing-search-item--for-rent")
+        
+        for res in results:
+        
+            home = Home(agency="pararius")
+            raw_address = str(res.find("a", class_="listing-search-item__link--title").contents[0].strip())
+        
+            # A lot of properties on Pararius don't include house numbers, so it's impossible to keep track of them because
+            # right now homes are tracked by address, not by URL (which has its own downsides).
+            # This is probably not 100% reliable either, but it's close enough.
+            if not re.search("[0-9]", raw_address):
+                continue
+                
+            home.address = ' '.join(raw_address.split(' ')[1:]) # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
+            raw_city = res.find("div", class_="listing-search-item__sub-title'").contents[0].strip()
+            home.city = ' '.join(raw_city.split(' ')[2:]).split('(')[0].strip() # Don't ask
+            home.url = "https://pararius.nl" + res.find("a", class_="listing-search-item__link--title")['href']
+            raw_price = res.find("div", class_="listing-search-item__price").contents[0].strip().replace('\xa0', '')
+            home.price = int(raw_price[1:].split(' ')[0].replace('.', ''))
             self.homes.append(home)
             
 
