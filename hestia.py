@@ -227,14 +227,16 @@ class HomeResults:
         results = BeautifulSoup(r.content, "html.parser").find_all("section", class_="listing-search-item--for-rent")
         
         for res in results:
+        
+            home = Home(agency="pararius")
+            raw_address = str(res.find("a", class_="listing-search-item__link--title").contents[0].strip())
+        
             # A lot of properties on Pararius don't include house numbers, so it's impossible to keep track of them because
             # right now homes are tracked by address, not by URL (which has its own downsides).
             # This is probably not 100% reliable either, but it's close enough.
-            if not re.search("[0-9]", res[-5:]):
+            if not re.search("[0-9]", raw_address):
                 continue
                 
-            home = Home(agency="pararius")
-            raw_address = str(res.find("a", class_="listing-search-item__link--title").contents[0].strip())
             home.address = ' '.join(raw_address.split(' ')[1:]) # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
             raw_city = res.find("div", class_="listing-search-item__sub-title'").contents[0].strip()
             home.city = ' '.join(raw_city.split(' ')[2:]).split('(')[0].strip() # Don't ask
