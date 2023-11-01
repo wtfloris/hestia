@@ -85,6 +85,8 @@ class HomeResults:
             self.parse_makelaarshuis(raw)
         elif source == "woningnet":
             self.parse_woningnet(raw)
+        elif source == "pararius":
+            self.parse_pararius(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
