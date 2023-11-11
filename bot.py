@@ -145,7 +145,7 @@ async def announce(update, context):
                 
         # Indicates a parsing issue, so stop
         except BadRequest as e:
-            logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
+            logging.warning(f"Exception while parsing announcement: {repr(e)}")
             await context.bot.send_message(update.effective_chat.id, repr(e))
             break
         # Likely indicates a user has blocked the bot, so skip
