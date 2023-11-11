@@ -6,7 +6,7 @@ import os
 import secrets
 import re
 from telegram import Update
-from telegram.error import BadRequest, Forbidden
+from telegram.error import BadRequest
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from time import sleep
 
@@ -148,8 +148,8 @@ async def announce(update, context):
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             await context.bot.send_message(update.effective_chat.id, repr(e))
             break
-        # Indicates a user has blocked the bot, so skip
-        except Forbidden as e:
+        # Likely indicates a user has blocked the bot, so skip
+        except BaseException as e:
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             continue
             
