@@ -4,6 +4,7 @@ import asyncio
 import pickle
 import os
 import secrets
+import re
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
@@ -106,10 +107,13 @@ async def announce(update, context):
     else:
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
+    # Remove /announce
+    msg = update.message.text[10:]
+
     for sub in subs:
+        # If a user blocks the bot, this would throw an error and kill the entire broadcast
         try:
-            # If a user blocks the bot, this would throw an error and kill the entire broadcast
-            await context.bot.send_message(sub["telegram_id"], update.message.text[10:])
+            await context.bot.send_message(sub["telegram_id"], msg, parse_mode="MarkdownV2")
         except BaseException as e:
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             continue
