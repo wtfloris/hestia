@@ -6,7 +6,7 @@ import os
 import secrets
 import re
 from telegram import Update
-from telegram.error import BadRequest
+from telegram.error import BadRequest, Forbidden
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from time import sleep
 
