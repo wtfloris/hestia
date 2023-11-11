@@ -130,23 +130,23 @@ async def announce(update, context):
     else:
         markdown['value'] = False
         
-    linkpreview = parse_argument(msg, "LinkPreview")
-    if linkpreview:
-        msg = linkpreview['text']
+    disablepreview = parse_argument(msg, "DisableLinkPreview")
+    if disablepreview:
+        msg = disablepreview['text']
     else:
-        linkpreview['value'] = True
+        disablepreview['value'] = False
 
     for sub in subs:
         try:
             if markdown['value']:
-                await context.bot.send_message(sub["telegram_id"], msg, parse_mode="MarkdownV2", disable_web_page_preview=linkpreview['value'])
+                await context.bot.send_message(sub["telegram_id"], msg, parse_mode="MarkdownV2", disable_web_page_preview=disablepreview['value'])
             else:
-                await context.bot.send_message(sub["telegram_id"], msg, disable_web_page_preview=linkpreview['value'])
+                await context.bot.send_message(sub["telegram_id"], msg, disable_web_page_preview=disablepreview['value'])
                 
         # Indicates a parsing issue, so stop
         except BadRequest as e:
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
-            context.bot.send_message(update.effective_chat.id, repr(e))
+            await context.bot.send_message(update.effective_chat.id, repr(e))
             break
         # Indicates a user has blocked the bot, so skip
         except Forbidden as e:
