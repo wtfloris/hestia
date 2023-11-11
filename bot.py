@@ -4,6 +4,7 @@ import asyncio
 import pickle
 import os
 import secrets
+import re
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
@@ -30,6 +31,19 @@ def privileged(update, context, command, check_only=True):
         if not check_only:
             logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
         return False
+        
+def parse_argument(text, key) -> dict:
+    arg = re.search(f"{key}=(.*?)(?:\s|$)", text)
+    
+    if not arg:
+        return dict()
+    
+    start, end = arg.span()
+    stripped_text = text[:start] + text[end:]
+    
+    value = arg.group(1)
+    
+    return {"text": stripped_text, "key": key, "value": value}
         
 async def get_sub_name(update, context):
     name = update.effective_chat.username
@@ -106,11 +120,36 @@ async def announce(update, context):
     else:
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
+    # Remove /announce
+    msg = update.message.text[10:]
+    
+    # Parse arguments
+    markdown = parse_argument(msg, "Markdown")
+    if markdown:
+        msg = markdown['text']
+    else:
+        markdown['value'] = False
+        
+    disablepreview = parse_argument(msg, "DisableLinkPreview")
+    if disablepreview:
+        msg = disablepreview['text']
+    else:
+        disablepreview['value'] = False
+
     for sub in subs:
         try:
-            # If a user blocks the bot, this would throw an error and kill the entire broadcast
-            await context.bot.send_message(sub["telegram_id"], update.message.text[10:])
-        except BaseException as e:
+            if markdown['value']:
+                await context.bot.send_message(sub["telegram_id"], msg, parse_mode="MarkdownV2", disable_web_page_preview=disablepreview['value'])
+            else:
+                await context.bot.send_message(sub["telegram_id"], msg, disable_web_page_preview=disablepreview['value'])
+                
+        # Indicates a parsing issue, so stop
+        except BadRequest as e:
+            logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
+            await context.bot.send_message(update.effective_chat.id, repr(e))
+            break
+        # Indicates a user has blocked the bot, so skip
+        except Forbidden as e:
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             continue
             
