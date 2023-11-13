@@ -18,7 +18,7 @@ async def main():
         last_updated = hestia.query_db("SELECT donation_link_updated FROM hestia.meta", fetchOne=True)["donation_link_updated"]
         
         if datetime.now() - last_updated >= timedelta(days=33):
-            await hestia.BOT.send_message(text="Donation link expiring soon. Use /setdonate", chat_id=secrets.OWN_CHAT_ID)
+            await hestia.BOT.send_message(text="Donation link expiring soon, use /setdonate.", chat_id=secrets.OWN_CHAT_ID)
 
     for target in targets:
         try:
