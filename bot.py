@@ -287,7 +287,7 @@ async def set_donation_link(update, context):
     
     link = update.message.text.split(' ')[1]
     
-    hestia.query_db("UPDATE hestia.meta SET donation_link = %s, donation_link_expiry = %s WHERE id = %s", params=[link, datetime.now().isoformat(), hestia.SETTINGS_ID])
+    hestia.query_db("UPDATE hestia.meta SET donation_link = %s, donation_link_updated = %s WHERE id = %s", params=[link, datetime.now().isoformat(), hestia.SETTINGS_ID])
     
     message = "Donation link updated."
     await context.bot.send_message(update.effective_chat.id, message)
