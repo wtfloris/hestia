@@ -281,7 +281,7 @@ async def status(update, context):
         count = hestia.query_db("SELECT COUNT(*) FROM hestia.homes WHERE agency = %s AND date_added > now() - '1 week'::interval", params=[agency], fetchOne=True)
         message += f"{agency} ({target_id}): {count['count']} listings\n"
 
-    await context.bot.send_message(update.effective_chat.id, message)
+    await context.bot.send_message(update.effective_chat.id, message, disable_web_page_preview=True)
     
 async def set_donation_link(update, context):
     if not privileged(update, context, "setdonationlink", check_only=False): return
