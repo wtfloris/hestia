@@ -36,7 +36,7 @@ class Home:
     @city.setter
     def city(self, city):
         # Strip the trailing province if present
-        if re.search(" \([a-zA-Z]{2}\)$":
+        if re.search(" \([a-zA-Z]{2}\)$", city):
             city = ' '.join(city.split(' ')[:-1])
     
         # Handle cities with two names and other edge cases
