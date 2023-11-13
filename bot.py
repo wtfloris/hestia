@@ -192,8 +192,6 @@ async def get_sub_info(update, context):
     
     await context.bot.send_message(update.effective_chat.id, message)
     
-# This writes a HALT file to stop the scraper, in case some API has changed
-# and all results for a website are ending up in the bot
 async def halt(update, context):
     if not privileged(update, context, "halt", check_only=False): return
     
@@ -202,8 +200,6 @@ async def halt(update, context):
     message = "Halting scraper."
     await context.bot.send_message(update.effective_chat.id, message)
     
-# Resumes the scraper by removing the HALT file. Note that this may create
-# a massive update broadcast. Consider putting Hestia on dev mode first.
 async def resume(update, context):
     if not privileged(update, context, "resume", check_only=False): return
     
