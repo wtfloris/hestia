@@ -35,12 +35,36 @@ class Home:
         
     @city.setter
     def city(self, city):
-        # Handle cities with two names
-        if city == "'s-Gravenhage":
-            city = "Den Haag"
-        elif city == "'s-Hertogenbosch":
-            city = "Den Bosch"
+        # Strip the trailing province if present
+        if re.search(" \([a-zA-Z]{2}\)$":
+            city = ' '.join(city.split(' ')[:-1])
     
+        # Handle cities with two names and other edge cases
+        if city.lower() in ["'s-gravenhage", "s-gravenhage"]:
+            city = "Den Haag"
+        elif city.lower() in ["'s-hertogenbosch", "s-hertogenbosch"]:
+            city = "Den Bosch"
+        elif city.lower() in ["alphen aan den rijn", "alphen a/d rijn"]:
+            city = "Alphen aan den Rijn"
+        elif city.lower() in ["koog aan de zaan", "koog a/d zaan"]:
+            city = "Koog aan de Zaan"
+        elif city.lower() in ["capelle aan den ijssel", "capelle a/d ijssel"]:
+            city = "Capelle aan den IJssel"
+        elif city.lower() in ["berkel-enschot", "berkel enschot"]:
+            city = "Berkel-Enschot"
+        elif city.lower() in ["oud-beijerland", "oud beijerland"]:
+            city = "Oud-Beijerland"
+        elif city.lower() in ["etten-leur", "etten leur"]:
+            city = "Etten-Leur"
+        elif city.lower() == "son en breugel":
+            city = "Son en Breugel"
+        elif city.lower() == "bergen op zoom":
+            city = "Bergen op Zoom"
+        elif city.lower() == "berkel en rodenrijs":
+            city = "Berkel en Rodenrijs"
+        elif city.lower() == "wijk bij duurstede":
+            city = "Wijk bij Duurstede"
+            
         self._raw_city = city
         self.safe_city = city.replace("'", "''")
     
@@ -124,9 +148,17 @@ class HomeResults:
         
             home = Home(agency="ikwilhuren")
             home.address = str(res.find(class_="stretched-link").contents[0].strip())
+            
             postcodecity = str(res.find(class_="card-body").contents[3].get_text())
             home.city = ' '.join(postcodecity.split(' ')[1:])
-            home.url = "https://ikwilhuren.nu" + res.find(class_="stretched-link")["href"]
+            
+            # ikwilhuren lists some Bouwinvest properties, which have a full link attached
+            link = res.find(class_="stretched-link")["href"]
+            if "wonenbijbouwinvest.nl" in link:
+                home.url = link
+            else:
+                home.url = "https://ikwilhuren.nu" + link
+                
             home.price = int(str(res.find(class_="fw-bold")).split(' ')[2].replace('.', '')[:-2])
             self.homes.append(home)
         
