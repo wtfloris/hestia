@@ -105,9 +105,9 @@ async def stop(update, context):
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=f"""You will no longer recieve updates for new listings.
-
-I hope this is because you've found a new home! Consider [buying me a beer]({donation_link}) if this bot has helped you in your search {hestia.LOVE_EMOJI}""",
+        text=f"""You will no longer recieve updates for new listings\. I hope this is because you've found a new home\!
+        
+        Consider [buying me a beer]({donation_link}) if this bot has helped you in your search {hestia.LOVE_EMOJI}""",
         parse_mode="MarkdownV2",
         disable_web_page_preview=True
     )
