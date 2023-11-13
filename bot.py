@@ -101,7 +101,7 @@ async def stop(update, context):
             logging.warning(log_msg)
             await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
 
-    donation_link = query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
+    donation_link = hestia.query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
