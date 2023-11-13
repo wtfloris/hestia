@@ -14,12 +14,9 @@ async def main():
     
     # Once per hour, check if the donation link is expiring soon
     # Expiry of ING payment links is 35 days, start warning after 33
-    logging.warning(f"Current minute: {datetime.now().minute}")
-    if datetime.now().minute < 4:
+    if datetime.now().minute < 40:
         last_updated = hestiaquery_db("SELECT donation_link_updated FROM hestia.meta", fetchOne=True)["donation_link_updated"]
         
-        logging.warning(f"Last updated: {last_updated}")
-        logging.warning(f"Delta: {datetime.now() - last_updated}")
         if datetime.now() - last_updated >= timedelta(days=33):
             await hestia.BOT.send_message(text="Donation link expiring soon. Use /setdonate", chat_id=secrets.OWN_CHAT_ID)
 
