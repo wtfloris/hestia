@@ -5,6 +5,7 @@ import pickle
 import os
 import secrets
 import re
+from datetime import datetime
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
@@ -100,9 +101,15 @@ async def stop(update, context):
             logging.warning(log_msg)
             await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
 
+    donation_link = query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
+
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="You will no longer recieve updates for new listings."
+        text=f"""You will no longer recieve updates for new listings.
+
+I hope this is because you've found a new home! Consider [buying me a beer]({donation_link}) if this bot has helped you in your search {hestia.LOVE_EMOJI}""",
+        parse_mode="MarkdownV2",
+        disable_web_page_preview=True
     )
 
 async def reply(update, context):
@@ -275,6 +282,16 @@ async def status(update, context):
 
     await context.bot.send_message(update.effective_chat.id, message)
     
+async def set_donation_link(update, context):
+    if not privileged(update, context, "setdonationlink", check_only=False): return
+    
+    link = update.message.text.split(' ')[1]
+    
+    hestia.query_db("UPDATE hestia.meta SET donation_link = %s, donation_link_expiry = %s WHERE id = %s", params=[link, datetime.now().isoformat(), hestia.SETTINGS_ID])
+    
+    message = "Donation link updated."
+    await context.bot.send_message(update.effective_chat.id, message)
+    
 # TODO check if user is in db (and enabled)
 # TODO some restrictions on numeric filters: min, max etc
 async def filter(update, context):
@@ -406,7 +423,8 @@ async def help(update, context):
         message += "/halt - Halts the scraper\n"
         message += "/resume - Resumes the scraper\n"
         message += "/dev - Enables dev mode\n"
-        message += "/nodev - Disables dev mode"
+        message += "/nodev - Disables dev mode\n"
+        message += "/setdonate - Sets the goodbye message donation link"
 
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
@@ -428,6 +446,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("resume", resume))
     application.add_handler(CommandHandler("dev", enable_dev))
     application.add_handler(CommandHandler("nodev", disable_dev))
+    application.add_handler(CommandHandler("setdonate", set_donation_link))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
