@@ -292,6 +292,10 @@ class HomeResults:
     def parse_funda(self, r):
         results = json.loads(r.content)["search_result"]["hits"]["hits"]
         
+        # Some listings don't have house numbers, so skip
+        if "house_number" not in res["_source"]["address"].keys():
+            continue
+        
         for res in results:
             home = Home(agency="funda")
             home.address = res["_source"]["address"]["street_name"] + ' ' + res["_source"]["address"]["house_number"]
