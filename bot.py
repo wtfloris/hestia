@@ -358,8 +358,7 @@ async def filter(update, context):
         for city in all_filter_cities:
             message += f"{city.title()}\n"
             
-        # Skim the trailing newline
-        message = message[:-1]
+        message += "\nThis list is based on the cities I've seen so far while scraping, so it might not be fully complete."
             
     # Modify city filter
     elif len(cmd) >= 4 and cmd[1] == "city" and cmd[2] in ["add", "remove", "rm", "delete", "del"]:
