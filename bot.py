@@ -57,7 +57,7 @@ async def new_sub(update, context, reenable=False):
     name = await get_sub_name(update, context)
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
-    await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
+#    await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
     
     # If the user existed before, then re-enable the telegram updates
     if reenable:
@@ -99,7 +99,7 @@ async def stop(update, context):
             name = await get_sub_name(update, context)
             log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
             logging.warning(log_msg)
-            await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
+#            await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
 
     donation_link = hestia.query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
 
