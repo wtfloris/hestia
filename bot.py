@@ -296,7 +296,13 @@ async def set_donation_link(update, context):
 # TODO check if user is in db (and enabled)
 # TODO some restrictions on numeric filters: min, max etc
 async def filter(update, context):
-    cmd = [token.lower() for token in update.message.text.split(' ')]
+    # Not sure why, but sometimes an error occurs here because the message is empty.
+    try:
+        cmd = [token.lower() for token in update.message.text.split(' ')]
+    except AttributeError:
+        message = "Something went wrong here, but the creator of the bot can't reproduce it. If you see this message, can you please let @WTFloris know what you were trying to do? Thank you!"
+        await context.bot.send_message(update.effective_chat.id, message)
+        return
     
     # '/filter' only
     if len(cmd) == 1:
