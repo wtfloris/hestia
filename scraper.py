@@ -80,15 +80,15 @@ async def scrape_site(target):
     for home in hestia.HomeResults(agency, r):
         if home not in prev_homes:
             # Temporary fix for apostrophes in street names
-            if "'" not in home.safe_address:
+            if "'" not in home.address:
                 new_homes.append(home)
 
     # Write new homes to database
     for home in new_homes:
         hestia.query_db("INSERT INTO hestia.homes VALUES (%s, %s, %s, %s, %s, %s)",
             (home.url,
-            home.safe_address,
-            home.safe_city,
+            home.address,
+            home.city,
             home.price,
             home.agency,
             datetime.now().isoformat()))
