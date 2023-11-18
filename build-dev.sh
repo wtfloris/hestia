@@ -1,6 +1,6 @@
 set -e
 
-TAG=latest
+TAG=dev
 
 docker build --tag wtfloris/hestia-bot:$TAG -f Dockerfile.bot .
 docker build --tag wtfloris/hestia-scraper:$TAG -f Dockerfile.scraper .
@@ -10,5 +10,5 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
     docker compose down --remove-orphans
-    docker compose up -d
+    docker compose -f docker-compose-dev.yml up -d
 fi
