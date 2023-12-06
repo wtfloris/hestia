@@ -30,8 +30,16 @@ class Home:
         return False
     
     @property
+    def address(self):
+        return self._address
+        
+    @address.setter
+    def address(self, address):
+        self._address = address
+        
+    @property
     def city(self):
-        return self.city
+        return self._parsed_city
         
     @city.setter
     def city(self, city):
@@ -65,15 +73,7 @@ class Home:
         elif city.lower() == "wijk bij duurstede":
             city = "Wijk bij Duurstede"
             
-        self.city = city
-    
-    @property
-    def address(self):
-        return self.address
-        
-    @address.setter
-    def address(self, address):
-        self.address = address
+        self._parsed_city = city
         
 
 class HomeResults:
