@@ -30,8 +30,16 @@ class Home:
         return False
     
     @property
+    def address(self):
+        return self._address
+        
+    @address.setter
+    def address(self, address):
+        self._address = address
+        
+    @property
     def city(self):
-        return self._raw_city
+        return self._parsed_city
         
     @city.setter
     def city(self, city):
@@ -65,17 +73,7 @@ class Home:
         elif city.lower() == "wijk bij duurstede":
             city = "Wijk bij Duurstede"
             
-        self._raw_city = city
-        self.safe_city = city.replace("'", "''")
-    
-    @property
-    def address(self):
-        return self._raw_address
-        
-    @address.setter
-    def address(self, address):
-        self._raw_address = address
-        self.safe_address = address.replace("'", "''")
+        self._parsed_city = city
         
 
 class HomeResults:

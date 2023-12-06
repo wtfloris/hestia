@@ -357,6 +357,9 @@ async def filter(update, context):
         message = "Supported cities for the city filter are:\n\n"
         for city in all_filter_cities:
             message += f"{city.title()}\n"
+            if len(message) > 4000:
+                await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
+                message = ""
             
         message += "\nThis list is based on the cities I've seen so far while scraping, so it might not be fully complete."
             
