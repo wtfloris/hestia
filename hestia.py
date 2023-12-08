@@ -346,10 +346,14 @@ HOUSE_EMOJI = "\U0001F3E0"
 LINK_EMOJI = "\U0001F517"
 EURO_EMOJI = "\U0001F4B6"
 LOVE_EMOJI = "\U0001F970"
+CHECK_EMOJI = "\U00002705"
+CROSS_EMOJI = "\U0000274C"
 
 # The identifier of the used settings in the database (default = default)
 SETTINGS_ID = "default"
 
+# The Dockerfile replaces this with the git commit id
+APP_VERSION = None
 
 def check_dev_mode():
     return query_db("SELECT devmode_enabled FROM hestia.meta", fetchOne=True)["devmode_enabled"]

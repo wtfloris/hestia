@@ -250,17 +250,17 @@ async def status(update, context):
 
     settings = hestia.query_db("SELECT * FROM hestia.meta WHERE id = %s", params=[hestia.SETTINGS_ID], fetchOne=True)
     
-    message = "Status:\n\n"
+    message = f"Running version: {hestia.APP_VERSION}\n\n"
     
     if settings["devmode_enabled"]:
-        message += "Dev mode: enabled\n"
+        message += f"{hestia.CROSS_EMOJI} Dev mode: enabled\n"
     else:
-        message += "Dev mode: disabled\n"
+        message += f"{hestia.CHECK_EMOJI} Dev mode: disabled\n"
         
     if settings["scraper_halted"]:
-        message += "Scraper: halted\n"
+        message += f"{hestia.CROSS_EMOJI} Scraper: halted\n"
     else:
-        message += "Scraper: active\n"
+        message += f"{hestia.CHECK_EMOJI} Scraper: active\n"
 
     sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers WHERE telegram_enabled = true", fetchOne=True)
     message += "\n"

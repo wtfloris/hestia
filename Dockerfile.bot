@@ -12,5 +12,7 @@ COPY secrets.py secrets.py
 COPY hestia.py hestia.py
 COPY bot.py bot.py
 
-CMD ["python3", "bot.py"]
+ARG APP_VERSION
+RUN sed -i "s/APP_VERSION = None/APP_VERSION = '$APP_VERSION'/g" hestia.py
 
+CMD ["python3", "bot.py"]
