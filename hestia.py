@@ -272,6 +272,8 @@ class HomeResults:
             # This is probably not 100% reliable either, but it's close enough.
             if not re.search("[0-9]", raw_address):
                 continue
+            if re.search("^[0-9]", raw_address): # Filter "1e Foobarstraat", etc.
+                continue
                 
             home.address = ' '.join(raw_address.split(' ')[1:]) # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
             raw_city = res.find("div", class_="listing-search-item__sub-title'").contents[0].strip()
