@@ -2,6 +2,8 @@
 
 FROM python:3.8-slim-buster
 
+ARG APP_VERSION
+
 WORKDIR /hestia
 
 COPY requirements.txt requirements.txt
@@ -12,5 +14,6 @@ COPY secrets.py secrets.py
 COPY hestia.py hestia.py
 COPY bot.py bot.py
 
-CMD ["python3", "bot.py"]
+RUN sed -i "s/APP_VERSION = None/APP_VERSION = $APP_VERSION/g" hestia.py
 
+CMD ["python3", "bot.py"]

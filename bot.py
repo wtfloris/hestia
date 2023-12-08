@@ -250,7 +250,7 @@ async def status(update, context):
 
     settings = hestia.query_db("SELECT * FROM hestia.meta WHERE id = %s", params=[hestia.SETTINGS_ID], fetchOne=True)
     
-    message = "Status:\n\n"
+    message = f"Running version: {hestia.APP_VERSION}"
     
     if settings["devmode_enabled"]:
         message += "Dev mode: enabled\n"
