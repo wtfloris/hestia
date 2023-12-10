@@ -353,7 +353,7 @@ CROSS_EMOJI = "\U0000274C"
 SETTINGS_ID = "default"
 
 # The Dockerfile replaces this with the git commit id
-APP_VERSION = None
+APP_VERSION = ''
 
 def check_dev_mode():
     return query_db("SELECT devmode_enabled FROM hestia.meta", fetchOne=True)["devmode_enabled"]

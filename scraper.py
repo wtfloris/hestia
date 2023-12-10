@@ -6,19 +6,31 @@ from datetime import datetime, timedelta
 from asyncio import run
 
 async def main():
+    
+    # Once a day at 7pm, check some stuff and send an alert if necessary
+    if datetime.now().hour == 19 and datetime.now().minute < 4:
+        message = ""
+    
+        if hestia.check_dev_mode():
+            message += "\n\nDev mode is enabled."
+            
+        if hestia.check_scraper_halted() and 'dev' not in hestia.APP_VERSION:
+            message += "\n\nScraper is halted."
+    
+        # Check if the donation link is expiring soon
+        # Expiry of ING payment links is 35 days, start warning after 32
+        last_updated = hestia.query_db("SELECT donation_link_updated FROM hestia.meta", fetchOne=True)["donation_link_updated"]
+        if datetime.now() - last_updated >= timedelta(days=32):
+            message += "\n\nDonation link expiring soon, use /setdonate."
+            
+        if message:
+            await hestia.BOT.send_message(text=message[2:], chat_id=secrets.OWN_CHAT_ID)
+    
     if hestia.check_scraper_halted():
         logging.warning("Scraper is halted.")
         exit()
-        
+
     targets = hestia.query_db("SELECT * FROM hestia.targets WHERE enabled = true")
-    
-    # Once per hour, check if the donation link is expiring soon
-    # Expiry of ING payment links is 35 days, start warning after 33
-    if datetime.now().minute < 4:
-        last_updated = hestia.query_db("SELECT donation_link_updated FROM hestia.meta", fetchOne=True)["donation_link_updated"]
-        
-        if datetime.now() - last_updated >= timedelta(days=33):
-            await hestia.BOT.send_message(text="Donation link expiring soon, use /setdonate.", chat_id=secrets.OWN_CHAT_ID)
 
     for target in targets:
         try:
