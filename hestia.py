@@ -300,7 +300,7 @@ class HomeResults:
             home = Home(agency="funda")
             
             home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
-            if res["_source"]["address"]["house_number_suffix"]:
+            if "house_number_suffix" in res["_source"]["address"].keys():
                 home.address += f"res['_source']['address']['house_number_suffix']"
             
             home.city = res["_source"]["address"]["city"]
