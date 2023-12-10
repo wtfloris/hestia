@@ -61,6 +61,9 @@ async def broadcast(homes):
             
             message = f"{hestia.HOUSE_EMOJI} {home.address}, {home.city}\n"
             message += f"{hestia.EURO_EMOJI} €{home.price}/m\n\n"
+            
+            message = hestia.escape_markdownv2(message)
+            
             message += f"{hestia.LINK_EMOJI} [Link]({home.url})"
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
@@ -85,15 +88,13 @@ async def scrape_site(target):
     prev_homes = []
     new_homes = []
     
-    # Check retrieved homes against previously scraped homes
-    for home in hestia.query_db("SELECT address, city FROM hestia.homes WHERE agency = %s", params=[agency]):
+    # Check retrieved homes against previously scraped homes (of the last 6 months)
+    for home in hestia.query_db("SELECT address, city FROM hestia.homes WHERE date_added > now() - interval '180 day'"):
         prev_homes.append(hestia.Home(home["address"], home["city"]))
     
     for home in hestia.HomeResults(agency, r):
         if home not in prev_homes:
-            # Temporary fix for apostrophes in street names
-            if "'" not in home.address:
-                new_homes.append(home)
+            new_homes.append(home)
 
     # Write new homes to database
     for home in new_homes:

@@ -298,10 +298,18 @@ class HomeResults:
                 continue
         
             home = Home(agency="funda")
-            home.address = res["_source"]["address"]["street_name"] + ' ' + res["_source"]["address"]["house_number"]
+            
+            home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
+            if "house_number_suffix" in res["_source"]["address"].keys():
+                suffix = res["_source"]["address"]["house_number_suffix"]
+                if '-' not in suffix and '+' not in suffix:
+                    suffix = f" {suffix}"
+                home.address += f"{suffix}"
+            
             home.city = res["_source"]["address"]["city"]
             home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
             home.price = res["_source"]["price"]["rent_price"][0]
+            
             self.homes.append(home)
             
 
@@ -331,6 +339,13 @@ def query_db(query, params=[], fetchOne=False):
     
     return result
 
+def escape_markdownv2(text):
+    text = text.replace('.', '\.')
+    text = text.replace('!', '\!')
+    text = text.replace('+', '\+')
+    text = text.replace('-', '\-')
+    text = text.replace('*', '\*')
+    return text
 
 WORKDIR = query_db("SELECT workdir FROM hestia.meta", fetchOne=True)["workdir"]
 
