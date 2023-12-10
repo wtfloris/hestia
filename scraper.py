@@ -86,14 +86,12 @@ async def scrape_site(target):
     new_homes = []
     
     # Check retrieved homes against previously scraped homes
-    for home in hestia.query_db("SELECT address, city FROM hestia.homes WHERE agency = %s", params=[agency]):
+    for home in hestia.query_db("SELECT address, city FROM hestia.homes"):
         prev_homes.append(hestia.Home(home["address"], home["city"]))
     
     for home in hestia.HomeResults(agency, r):
         if home not in prev_homes:
-            # Temporary fix for apostrophes in street names
-            if "'" not in home.address:
-                new_homes.append(home)
+            new_homes.append(home)
 
     # Write new homes to database
     for home in new_homes:
