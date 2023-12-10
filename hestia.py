@@ -344,6 +344,7 @@ def escape_markdownv2(text):
     text = text.replace('!', '\!')
     text = text.replace('+', '\+')
     text = text.replace('-', '\-')
+    text = text.replace('*', '\*')
     return text
 
 WORKDIR = query_db("SELECT workdir FROM hestia.meta", fetchOne=True)["workdir"]
