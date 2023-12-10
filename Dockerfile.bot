@@ -13,6 +13,6 @@ COPY hestia.py hestia.py
 COPY bot.py bot.py
 
 ARG APP_VERSION
-RUN sed -i "s/APP_VERSION = None/APP_VERSION = '$APP_VERSION'/g" hestia.py
+RUN sed -i "s/APP_VERSION = ''/APP_VERSION = '$APP_VERSION'/g" hestia.py
 
 CMD ["python3", "bot.py"]
