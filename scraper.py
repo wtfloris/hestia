@@ -85,8 +85,8 @@ async def scrape_site(target):
     prev_homes = []
     new_homes = []
     
-    # Check retrieved homes against previously scraped homes
-    for home in hestia.query_db("SELECT address, city FROM hestia.homes"):
+    # Check retrieved homes against previously scraped homes (of the last 6 months)
+    for home in hestia.query_db("SELECT address, city FROM hestia.homes WHERE date_added > now() - interval '180 day'"):
         prev_homes.append(hestia.Home(home["address"], home["city"]))
     
     for home in hestia.HomeResults(agency, r):
