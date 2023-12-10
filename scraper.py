@@ -61,13 +61,16 @@ async def broadcast(homes):
             
             message = f"{hestia.HOUSE_EMOJI} {home.address}, {home.city}\n"
             message += f"{hestia.EURO_EMOJI} €{home.price}/m\n\n"
+            
+            message = hestia.escape_markdownv2(message)
+            
             message += f"{hestia.LINK_EMOJI} [Link]({home.url})"
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
-#            try:
-            await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
-#            except:
-#                pass
+            try:
+                await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
+            except:
+                pass
 
 async def scrape_site(target):
     agency = target["agency"]
