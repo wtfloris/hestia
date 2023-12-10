@@ -301,7 +301,7 @@ class HomeResults:
             
             home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
             if "house_number_suffix" in res["_source"]["address"].keys():
-                home.address += f"res['_source']['address']['house_number_suffix']"
+                home.address += f"{res['_source']['address']['house_number_suffix']}"
             
             home.city = res["_source"]["address"]["city"]
             home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
