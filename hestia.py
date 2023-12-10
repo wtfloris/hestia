@@ -298,10 +298,15 @@ class HomeResults:
                 continue
         
             home = Home(agency="funda")
-            home.address = res["_source"]["address"]["street_name"] + ' ' + res["_source"]["address"]["house_number"]
+            
+            home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
+            if res["_source"]["address"]["house_number_suffix"]:
+                home.address += f"res['_source']['address']['house_number_suffix']"
+            
             home.city = res["_source"]["address"]["city"]
             home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
             home.price = res["_source"]["price"]["rent_price"][0]
+            
             self.homes.append(home)
             
 
