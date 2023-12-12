@@ -127,7 +127,7 @@ class HomeResults:
             if res["onlySixtyFivePlus"]:
                 continue
             
-            home = Home(agency="vesteda")
+            home = Home(agency="Vesteda")
             home.address = f"{res['street']} {res['houseNumber']}"
             if res["houseNumberAddition"] is not None:
                 home.address += f"{res['houseNumberAddition']}"
@@ -144,7 +144,7 @@ class HomeResults:
             if "Zorgwoning" in res.get_text():
                 continue
         
-            home = Home(agency="ikwilhuren")
+            home = Home(agency="IkWilHuren")
             home.address = str(res.find(class_="stretched-link").contents[0].strip())
             
             postcodecity = str(res.find(class_="card-body").contents[3].get_text())
@@ -168,7 +168,7 @@ class HomeResults:
             if res["isBouwinvest"]:
                 continue
             
-            home = Home(agency="vbt")
+            home = Home(agency="VBT")
             home.address = res["address"]["house"]
             home.city = res["address"]["city"]
             home.url = res["source"]["externalLink"]
@@ -184,7 +184,7 @@ class HomeResults:
             if not res["isInSelection"]:
                 continue
                 
-            home = Home(agency="alliantie")
+            home = Home(agency="de Alliantie")
             home.address = res["address"]
             # this is a dirty hack because what website with rental homes does not
             # include the city AT ALL in their FUCKING API RESPONSES
@@ -207,7 +207,7 @@ class HomeResults:
             if res["WoningTypeCssClass"] == "Type03":
                 continue
             
-            home = Home(agency="woningnet")
+            home = Home(agency="Woningnet")
             home.address = res["Adres"]
             home.city = res["PlaatsWijk"].split('-')[0][:-1]
             home.url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
@@ -222,7 +222,7 @@ class HomeResults:
             if res["class"] == "Project":
                 continue
     
-            home = Home(agency="bouwinvest")
+            home = Home(agency="Bouwinvest")
             home.address = res["name"]
             home.city = res["address"]["city"]
             home.url = res["url"]
@@ -237,7 +237,7 @@ class HomeResults:
             if res["buy_or_rent"] != "rent" or res["availability_status"].lower() != "beschikbaar":
                 continue
     
-            home = Home(agency="krk")
+            home = Home(agency="KRK")
             home.address = res["short_title"]
             home.city = res["place"]
             home.url = res["url"]
@@ -252,7 +252,7 @@ class HomeResults:
             if 'rented' in str(res.find(class_="object_status")):
                 continue
         
-            home = Home(agency="makelaarshuis")
+            home = Home(agency="Makelaarshuis")
             home.address = str(res.find("span", class_="street").contents[0])
             home.city = str(res.find("span", class_="locality").contents[0])
             home.url = "https://yourexpatbroker.nl" + res.find("a", class_="saletitle")["href"].split('?')[0]
@@ -264,7 +264,7 @@ class HomeResults:
         
         for res in results:
         
-            home = Home(agency="pararius")
+            home = Home(agency="Pararius")
             raw_address = str(res.find("a", class_="listing-search-item__link--title").contents[0].strip())
         
             # A lot of properties on Pararius don't include house numbers, so it's impossible to keep track of them because
@@ -297,7 +297,7 @@ class HomeResults:
             if "house_number" not in res["_source"]["address"].keys():
                 continue
         
-            home = Home(agency="funda")
+            home = Home(agency="Funda")
             
             home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
             if "house_number_suffix" in res["_source"]["address"].keys():
