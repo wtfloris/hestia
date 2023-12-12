@@ -49,6 +49,10 @@ async def broadcast(homes):
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
     else:
         subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+        
+    # Create dict of agencies and their pretty names
+    agencies = hestia.query_db("SELECT agency, user_info FROM targets")
+    agencies = dict([(a["agency"], a["user_info"]["agency"]) for a in agencies])
     
     for home in homes:
         for sub in subs:
@@ -64,12 +68,7 @@ async def broadcast(homes):
             
             message = hestia.escape_markdownv2(message)
             
-            if len(home.agency) < 4:
-                agency = home.agency.upper()
-            else:
-                agency = home.capitalize()
-            
-            message += f"{hestia.LINK_EMOJI} [{agency}]({home.url})"
+            message += f"{hestia.LINK_EMOJI} [{agencies['home.agency']}]({home.url})"
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
