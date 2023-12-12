@@ -10,7 +10,7 @@ if [[ $1 == dev ]]; then
 fi
 
 docker build --build-arg=APP_VERSION="$APP_VERSION" --tag wtfloris/hestia-bot:$TAG -f Dockerfile.bot .
-docker build --tag wtfloris/hestia-scraper:$TAG -f Dockerfile.scraper .
+docker build --build-arg=APP_VERSION="$APP_VERSION" --tag wtfloris/hestia-scraper:$TAG -f Dockerfile.scraper .
 
 if [[ $1 == -y ]] || [[ $2 == -y ]]; then
         docker compose $DEVARGS up -d

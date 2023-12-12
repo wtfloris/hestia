@@ -15,5 +15,7 @@ COPY scraper.py scraper.py
 
 RUN echo "*/5 * * * * root /usr/local/bin/python3 /scraper/scraper.py > /proc/1/fd/1 2>/proc/1/fd/2" >> /etc/crontab
 
-CMD ["cron", "-f"]
+ARG APP_VERSION
+RUN sed -i "s/APP_VERSION = ''/APP_VERSION = '$APP_VERSION'/g" hestia.py
 
+CMD ["cron", "-f"]
