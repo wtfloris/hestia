@@ -68,7 +68,7 @@ async def broadcast(homes):
             
             message = hestia.escape_markdownv2(message)
             
-            message += f"{hestia.LINK_EMOJI} [{agencies['home.agency']}]({home.url})"
+            message += f"{hestia.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast
             try:
