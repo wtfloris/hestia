@@ -296,6 +296,9 @@ class HomeResults:
             # Some listings don't have house numbers, so skip
             if "house_number" not in res["_source"]["address"].keys():
                 continue
+            # Some listings don't have a rent_price, skip as well
+            if "rent_price" not in res["_source"]["price"].keys():
+                continue
         
             home = Home(agency="funda")
             
