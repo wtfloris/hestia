@@ -330,6 +330,9 @@ class HomeResults:
                 # Filter bouwinvest results
                 if "wonenbijbouwinvest" in label.text.lower():
                     continue
+                # Filter empty results
+                if not res.find("p"):
+                    continue
         
             home = Home(agency="rebo")
             home.address = res.find("p").text.strip()
