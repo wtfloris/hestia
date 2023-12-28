@@ -111,6 +111,8 @@ class HomeResults:
             self.parse_pararius(raw)
         elif source == "funda":
             self.parse_funda(raw)
+        elif source == "rebo":
+            self.parse_rebo(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -312,6 +314,33 @@ class HomeResults:
             home.city = res["_source"]["address"]["city"]
             home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
             home.price = res["_source"]["price"]["rent_price"][0]
+            
+            self.homes.append(home)
+            
+    def parse_rebo(self, r):
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="property")
+        
+        for res in results:
+            label = res.find(class_="label")
+            
+            if label:
+                # Filter entire buildings
+                if label.text.lower() == "complex":
+                    continue
+                # Filter bouwinvest results
+                if "wonenbijbouwinvest" in label.text.lower():
+                    continue
+        
+            home = Home(agency="rebo")
+            home.address = res.find("p").text.strip()
+            home.city = res.find("h4").text
+            home.url = "https://rebohuurwoning.nl" + res.find("a")["href"]
+            price = re.search(" [0-9]?[0-9]\.?[0-9][0-9][0-9]? ", res.find(class_="price").text)
+            
+            if not price:
+                continue
+                
+            home.price = price.group(0).strip().replace('.', '')
             
             self.homes.append(home)
             
