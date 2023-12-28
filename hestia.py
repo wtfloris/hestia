@@ -321,6 +321,7 @@ class HomeResults:
         results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="property")
         
         for res in results:
+            print(res)
             label = res.find(class_="label")
             
             if label:
@@ -330,21 +331,20 @@ class HomeResults:
                 # Filter bouwinvest results
                 if "wonenbijbouwinvest" in label.text.lower():
                     continue
-                    
-            # Filter empty results
-            if not res.find("p") or not res.find("a"):
-                continue
-        
-            home = Home(agency="rebo")
-            home.address = res.find("p").text.strip()
-            home.city = res.find("h4").text
-            home.url = "https://rebohuurwoning.nl" + res.find("a")["href"]
-            price = re.search(" [0-9]?[0-9]\.?[0-9][0-9][0-9]? ", res.find(class_="price").text)
             
-            if not price:
-                continue
+            # This has some weird results, so just skip anything that doesn't work out
+            try:
+                home = Home(agency="rebo")
+                home.address = res.find("p").text.strip()
+                home.city = res.find("h4").text
+                home.url = "https://rebohuurwoning.nl" + res.find("a")["href"]
+                price = re.search(" [0-9]?[0-9]\.?[0-9][0-9][0-9]? ", res.find(class_="price").text)
                 
-            home.price = price.group(0).strip().replace('.', '')
+                if not price:
+                    continue
+                home.price = price.group(0).strip().replace('.', '')
+            except:
+                continue
             
             self.homes.append(home)
             
