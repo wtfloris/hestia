@@ -332,7 +332,7 @@ class HomeResults:
                     continue
                     
             # Filter empty results
-            if not res.find("p"):
+            if not res.find("p") or not res.find("a"):
                 continue
         
             home = Home(agency="rebo")
