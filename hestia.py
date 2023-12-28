@@ -342,7 +342,7 @@ class HomeResults:
                 
                 if not price:
                     continue
-                home.price = price.group(0).strip().replace('.', '')
+                home.price = int(price.group(0).strip().replace('.', ''))
             except:
                 continue
             
