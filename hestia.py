@@ -321,7 +321,6 @@ class HomeResults:
         results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="property")
         
         for res in results:
-            print(res)
             label = res.find(class_="label")
             
             if label:
