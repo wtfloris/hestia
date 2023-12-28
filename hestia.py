@@ -64,6 +64,8 @@ class Home:
             city = "Oud-Beijerland"
         elif city.lower() in ["etten-leur", "etten leur"]:
             city = "Etten-Leur"
+        elif city.lower() in ["nieuw vennep", "nieuw-vennep"]:
+            city = "Nieuw-Vennep"
         elif city.lower() == "son en breugel":
             city = "Son en Breugel"
         elif city.lower() == "bergen op zoom":
@@ -72,6 +74,10 @@ class Home:
             city = "Berkel en Rodenrijs"
         elif city.lower() == "wijk bij duurstede":
             city = "Wijk bij Duurstede"
+        elif city.lower() == "hoogvliet rotterdam":
+            city = "Hoogvliet Rotterdam"
+        elif city.lower() == "nederhorst den berg":
+            city = "Nederhorst den Berg"
             
         self._parsed_city = city
         
