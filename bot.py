@@ -1,14 +1,10 @@
 import hestia
 import logging
-import asyncio
-import pickle
-import os
 import secrets
 import re
 from datetime import datetime
-from telegram import Update
 from telegram.error import BadRequest
-from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler
 from time import sleep
 
 def initialize():
@@ -57,7 +53,6 @@ async def new_sub(update, context, reenable=False):
     name = await get_sub_name(update, context)
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
-#    await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
     
     # If the user existed before, then re-enable the telegram updates
     if reenable:
@@ -67,9 +62,9 @@ async def new_sub(update, context, reenable=False):
         
     message ="""Hi there!
 
-I scrape real estate websites for new rental homes in The Netherlands. For more info on which websites I scrape, say /websites. To see and modify your personal filters, say /filter.
+I check real estate websites for new rental homes in The Netherlands. For more info on which websites I check, say /websites.
 
-Please note that some real estate websites provide their paid members with early access, so some of the homes I send you will be unavailable.
+To see and modify your personal filters (like city and maximum price), say /filter.
 
 You will receive a message when I find a new home that matches your filters! If you want me to stop, just say /stop.
 
@@ -99,7 +94,6 @@ async def stop(update, context):
             name = await get_sub_name(update, context)
             log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
             logging.warning(log_msg)
-#            await context.bot.send_message(chat_id=secrets.OWN_CHAT_ID, text=log_msg)
 
     donation_link = hestia.query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
 

@@ -21,5 +21,5 @@ read -p "Run the containers? [y/N]" -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-        docker compose up -d
+        docker compose $DEVARGS up -d
 fi

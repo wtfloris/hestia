@@ -6,7 +6,7 @@ import requests
 import re
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
-from secrets import OWN_CHAT_ID, TOKEN, DB
+from secrets import TOKEN, DB
 
 
 class Home:
@@ -64,6 +64,8 @@ class Home:
             city = "Oud-Beijerland"
         elif city.lower() in ["etten-leur", "etten leur"]:
             city = "Etten-Leur"
+        elif city.lower() in ["nieuw vennep", "nieuw-vennep"]:
+            city = "Nieuw-Vennep"
         elif city.lower() == "son en breugel":
             city = "Son en Breugel"
         elif city.lower() == "bergen op zoom":
@@ -72,6 +74,12 @@ class Home:
             city = "Berkel en Rodenrijs"
         elif city.lower() == "wijk bij duurstede":
             city = "Wijk bij Duurstede"
+        elif city.lower() == "hoogvliet rotterdam":
+            city = "Hoogvliet Rotterdam"
+        elif city.lower() == "nederhorst den berg":
+            city = "Nederhorst den Berg"
+        elif city.lower() == "huis ter heide":
+            city = "Huis ter Heide"
             
         self._parsed_city = city
         
@@ -105,24 +113,27 @@ class HomeResults:
             self.parse_krk(raw)
         elif source == "makelaarshuis":
             self.parse_makelaarshuis(raw)
-        elif source == "woningnet":
-            self.parse_woningnet(raw)
+        elif "woningnet_" in source:
+            self.parse_woningnet_dak(raw, source.split("_")[1])
         elif source == "pararius":
             self.parse_pararius(raw)
         elif source == "funda":
             self.parse_funda(raw)
+        elif source == "rebo":
+            self.parse_rebo(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
     def parse_vesteda(self, r):
-        results = json.loads(r.content)["results"]["items"]
+        results = json.loads(r.content)["results"]["objects"]
             
         for res in results:
             # Filter non-available properties
             # Status 0 seems to be that the property is a project
+            # Status > 1 seems to be unavailable
             if res["status"] != 1:
                 continue
-                
+            
             # I don't think seniors are really into Telegram
             if res["onlySixtyFivePlus"]:
                 continue
@@ -195,23 +206,21 @@ class HomeResults:
             home.price = int(res["price"][2:].replace('.', ''))
             self.homes.append(home)
             
-    def parse_woningnet(self, r):
-        # Woningnet has a habit of not returning JSON sometimes for some reason
-        try:
-            results = json.loads(r.content)["Resultaten"]
-        except:
-            return
+    def parse_woningnet_dak(self, r, regio):
+        results = json.loads(r.content)["data"]["PublicatieLijst"]["List"]
         
         for res in results:
-            # Filter senior & family priority results
-            if res["WoningTypeCssClass"] == "Type03":
+            # Filter seniorenwoningen and items without prices
+            if "Seniorenwoning" in res["PublicatieLabel"] or res["Eenheid"]["Brutohuur"] == "0.0":
                 continue
             
-            home = Home(agency="woningnet")
-            home.address = res["Adres"]
-            home.city = res["PlaatsWijk"].split('-')[0][:-1]
-            home.url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
-            home.price = int(res["Prijs"][2:-3].replace('.', ''))
+            home = Home(agency=f"woningnet_{regio}")
+            home.address = f"{res['Adres']['Straatnaam']} {res['Adres']['Huisnummer']}"
+            if res["Adres"]["HuisnummerToevoeging"]:
+                home.address = f"{home.address} {res['Adres']['HuisnummerToevoeging']}"
+            home.city = res["Adres"]["Woonplaats"]
+            home.url = f"https://{regio}.mijndak.nl/HuisDetails?PublicatieId={res['Id']}"
+            home.price = int(float(res["Eenheid"]["Brutohuur"]))
             self.homes.append(home)
             
     def parse_bouwinvest(self, r):
@@ -313,6 +322,17 @@ class HomeResults:
             home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
             home.price = res["_source"]["price"]["rent_price"][0]
             
+            self.homes.append(home)
+            
+    # I love websites with (accidental) public API endpoints and proper JSON
+    def parse_rebo(self, r):
+        results = json.loads(r.content)["hits"]
+        for res in results:
+            home = Home(agency="rebo")
+            home.address = res["address"]
+            home.city = res["city"]
+            home.url = "https://www.rebogroep.nl/nl/aanbod/" + res["slug"]
+            home.price = int(res["price"])
             self.homes.append(home)
             
 
