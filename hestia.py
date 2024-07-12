@@ -78,6 +78,8 @@ class Home:
             city = "Hoogvliet Rotterdam"
         elif city.lower() == "nederhorst den berg":
             city = "Nederhorst den Berg"
+        elif city.lower() == "huis ter heide":
+            city = "Huis ter Heide"
             
         self._parsed_city = city
         
@@ -111,8 +113,8 @@ class HomeResults:
             self.parse_krk(raw)
         elif source == "makelaarshuis":
             self.parse_makelaarshuis(raw)
-        elif source == "woningnet":
-            self.parse_woningnet(raw)
+        elif "woningnet_" in source:
+            self.parse_woningnet_dak(raw, source.split("_")[1])
         elif source == "pararius":
             self.parse_pararius(raw)
         elif source == "funda":
@@ -123,14 +125,15 @@ class HomeResults:
             raise ValueError(f"Unknown source: {source}")
     
     def parse_vesteda(self, r):
-        results = json.loads(r.content)["results"]["items"]
+        results = json.loads(r.content)["results"]["objects"]
             
         for res in results:
             # Filter non-available properties
             # Status 0 seems to be that the property is a project
+            # Status > 1 seems to be unavailable
             if res["status"] != 1:
                 continue
-                
+            
             # I don't think seniors are really into Telegram
             if res["onlySixtyFivePlus"]:
                 continue
@@ -203,23 +206,21 @@ class HomeResults:
             home.price = int(res["price"][2:].replace('.', ''))
             self.homes.append(home)
             
-    def parse_woningnet(self, r):
-        # Woningnet has a habit of not returning JSON sometimes for some reason
-        try:
-            results = json.loads(r.content)["Resultaten"]
-        except:
-            return
+    def parse_woningnet_dak(self, r, regio):
+        results = json.loads(r.content)["data"]["PublicatieLijst"]["List"]
         
         for res in results:
-            # Filter senior & family priority results
-            if res["WoningTypeCssClass"] == "Type03":
+            # Filter seniorenwoningen and items without prices
+            if "Seniorenwoning" in res["PublicatieLabel"] or res["Eenheid"]["Brutohuur"] == "0.0":
                 continue
             
-            home = Home(agency="woningnet")
-            home.address = res["Adres"]
-            home.city = res["PlaatsWijk"].split('-')[0][:-1]
-            home.url = "https://www.woningnetregioamsterdam.nl" + res["AdvertentieUrl"]
-            home.price = int(res["Prijs"][2:-3].replace('.', ''))
+            home = Home(agency=f"woningnet_{regio}")
+            home.address = f"{res['Adres']['Straatnaam']} {res['Adres']['Huisnummer']}"
+            if res["Adres"]["HuisnummerToevoeging"]:
+                home.address = f"{home.address} {res['Adres']['HuisnummerToevoeging']}"
+            home.city = res["Adres"]["Woonplaats"]
+            home.url = f"https://{regio}.mijndak.nl/HuisDetails?PublicatieId={res['Id']}"
+            home.price = int(float(res["Eenheid"]["Brutohuur"]))
             self.homes.append(home)
             
     def parse_bouwinvest(self, r):
@@ -323,34 +324,15 @@ class HomeResults:
             
             self.homes.append(home)
             
+    # I love websites with (accidental) public API endpoints and proper JSON
     def parse_rebo(self, r):
-        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="property")
-        
+        results = json.loads(r.content)["hits"]
         for res in results:
-            label = res.find(class_="label")
-            
-            if label:
-                # Filter entire buildings
-                if label.text.lower() == "complex":
-                    continue
-                # Filter bouwinvest results
-                if "wonenbijbouwinvest" in label.text.lower():
-                    continue
-            
-            # This has some weird results, so just skip anything that doesn't work out
-            try:
-                home = Home(agency="rebo")
-                home.address = res.find("p").text.strip()
-                home.city = res.find("h4").text
-                home.url = "https://rebohuurwoning.nl" + res.find("a")["href"]
-                price = re.search(" [0-9]?[0-9]\.?[0-9][0-9][0-9]? ", res.find(class_="price").text)
-                
-                if not price:
-                    continue
-                home.price = int(price.group(0).strip().replace('.', ''))
-            except:
-                continue
-            
+            home = Home(agency="rebo")
+            home.address = res["address"]
+            home.city = res["city"]
+            home.url = "https://www.rebogroep.nl/nl/aanbod/" + res["slug"]
+            home.price = int(res["price"])
             self.homes.append(home)
             
 
