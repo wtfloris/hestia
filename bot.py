@@ -138,6 +138,7 @@ async def announce(update, context):
         disablepreview['value'] = False
 
     for sub in subs:
+        sleep(1/29)  # avoid rate limit (broadcasting to max 30 users per second)
         try:
             if markdown['value']:
                 await context.bot.send_message(sub["telegram_id"], msg, parse_mode="MarkdownV2", disable_web_page_preview=bool(disablepreview['value']))
