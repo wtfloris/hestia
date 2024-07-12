@@ -6,7 +6,7 @@ import requests
 import re
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
-from secrets import OWN_CHAT_ID, TOKEN, DB
+from secrets import TOKEN, DB
 
 
 class Home:
