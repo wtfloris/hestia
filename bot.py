@@ -140,9 +140,9 @@ async def announce(update, context):
     for sub in subs:
         try:
             if markdown['value']:
-                await context.bot.send_message(sub["telegram_id"], msg, parse_mode="MarkdownV2", disable_web_page_preview=disablepreview['value'])
+                await context.bot.send_message(sub["telegram_id"], msg, parse_mode="MarkdownV2", disable_web_page_preview=bool(disablepreview['value']))
             else:
-                await context.bot.send_message(sub["telegram_id"], msg, disable_web_page_preview=disablepreview['value'])
+                await context.bot.send_message(sub["telegram_id"], msg, disable_web_page_preview=bool(disablepreview['value']))
         except BaseException as e:
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             continue
