@@ -62,9 +62,9 @@ async def new_sub(update, context, reenable=False):
         
     message ="""Hi there!
 
-I scrape real estate websites for new rental homes in The Netherlands. For more info on which websites I scrape, say /websites. To see and modify your personal filters, say /filter.
+I check real estate websites for new rental homes in The Netherlands. For more info on which websites I check, say /websites.
 
-Please note that some real estate websites provide their paid members with early access, so some of the homes I send you will be unavailable.
+To see and modify your personal filters (like city and maximum price), say /filter.
 
 You will receive a message when I find a new home that matches your filters! If you want me to stop, just say /stop.
 
