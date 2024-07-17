@@ -349,7 +349,7 @@ class HomeResults:
             rawprice = soup.select_one('.house__list-item .house__icon--value + span').text.strip()
             home.price = int(re.sub(r'\D', '', rawprice))
             self.homes.append(home)
-            
+
 
 def query_db(query, params=[], fetchOne=False):
 # TODO error handling
