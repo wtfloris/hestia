@@ -338,19 +338,18 @@ class HomeResults:
             self.homes.append(home)
 
     def parse_nmg(self, r):
-        results = json.loads(r.content)["maps"]
-        houses = [map_item.get("template", "") for map_item in results]
-        for house in houses:
-            soup = BeautifulSoup(house, "html.parser")
-
+        results = [map_item.get("template", "") for map_item in json.loads(r.content)["maps"]]
+        for res in results:
+            soup = BeautifulSoup(res, "html.parser")
             home = Home(agency="nmg")
             home.address = soup.select_one('.house__heading h2').text.strip().split('\t\t\t\t')[0]
             home.city = soup.select_one('.house__heading h2 span').text.strip()
             home.url = soup.select_one('.house__overlay')['href']
-            #Remove all non-numeric characters from the price
+            # Remove all non-numeric characters from the price
             rawprice = soup.select_one('.house__list-item .house__icon--value + span').text.strip()
-            home.price = re.sub(r'\D', '', rawprice)
+            home.price = int(re.sub(r'\D', '', rawprice))
             self.homes.append(home)
+
 
 def query_db(query, params=[], fetchOne=False):
 # TODO error handling
