@@ -57,17 +57,17 @@ async def broadcast(homes):
     for home in homes:
         for sub in subs:
             
+            # Apply filters
             if home.price < sub["filter_min_price"] or home.price > sub["filter_max_price"]:
                 continue
-            
             if home.city.lower() not in sub["filter_cities"]:
+                continue
+            if home.agency not in sub["filter_agencies"]:
                 continue
             
             message = f"{hestia.HOUSE_EMOJI} {home.address}, {home.city}\n"
             message += f"{hestia.EURO_EMOJI} €{home.price}/m\n\n"
-            
             message = hestia.escape_markdownv2(message)
-            
             message += f"{hestia.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
             
             # If a user blocks the bot, this would throw an error and kill the entire broadcast

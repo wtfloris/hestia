@@ -2,9 +2,10 @@ import hestia
 import logging
 import secrets
 import re
+import telegram
 from datetime import datetime
 from telegram.error import BadRequest
-from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler
+from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 from time import sleep
 
 def initialize():
@@ -16,7 +17,7 @@ def initialize():
     if hestia.check_dev_mode():
         logging.warning("Dev mode is enabled.")
     
-def privileged(update, context, command, check_only=True):
+def privileged(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE, command, check_only=True):
     admins = hestia.query_db("SELECT * FROM hestia.subscribers WHERE user_level = 9")
     admin_chat_ids = [int(admin["telegram_id"]) for admin in admins]
     
@@ -42,14 +43,14 @@ def parse_argument(text, key) -> dict:
     
     return {"text": stripped_text, "key": key, "value": value}
         
-async def get_sub_name(update, context):
+async def get_sub_name(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_chat.username
     if name is None:
         chat = await context.bot.get_chat(update.effective_chat.id)
         name = chat.first_name
     return name
 
-async def new_sub(update, context, reenable=False):
+async def new_sub(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE, reenable=False):
     name = await get_sub_name(update, context)
     log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
     logging.warning(log_msg)
@@ -71,7 +72,7 @@ You will receive a message when I find a new home that matches your filters! If 
 If you have any issues or questions, let @WTFloris know!"""
     await context.bot.send_message(update.effective_chat.id, message)
 
-async def start(update, context):
+async def start(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     checksub = hestia.query_db("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)
     
     if checksub is not None:
@@ -83,7 +84,7 @@ async def start(update, context):
     else:
         await new_sub(update, context)
 
-async def stop(update, context):
+async def stop(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     checksub = hestia.query_db("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)
 
     if checksub is not None:
@@ -106,13 +107,13 @@ Consider [buying me a beer]({donation_link}) if this bot has helped you in your 
         disable_web_page_preview=True
     )
 
-async def reply(update, context):
+async def reply(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Sorry, I can't talk to you, I'm just a scraper. If you want to see what commands I support, say /help. If you are lonely and want to chat, try ChatGPT."
     )
 
-async def announce(update, context):
+async def announce(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not privileged(update, context, "announce", check_only=False): return
         
     if hestia.check_dev_mode():
@@ -148,7 +149,7 @@ async def announce(update, context):
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             continue
             
-async def websites(update, context):
+async def websites(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     targets = hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true")
 
     message = "Here are the websites I scrape every five minutes:\n\n"
@@ -172,7 +173,7 @@ async def websites(update, context):
     message = "If you want more information, you can also read my source code: https://github.com/wtfloris/hestia"
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def get_sub_info(update, context):
+async def get_sub_info(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not privileged(update, context, "get_sub_info", check_only=False): return
         
     sub = update.message.text.split(' ')[1]
@@ -187,7 +188,7 @@ async def get_sub_info(update, context):
     
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def halt(update, context):
+async def halt(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not privileged(update, context, "halt", check_only=False): return
     
     hestia.query_db("UPDATE hestia.meta SET scraper_halted = true WHERE id = %s", params=[hestia.SETTINGS_ID])
@@ -195,7 +196,7 @@ async def halt(update, context):
     message = "Halting scraper."
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def resume(update, context):
+async def resume(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not privileged(update, context, "resume", check_only=False): return
     
     settings = hestia.query_db("SELECT scraper_halted FROM hestia.meta WHERE id = %s", params=[hestia.SETTINGS_ID], fetchOne=True)
@@ -208,7 +209,7 @@ async def resume(update, context):
         
     await context.bot.send_message(update.effective_chat.id, message)
 
-async def enable_dev(update, context):
+async def enable_dev(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not privileged(update, context, "dev", check_only=False): return
     
     hestia.query_db("UPDATE hestia.meta SET devmode_enabled = true WHERE id = %s", params=[hestia.SETTINGS_ID])
@@ -216,7 +217,7 @@ async def enable_dev(update, context):
     message = "Dev mode enabled."
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def disable_dev(update, context):
+async def disable_dev(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not privileged(update, context, "nodev", check_only=False): return
     
     hestia.query_db("UPDATE hestia.meta SET devmode_enabled = false WHERE id = %s", params=[hestia.SETTINGS_ID])
@@ -224,7 +225,7 @@ async def disable_dev(update, context):
     message = "Dev mode disabled."
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def get_all_subs(update, context):
+async def get_all_subs(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not privileged(update, context, "get_all_subs", check_only=False): return
     
     subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
@@ -240,7 +241,7 @@ async def get_all_subs(update, context):
     
     await context.bot.send_message(update.effective_chat.id, message)
     
-async def status(update, context):
+async def status(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not privileged(update, context, "status", check_only=False): return
 
     settings = hestia.query_db("SELECT * FROM hestia.meta WHERE id = %s", params=[hestia.SETTINGS_ID], fetchOne=True)
@@ -290,7 +291,7 @@ async def set_donation_link(update, context):
     
 # TODO check if user is in db (and enabled)
 # TODO some restrictions on numeric filters: min, max etc
-async def filter(update, context):
+async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         cmd = [token.lower() for token in update.message.text.split(' ')]
     except AttributeError:
@@ -313,8 +314,9 @@ async def filter(update, context):
         message += "`/filter minprice 1200`\n"
         message += "`/filter maxprice 1800`\n"
         message += "`/filter city add Amsterdam`\n"
-        message += "`/filter city remove Den Haag`\n\n"
-        message += "I will only send you homes in cities that you've included in your filter. Say  `/filter city`  to see the list of possible cities."
+        message += "`/filter city remove Den Haag`\n"
+        message += "I will only send you homes in cities that you've included in your filter. Say  `/filter city`  to see the list of possible cities.\n\n"
+        message += "Additionally, you can disable updates from certain agencies/websites. Say  `/filter agency`  to select your preference."
         
     # Set minprice filter
     elif len(cmd) == 3 and cmd[1] in ["minprice", "min"]:
@@ -355,6 +357,21 @@ async def filter(update, context):
                 message = ""
             
         message += "\nThis list is based on the cities I've seen so far while scraping, so it might not be fully complete."
+
+    elif len(cmd) == 2 and cmd[1] in ["agency", "agencies", "website", "websites"]:
+        reply_keyboard = []
+        included = []
+        enabled_agencies = hestia.query_db("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)["filter_agencies"]
+        for row in hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
+            if row["agency"] not in included:
+                included.append(row["agency"])
+                if row["agency"] in enabled_agencies:
+                    reply_keyboard.append([telegram.InlineKeyboardButton(hestia.CHECK_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.d.{row['agency']}")])
+                else:
+                    reply_keyboard.append([telegram.InlineKeyboardButton(hestia.CROSS_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.e.{row['agency']}")])
+
+        await update.message.reply_text("Select the agencies you want to receive updates from", reply_markup=telegram.InlineKeyboardMarkup(reply_keyboard))
+        return
             
     # Modify city filter
     elif len(cmd) >= 4 and cmd[1] == "city" and cmd[2] in ["add", "remove", "rm", "delete", "del"]:
@@ -407,7 +424,37 @@ async def filter(update, context):
         
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
-async def help(update, context):
+async def callback_query_handler(update: telegram.Update, _) -> None:
+    query = update.callback_query
+    cbid, action, agency = query.data.split(".")
+
+    # Agency filter callback
+    if cbid == "hfa":
+        included, reply_keyboard = [], []
+
+        # Update list of enabled agencies for the user
+        enabled_agencies = set(hestia.query_db("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", params=[str(query.message.chat.id)], fetchOne=True)["filter_agencies"])
+        if action == "d":
+            try:
+                enabled_agencies.remove(agency)
+            except KeyError:
+                pass
+        elif action == "e":
+            enabled_agencies.add(agency)
+        hestia.query_db("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", params=(str(list(enabled_agencies)).replace("'", '"'), str(query.message.chat.id)))
+
+        # Build inline keyboard
+        for row in hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
+            if row["agency"] not in included:
+                included.append(row["agency"])
+                if row["agency"] in enabled_agencies:
+                    reply_keyboard.append([telegram.InlineKeyboardButton(hestia.CHECK_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.d.{row['agency']}")])
+                else:
+                    reply_keyboard.append([telegram.InlineKeyboardButton(hestia.CROSS_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.e.{row['agency']}")])
+        await query.answer()
+        await query.edit_message_reply_markup(telegram.InlineKeyboardMarkup(reply_keyboard))
+
+async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     message = "*I can do the following for you:*\n"
     message += "/help - Show this message\n"
     message += "/start - Subscribe to updates\n"
@@ -450,6 +497,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("nodev", disable_dev))
     application.add_handler(CommandHandler("setdonate", set_donation_link))
     application.add_handler(CommandHandler("help", help))
+    application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
     
     application.run_polling()
