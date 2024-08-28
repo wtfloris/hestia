@@ -359,8 +359,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
         message += "\nThis list is based on the cities I've seen so far while scraping, so it might not be fully complete."
 
     elif len(cmd) == 2 and cmd[1] in ["agency", "agencies", "website", "websites"]:
-        reply_keyboard = []
-        included = []
+        included, reply_keyboard = [], []
         enabled_agencies = hestia.query_db("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)["filter_agencies"]
         for row in hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
             if row["agency"] not in included:
