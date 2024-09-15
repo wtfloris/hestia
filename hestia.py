@@ -357,8 +357,8 @@ class HomeResults:
         for res in results:
             home = Home(agency="vbo")
             home.url = res["href"]
-            home.address = res.select_one(".street").text
-            home.city = res.select_one(".city").text
+            home.address = res.select_one(".street").text.strip()
+            home.city = res.select_one(".city").text.strip()
             rawprice = res.select_one(".price").text
             end = rawprice.index(",") # Every price is terminated with a trailing ,
             home.price = int(rawprice[2:end].replace(".", ""))
