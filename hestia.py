@@ -367,6 +367,7 @@ class HomeResults:
 
 def query_db(query, params=[], fetchOne=False):
 # TODO error handling
+# TODO reuse connection
     db = psycopg2.connect(database=DB["database"],
                             host=DB["host"],
                             user=DB["user"],
