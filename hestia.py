@@ -123,6 +123,8 @@ class HomeResults:
             self.parse_rebo(raw)
         elif source == "nmg":
             self.parse_nmg(raw)
+        elif source == "vbo":
+            self.parse_vbo(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -348,6 +350,18 @@ class HomeResults:
             # Remove all non-numeric characters from the price
             rawprice = soup.select_one('.house__list-item .house__icon--value + span').text.strip()
             home.price = int(re.sub(r'\D', '', rawprice))
+            self.homes.append(home)
+
+    def parse_vbo(self, r):
+        results = BeautifulSoup(r.content, "html.parser").find_all("a", class_="propertyLink")
+        for res in results:
+            home = Home(agency="vbo")
+            home.url = res["href"]
+            home.address = res.select_one(".street").text
+            home.city = res.select_one(".city").text
+            rawprice = res.select_one(".price").text
+            end = rawprice.index(",") # Every price is terminated with a trailing ,
+            home.price = int(rawprice[2:end].replace(".", ""))
             self.homes.append(home)
 
 
