@@ -4,3 +4,4 @@ Hestia scrapes real estate websites for new rental listings, and broadcasts the 
 
 ### Additional contributors (thanks!):
 * [BLOKKADE](https://github.com/BLOKKADE) - NMG Wonen parser
+* [Rafaeltheraven](https://github.com/Rafaeltheraven) - VBO parser
