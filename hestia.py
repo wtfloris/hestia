@@ -10,39 +10,39 @@ from secrets import TOKEN, DB
 
 
 class Home:
-    def __init__(self, address='', city='', url='', agency='', price=-1):
+    def __init__(self, address: str = '', city: str = '', url: str = '', agency: str = '', price: int = -1):
         self.address = address
         self.city = city
         self.url = url
         self.agency = agency
         self.price = price
         
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self)
         
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.address}, {self.city} ({self.agency.title()})"
         
-    def __eq__(self, other):
+    def __eq__(self, other: 'Home') -> bool:
         if self.address.lower() == other.address.lower():
             if self.city.lower() == other.city.lower():
                 return True
         return False
     
     @property
-    def address(self):
+    def address(self) -> str:
         return self._address
         
     @address.setter
-    def address(self, address):
+    def address(self, address: str) -> None:
         self._address = address
         
     @property
-    def city(self):
+    def city(self) -> str:
         return self._parsed_city
         
     @city.setter
-    def city(self, city):
+    def city(self, city: str) -> None:
         # Strip the trailing province if present
         if re.search(" \([a-zA-Z]{2}\)$", city):
             city = ' '.join(city.split(' ')[:-1])
@@ -85,20 +85,14 @@ class Home:
         
 
 class HomeResults:
-    def __getitem__(self, n):
+    def __getitem__(self, n: int) -> Home:
         return self.homes[n]
             
     def __repr__(self):
         return str([home for home in self.homes])
     
-    def __init__(self, source, raw):
-        if not isinstance(source, str):
-            raise ValueError(f"Expected string as first argument, got {type(source)}")
-        if not isinstance(raw, requests.models.Response):
-            raise ValueError(f"Expected requests.models.Response object as second argument, got {type(raw)}")
-    
+    def __init__(self, source: str, raw: requests.models.Response):
         self.homes = []
-    
         if source == "vesteda":
             self.parse_vesteda(raw)
         elif source == "ikwilhuren":
@@ -128,7 +122,7 @@ class HomeResults:
         else:
             raise ValueError(f"Unknown source: {source}")
     
-    def parse_vesteda(self, r):
+    def parse_vesteda(self, r: requests.models.Response):
         results = json.loads(r.content)["results"]["objects"]
             
         for res in results:
@@ -151,7 +145,7 @@ class HomeResults:
             home.price = int(res["priceUnformatted"])
             self.homes.append(home)
             
-    def parse_ikwilhuren(self, r):
+    def parse_ikwilhuren(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="card-woning")
     
         for res in results:
@@ -175,7 +169,7 @@ class HomeResults:
             home.price = int(str(res.find(class_="fw-bold")).split(' ')[2].replace('.', '')[:-2])
             self.homes.append(home)
         
-    def parse_vbt(self, r):
+    def parse_vbt(self, r: requests.models.Response):
         results = json.loads(r.content)["houses"]
         
         for res in results:
@@ -190,7 +184,7 @@ class HomeResults:
             home.price = int(res["prices"]["rental"]["price"])
             self.homes.append(home)
             
-    def parse_alliantie(self, r):
+    def parse_alliantie(self, r: requests.models.Response):
         results = json.loads(r.content)["data"]
         
         for res in results:
@@ -210,7 +204,7 @@ class HomeResults:
             home.price = int(res["price"][2:].replace('.', ''))
             self.homes.append(home)
             
-    def parse_woningnet_dak(self, r, regio):
+    def parse_woningnet_dak(self, r: requests.models.Response, regio: str):
         results = json.loads(r.content)["data"]["PublicatieLijst"]["List"]
         
         for res in results:
@@ -227,7 +221,7 @@ class HomeResults:
             home.price = int(float(res["Eenheid"]["Brutohuur"]))
             self.homes.append(home)
             
-    def parse_bouwinvest(self, r):
+    def parse_bouwinvest(self, r: requests.models.Response):
         results = json.loads(r.content)["data"]
     
         for res in results:
@@ -242,7 +236,7 @@ class HomeResults:
             home.price = int(res["price"]["price"])
             self.homes.append(home)
     
-    def parse_krk(self, r):
+    def parse_krk(self, r: requests.models.Response):
         results = json.loads(r.content)["objects"]
     
         for res in results:
@@ -257,7 +251,7 @@ class HomeResults:
             home.price = int(res["rent_price"])
             self.homes.append(home)
             
-    def parse_makelaarshuis(self, r):
+    def parse_makelaarshuis(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="object")
     
         for res in results:
@@ -272,7 +266,7 @@ class HomeResults:
             home.price = int(str(res.find("span", class_="obj_price").contents[0]).split('€')[1][1:6].split(',')[0].replace('.', ''))
             self.homes.append(home)
             
-    def parse_pararius(self, r):
+    def parse_pararius(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("section", class_="listing-search-item--for-rent")
         
         for res in results:
@@ -302,7 +296,7 @@ class HomeResults:
 
             self.homes.append(home)
             
-    def parse_funda(self, r):
+    def parse_funda(self, r: requests.models.Response):
         results = json.loads(r.content)["search_result"]["hits"]["hits"]
         
         for res in results:
@@ -329,7 +323,7 @@ class HomeResults:
             self.homes.append(home)
             
     # I love websites with (accidental) public API endpoints and proper JSON
-    def parse_rebo(self, r):
+    def parse_rebo(self, r: requests.models.Response):
         results = json.loads(r.content)["hits"]
         for res in results:
             home = Home(agency="rebo")
@@ -339,7 +333,7 @@ class HomeResults:
             home.price = int(res["price"])
             self.homes.append(home)
 
-    def parse_nmg(self, r):
+    def parse_nmg(self, r: requests.models.Response):
         results = [map_item.get("template", "") for map_item in json.loads(r.content)["maps"]]
         for res in results:
             soup = BeautifulSoup(res, "html.parser")
@@ -352,20 +346,21 @@ class HomeResults:
             home.price = int(re.sub(r'\D', '', rawprice))
             self.homes.append(home)
 
-    def parse_vbo(self, r):
+    def parse_vbo(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("a", class_="propertyLink")
         for res in results:
             home = Home(agency="vbo")
             home.url = res["href"]
-            home.address = res.select_one(".street").text
-            home.city = res.select_one(".city").text
+            home.address = res.select_one(".street").text.strip()
+            home.city = res.select_one(".city").text.strip()
             rawprice = res.select_one(".price").text
             end = rawprice.index(",") # Every price is terminated with a trailing ,
             home.price = int(rawprice[2:end].replace(".", ""))
             self.homes.append(home)
 
-def query_db(query, params=[], fetchOne=False):
+def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
+# TODO reuse connection
     db = psycopg2.connect(database=DB["database"],
                             host=DB["host"],
                             user=DB["user"],
@@ -390,13 +385,15 @@ def query_db(query, params=[], fetchOne=False):
     
     return result
 
-def escape_markdownv2(text):
+
+def escape_markdownv2(text: str) -> str:
     text = text.replace('.', '\.')
     text = text.replace('!', '\!')
     text = text.replace('+', '\+')
     text = text.replace('-', '\-')
     text = text.replace('*', '\*')
     return text
+
 
 WORKDIR = query_db("SELECT workdir FROM hestia.meta", fetchOne=True)["workdir"]
 
@@ -421,8 +418,8 @@ SETTINGS_ID = "default"
 # The Dockerfile replaces this with the git commit id
 APP_VERSION = ''
 
-def check_dev_mode():
+def check_dev_mode() -> bool:
     return query_db("SELECT devmode_enabled FROM hestia.meta", fetchOne=True)["devmode_enabled"]
 
-def check_scraper_halted():
+def check_scraper_halted() -> bool:
     return query_db("SELECT scraper_halted FROM hestia.meta", fetchOne=True)["scraper_halted"]
