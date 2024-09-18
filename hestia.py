@@ -358,7 +358,6 @@ class HomeResults:
             home.price = int(rawprice[2:end].replace(".", ""))
             self.homes.append(home)
 
-
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
 # TODO reuse connection
