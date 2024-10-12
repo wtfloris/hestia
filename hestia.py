@@ -119,6 +119,8 @@ class HomeResults:
             self.parse_nmg(raw)
         elif source == "vbo":
             self.parse_vbo(raw)
+        elif source == "woonzeker":
+            self.parse_woonzeker(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -357,6 +359,30 @@ class HomeResults:
             end = rawprice.index(",") # Every price is terminated with a trailing ,
             home.price = int(rawprice[2:end].replace(".", ""))
             self.homes.append(home)
+
+    def parse_woonzeker(self, r: requests.models.Response):
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="property")
+        for res in results:
+            home = Home(agency="woonzeker")
+            link = res.find("a", class_="property__link")['href'] # A lot of information is encoded in the link
+            p = re.compile(r"/aanbod/([^/]+)/(.*)-([0-9]+)(-[a-zA-Z0-9]+)?")
+            matches = p.match(link) # Each link has the format "/aanbod/{city}/{street}-{housenumber}" + optional extension
+            if not matches:
+                logging.warning("Unable to pattern match woonzeker link: {}", link)
+                continue
+            home.city = matches.group(1)
+            home.address = f"{matches.group(2)} {matches.group(3)}"
+            ext = matches.group(4)
+            if ext:
+                home.address = home.address + ext
+            home.url = "https://woonzeker.com" + link
+            rawprice = res.find("div", class_="property__price").contents[1].text
+            end = rawprice.index(",") # Every price is terminated with a trailing ,
+            home.price = int(rawprice[2:end].strip())
+            self.homes.append(home)
+
+
+
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
