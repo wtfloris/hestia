@@ -4,6 +4,7 @@ import requests
 import secrets
 from datetime import datetime, timedelta
 from asyncio import run
+from telegram.error import Forbidden
 
 
 async def main() -> None:
@@ -62,11 +63,16 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                 message = hestia.escape_markdownv2(message)
                 message += f"{hestia.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
                 
-                # If a user blocks the bot, this would throw an error and kill the entire broadcast
                 try:
                     await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
-                except:
-                    pass
+                except Forbidden as e:
+                    # This means the user deleted their account or blocked the bot, so disable them
+                    hestia.query_db("UPDATE hestia.subscribers SET telegram_enabled = false WHERE id = %s", params=[str(sub.id)])
+                    log_msg = f"Removed subscriber with Telegram id {str(sub.telegram_id)} due to broadcast failure: {repr(e)}"
+                    logging.warning(log_msg)
+                except Exception as e:
+                    # Log any other exceptions
+                    logging.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
 
 
 async def scrape_site(target: dict) -> None:
