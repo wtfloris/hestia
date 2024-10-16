@@ -275,9 +275,12 @@ async def status(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
     else:
         message += f"{hestia.CHECK_EMOJI} Scraper: active\n"
 
-    sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers WHERE telegram_enabled = true", fetchOne=True)
+    active_sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers WHERE telegram_enabled = true", fetchOne=True)
     message += "\n"
-    message += f"Active subscriber count: {sub_count['count']}\n"
+    message += f"Active subscriber count: {active_sub_count['count']}\n"
+    sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers", fetchOne=True)
+    message += "\n"
+    message += f"Total subscriber count: {sub_count['count']}\n"
     
     donation_link = hestia.query_db("SELECT donation_link, donation_link_updated FROM hestia.meta", fetchOne=True)
     message += "\n"
