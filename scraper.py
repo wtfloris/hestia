@@ -67,8 +67,8 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                     await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
                 except Forbidden as e:
                     # This means the user deleted their account or blocked the bot, so disable them
-                    hestia.query_db("UPDATE hestia.subscribers SET telegram_enabled = false WHERE id = %s", params=[str(sub.id)])
-                    log_msg = f"Removed subscriber with Telegram id {str(sub.telegram_id)} due to broadcast failure: {repr(e)}"
+                    hestia.query_db("UPDATE hestia.subscribers SET telegram_enabled = false WHERE id = %s", params=[str(sub["id"])])
+                    log_msg = f"Removed subscriber with Telegram id {str(sub['telegram_id'])} due to broadcast failure: {repr(e)}"
                     logging.warning(log_msg)
                 except Exception as e:
                     # Log any other exceptions
