@@ -4,6 +4,7 @@ import logging
 import json
 import requests
 import re
+import chompjs
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from secrets import TOKEN, DB
@@ -360,25 +361,37 @@ class HomeResults:
             home.price = int(rawprice[2:end].replace(".", ""))
             self.homes.append(home)
 
+    """
+    Woonzeker Rentals has a really weird structure. They load all the data
+    in a JSON object on page load and then afterwards fill in the rest of the HTML
+    with that data.
+    """
     def parse_woonzeker(self, r: requests.models.Response):
-        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="property")
+        scripts = BeautifulSoup(r.content, "html.parser").find_all("script")
+        data = str(scripts[3]) # The third script tag has what we need
+        needle = "rent:[" # We care about the value of the 'rent' attribute
+        start = data.find(needle) + len(needle) - 1
+        end = data.find(",configuration") # configuration is the next attribute
+        results = chompjs.parse_js_object(data[start:end])
         for res in results:
             home = Home(agency="woonzeker")
-            link = res.find("a", class_="property__link")['href'] # A lot of information is encoded in the link
-            p = re.compile(r"/aanbod/([^/]+)/(.*)-([0-9]+)(-[a-zA-Z0-9]+)?")
-            matches = p.match(link) # Each link has the format "/aanbod/{city}/{street}-{housenumber}" + optional extension
+            p = re.compile(r"(.*)-([0-9]+)(-[a-zA-Z0-9]+)?") # A lot of information is hidden, but visible in the 'slug'
+            matches = p.match(res['slug']) # Each slug has the format "/aanbod/{street}-{housenumber}" + optional extension
             if not matches:
-                logging.warning("Unable to pattern match woonzeker link: {}", link)
+                logging.warning("Unable to pattern match woonzeker slug: {}", res['slug'])
                 continue
-            home.city = matches.group(1)
-            home.address = f"{matches.group(2)} {matches.group(3)}"
-            ext = matches.group(4)
+            home.address = f"{matches.group(1)} {matches.group(2)}"
+            ext = matches.group(3)
             if ext:
                 home.address = home.address + ext
-            home.url = "https://woonzeker.com" + link
-            rawprice = res.find("div", class_="property__price").contents[1].text
+            home.city = res['address']['postalCode'] # This is the only data directly available in the address
+            home.url = "https://woonzeker.com/aanbod/"
+            rawprice = res['handover']['formattedPrice']
             end = rawprice.index(",") # Every price is terminated with a trailing ,
-            home.price = int(rawprice[2:end].strip())
+            try:
+                home.price = int(rawprice[2:end].strip())
+            except ValueError:
+                continue
             self.homes.append(home)
 
 
