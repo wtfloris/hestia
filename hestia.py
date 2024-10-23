@@ -119,6 +119,8 @@ class HomeResults:
             self.parse_nmg(raw)
         elif source == "vbo":
             self.parse_vbo(raw)
+        elif source == "atta":
+            self.parse_atta(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -356,6 +358,16 @@ class HomeResults:
             rawprice = res.select_one(".price").text
             end = rawprice.index(",") # Every price is terminated with a trailing ,
             home.price = int(rawprice[2:end].replace(".", ""))
+            self.homes.append(home)
+
+    def parse_atta(self, r: requests.models.Response):
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="list__object")
+        for res in results:
+            home = Home(agency="atta")
+            home.url = res.select_one("a")["href"]
+            home.address = res.select_one(".object-list__address").text
+            home.city = res.select_one(".object-list__city").text.strip()
+            home.price = int(res.select_one(".object-list__price").text[2:].replace(".", ""))
             self.homes.append(home)
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
