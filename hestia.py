@@ -121,6 +121,8 @@ class HomeResults:
             self.parse_vbo(raw)
         elif source == "atta":
             self.parse_atta(raw)
+        elif source == "ooms":
+            self.parse_ooms(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -369,6 +371,18 @@ class HomeResults:
             home.city = res.select_one(".object-list__city").text.strip()
             home.price = int(res.select_one(".object-list__price").text[2:].replace(".", ""))
             self.homes.append(home)
+
+    def parse_ooms(self, r: requests.models.Response):
+        results = json.loads(r.content)["objects"]
+        rentals = filter(lambda res: res["filters"]["buy_rent"] == "rent", results)
+        for res in rentals:
+            home = Home(agency="ooms")
+            home.url = f"https://ooms.com/wonen/aanbod/{res['slug']}"
+            home.address = f"{res["street_name"]} {res["house_number"]}"
+            home.city = res["place"]
+            home.price = res["rent_price"]
+            self.homes.append(home)
+
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
