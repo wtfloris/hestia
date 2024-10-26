@@ -376,7 +376,7 @@ class HomeResults:
         for res in results:
             home = Home(agency="woonzeker")
             p = re.compile(r"(.*)-([0-9]+)(-[a-zA-Z0-9]+)?") # A lot of information is hidden, but visible in the 'slug'
-            matches = p.match(res['slug']) # Each slug has the format "/aanbod/{street}-{housenumber}" + optional extension
+            matches = p.match(res['slug']) # Each slug has the format "{street}-{housenumber}" + optional extension
             if not matches:
                 logging.warning("Unable to pattern match woonzeker slug: {}", res['slug'])
                 continue
@@ -384,8 +384,17 @@ class HomeResults:
             ext = matches.group(3)
             if ext:
                 home.address = home.address + ext
-            home.city = res['address']['postalCode'] # This is the only data directly available in the address
-            home.url = "https://woonzeker.com/aanbod/"
+            match res['address']['location']:
+                case 'w':
+                    home.city = "s-gravenhage"
+                case 'E':
+                    home.city = 'rotterdam'
+                case 'aj':
+                    home.city = 'rijswijk'
+                case _:
+                    logging.warning("Encountered unknown city mapping: {}", res['address']['location'])
+                    continue
+            home.url = f"https://woonzeker.com/aanbod/{home.city}/{res['slug']}"
             rawprice = res['handover']['formattedPrice']
             end = rawprice.index(",") # Every price is terminated with a trailing ,
             try:
