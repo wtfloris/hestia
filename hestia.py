@@ -383,7 +383,7 @@ class HomeResults:
         param_needle = '}('
         param_start = data.find(param_needle)
         param_end = data.find('));', param_start)
-        params = next(csv.reader(data[param_start + len(param_needle):param_end])) # Use csv reader to allow for commas in strings.
+        params = next(csv.reader([data[param_start + len(param_needle):param_end]], skipinitialspace=True)) # Use csv reader to allow for commas in strings.
 
         mapping = {}
         for i in range(0, min(len(func_args), len(params))):
@@ -396,6 +396,9 @@ class HomeResults:
                 return s
         for res in results:
             home = Home(agency="woonzeker")
+
+            if (mapping_or_raw(res['mappedStatus']).lower() == "onder optie"):
+                continue # This house is already gone
 
             address = res['address']
             home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])} {mapping_or_raw(address['houseNumberExtension'])}".strip()
