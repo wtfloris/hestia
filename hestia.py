@@ -5,6 +5,7 @@ import json
 import requests
 import re
 import chompjs
+import csv
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from secrets import TOKEN, DB
@@ -373,41 +374,34 @@ class HomeResults:
         start = data.find(needle) + len(needle) - 1
         end = data.find(",configuration") # configuration is the next attribute
         results = chompjs.parse_js_object(data[start:end])
+
+        # Now, we need to get all the possible variables
+        func_needle = 'window.__NUXT__=(function('
+        func_start = data.find(func_needle)
+        func_end = data.find(')', func_start)
+        func_args = data[func_start + len(func_needle):func_end].split(",")
+        param_needle = '}('
+        param_start = data.find(param_needle)
+        param_end = data.find('));', param_start)
+        params = next(csv.reader(data[param_start + len(param_needle):param_end])) # Use csv reader to allow for commas in strings.
+
+        mapping = {}
+        for i in range(0, min(len(func_args), len(params))):
+            mapping[func_args[i]] = params[i]
+
+        def mapping_or_raw(s: str):
+            if s in mapping:
+                return mapping[s]
+            else:
+                return s
         for res in results:
             home = Home(agency="woonzeker")
-            p = re.compile(r"(.*)-([0-9]+)(-[a-zA-Z0-9]+)?") # A lot of information is hidden, but visible in the 'slug'
-            matches = p.match(res['slug']) # Each slug has the format "{street}-{housenumber}" + optional extension
-            if not matches:
-                logging.warning("Unable to pattern match woonzeker slug: {}", res['slug'])
-                continue
-            home.address = f"{matches.group(1)} {matches.group(2)}"
-            ext = matches.group(3)
-            if ext:
-                home.address = home.address + ext
-            match res['address']['location']:
-                case 'w':
-                    home.city = "s-gravenhage"
-                case 'E':
-                    home.city = 'rotterdam'
-                case 'aj':
-                    home.city = 'rijswijk'
-                case _:
-                    logging.warning("Encountered unknown city mapping: {}", res['address']['location'])
-                    continue
-            home.url = f"https://woonzeker.com/aanbod/{home.city}/{res['slug']}"
-            rawprice = res['handover']['formattedPrice']
-            try:
-                end = rawprice.index(",") # Every price is terminated with a trailing ,
-                home.price = int(rawprice[2:end].strip())
-            except ValueError:
-                match rawprice:
-                    case 'aT':
-                        home.price = 2500
-                    case 'cN':
-                        home.price = 2050
-                    case _:
-                        logging.warning("Unknown price mapping: {}", rawprice)
-                        continue
+
+            address = res['address']
+            home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])} {mapping_or_raw(address['houseNumberExtension'])}".strip()
+            home.city = mapping_or_raw(address['location'])
+            home.url = f"https://woonzeker.com/aanbod/{home.city}/{res['slug']}" # slug contains the proper url formatting and is always filled in
+            home.price = int(mapping_or_raw(res['handover']['price']))
             self.homes.append(home)
 
 
