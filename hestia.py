@@ -396,11 +396,18 @@ class HomeResults:
                     continue
             home.url = f"https://woonzeker.com/aanbod/{home.city}/{res['slug']}"
             rawprice = res['handover']['formattedPrice']
-            end = rawprice.index(",") # Every price is terminated with a trailing ,
             try:
+                end = rawprice.index(",") # Every price is terminated with a trailing ,
                 home.price = int(rawprice[2:end].strip())
             except ValueError:
-                continue
+                match rawprice:
+                    case 'aT':
+                        home.price = 2500
+                    case 'cN':
+                        home.price = 2050
+                    case _:
+                        logging.warning("Unknown price mapping: {}", rawprice)
+                        continue
             self.homes.append(home)
 
 
