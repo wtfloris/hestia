@@ -378,7 +378,14 @@ class HomeResults:
         for res in rentals:
             home = Home(agency="ooms")
             home.url = f"https://ooms.com/wonen/aanbod/{res['slug']}"
-            home.address = f"{res["street_name"]} {res["house_number"]}"
+
+            addition = res.get("house_number_addition")
+            # Explicitly check for None because it can be {"house_number_addition": None}
+            # in which case using a default value in `get` would not work
+            if addition == None:
+                addition = ""
+
+            home.address = f"{res["street_name"]} {res["house_number"]}{addition}"
             home.city = res["place"]
             home.price = res["rent_price"]
             self.homes.append(home)
