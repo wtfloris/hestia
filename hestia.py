@@ -289,7 +289,7 @@ class HomeResults:
             home.address = ' '.join(raw_address.split(' ')[1:]) # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
             raw_city = res.find("div", class_="listing-search-item__sub-title'").contents[0].strip()
             home.city = ' '.join(raw_city.split(' ')[2:]).split('(')[0].strip() # Don't ask
-            home.url = "https://pararius.nl" + res.find("a", class_="listing-search-item__link--title")['href']
+            home.url = "https://pararius.nl" + res.find("a", class_="listing-search-item__link--title")["href"]
             raw_price = res.find("div", class_="listing-search-item__price").contents[0].strip().replace('\xa0', '')
 
             # If unable to cast to int, the price is not available so skip the listing
@@ -344,7 +344,7 @@ class HomeResults:
             home = Home(agency="nmg")
             home.address = soup.select_one('.house__heading h2').text.strip().split('\t\t\t\t')[0]
             home.city = soup.select_one('.house__heading h2 span').text.strip()
-            home.url = soup.select_one('.house__overlay')['href']
+            home.url = soup.select_one('.house__overlay')["href"]
             # Remove all non-numeric characters from the price
             rawprice = soup.select_one('.house__list-item .house__icon--value + span').text.strip()
             home.price = int(re.sub(r'\D', '', rawprice))
@@ -385,7 +385,7 @@ class HomeResults:
             if addition == None:
                 addition = ""
 
-            home.address = f"{res["street_name"]} {res["house_number"]}{addition}"
+            home.address = f"{res['street_name']} {res['house_number']} {addition}"
             home.city = res["place"]
             home.price = res["rent_price"]
             self.homes.append(home)
