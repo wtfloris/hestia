@@ -119,6 +119,10 @@ class HomeResults:
             self.parse_nmg(raw)
         elif source == "vbo":
             self.parse_vbo(raw)
+        elif source == "atta":
+            self.parse_atta(raw)
+        elif source == "ooms":
+            self.parse_ooms(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -357,6 +361,35 @@ class HomeResults:
             end = rawprice.index(",") # Every price is terminated with a trailing ,
             home.price = int(rawprice[2:end].replace(".", ""))
             self.homes.append(home)
+
+    def parse_atta(self, r: requests.models.Response):
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="list__object")
+        for res in results:
+            home = Home(agency="atta")
+            home.url = res.select_one("a")["href"]
+            home.address = res.select_one(".object-list__address").text
+            home.city = res.select_one(".object-list__city").text.strip()
+            home.price = int(res.select_one(".object-list__price").text[2:].replace(".", ""))
+            self.homes.append(home)
+
+    def parse_ooms(self, r: requests.models.Response):
+        results = json.loads(r.content)["objects"]
+        rentals = filter(lambda res: res["filters"]["buy_rent"] == "rent", results)
+        for res in rentals:
+            home = Home(agency="ooms")
+            home.url = f"https://ooms.com/wonen/aanbod/{res['slug']}"
+
+            addition = res.get("house_number_addition")
+            # Explicitly check for None because it can be {"house_number_addition": None}
+            # in which case using a default value in `get` would not work
+            if addition == None:
+                addition = ""
+
+            home.address = f"{res["street_name"]} {res["house_number"]}{addition}"
+            home.city = res["place"]
+            home.price = res["rent_price"]
+            self.homes.append(home)
+
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
