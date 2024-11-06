@@ -385,7 +385,7 @@ class HomeResults:
             if addition == None:
                 addition = ""
 
-            home.address = f"{res['street_name']} {res['house_number']} {addition}"
+            home.address = f"{res['street_name']} {res['house_number']}{addition}"
             home.city = res["place"]
             home.price = res["rent_price"]
             self.homes.append(home)
