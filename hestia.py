@@ -380,12 +380,11 @@ class HomeResults:
             home.url = f"https://ooms.com/wonen/aanbod/{res['slug']}"
 
             addition = res.get("house_number_addition")
-            # Explicitly check for None because it can be {"house_number_addition": None}
-            # in which case using a default value in `get` would not work
-            if addition == None:
-                addition = ""
+            if addition:
+                home.address = f"{res['street_name']} {res['house_number']} {addition}"
+            else:
+                home.address = f"{res['street_name']} {res['house_number']}"
 
-            home.address = f"{res['street_name']} {res['house_number']} {addition}"
             home.city = res["place"]
             home.price = res["rent_price"]
             self.homes.append(home)
