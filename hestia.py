@@ -124,6 +124,10 @@ class HomeResults:
             self.parse_vbo(raw)
         elif source == "woonzeker":
             self.parse_woonzeker(raw)
+        elif source == "atta":
+            self.parse_atta(raw)
+        elif source == "ooms":
+            self.parse_ooms(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -290,7 +294,7 @@ class HomeResults:
             home.address = ' '.join(raw_address.split(' ')[1:]) # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
             raw_city = res.find("div", class_="listing-search-item__sub-title'").contents[0].strip()
             home.city = ' '.join(raw_city.split(' ')[2:]).split('(')[0].strip() # Don't ask
-            home.url = "https://pararius.nl" + res.find("a", class_="listing-search-item__link--title")['href']
+            home.url = "https://pararius.nl" + res.find("a", class_="listing-search-item__link--title")["href"]
             raw_price = res.find("div", class_="listing-search-item__price").contents[0].strip().replace('\xa0', '')
 
             # If unable to cast to int, the price is not available so skip the listing
@@ -345,7 +349,7 @@ class HomeResults:
             home = Home(agency="nmg")
             home.address = soup.select_one('.house__heading h2').text.strip().split('\t\t\t\t')[0]
             home.city = soup.select_one('.house__heading h2 span').text.strip()
-            home.url = soup.select_one('.house__overlay')['href']
+            home.url = soup.select_one('.house__overlay')["href"]
             # Remove all non-numeric characters from the price
             rawprice = soup.select_one('.house__list-item .house__icon--value + span').text.strip()
             home.price = int(re.sub(r'\D', '', rawprice))
@@ -408,8 +412,32 @@ class HomeResults:
             home.price = int(mapping_or_raw(res['handover']['price']))
             self.homes.append(home)
 
+    def parse_atta(self, r: requests.models.Response):
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="list__object")
+        for res in results:
+            home = Home(agency="atta")
+            home.url = res.select_one("a")["href"]
+            home.address = res.select_one(".object-list__address").text
+            home.city = res.select_one(".object-list__city").text.strip()
+            home.price = int(res.select_one(".object-list__price").text[2:].replace(".", ""))
+            self.homes.append(home)
 
+    def parse_ooms(self, r: requests.models.Response):
+        results = json.loads(r.content)["objects"]
+        rentals = filter(lambda res: res["filters"]["buy_rent"] == "rent", results)
+        for res in rentals:
+            home = Home(agency="ooms")
+            home.url = f"https://ooms.com/wonen/aanbod/{res['slug']}"
 
+            addition = res.get("house_number_addition")
+            if addition:
+                home.address = f"{res['street_name']} {res['house_number']} {addition}"
+            else:
+                home.address = f"{res['street_name']} {res['house_number']}"
+
+            home.city = res["place"]
+            home.price = res["rent_price"]
+            self.homes.append(home)
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
