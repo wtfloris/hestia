@@ -6,6 +6,7 @@ import requests
 import re
 import chompjs
 import csv
+from urllib import parse
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from secrets import TOKEN, DB
@@ -403,7 +404,7 @@ class HomeResults:
             address = res['address']
             home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])} {mapping_or_raw(address['houseNumberExtension'])}".strip()
             home.city = mapping_or_raw(address['location'])
-            home.url = f"https://woonzeker.com/aanbod/{home.city}/{res['slug']}" # slug contains the proper url formatting and is always filled in
+            home.url = parse.quote(f"https://woonzeker.com/aanbod/{home.city}/{res['slug']}") # slug contains the proper url formatting and is always filled in
             home.price = int(mapping_or_raw(res['handover']['price']))
             self.homes.append(home)
 
