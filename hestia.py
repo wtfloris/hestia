@@ -406,7 +406,21 @@ class HomeResults:
                 continue # This house is already gone
 
             address = res['address']
-            home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])} {mapping_or_raw(address['houseNumberExtension'])}".strip()
+            slug = res['slug']
+            extract_regex = re.compile(r"(.*)-([0-9]+)(-([a-zA-Z0-9]+))?") # See discussion in #48 for why we need this
+            matches = extract_regex.match(slug)
+            if not matches:
+                logging.warning("Unable to pattern match woonzeker slug: {}", slug)
+                continue
+            ext = matches.group(4) 
+            if ext:
+                if ext.lower() == address['houseNumberExtension'].lower() or address['houseNumberExtension'] not in mapping:
+                    ext = address['houseNumberExtension']
+                elif address['houseNumberExtension'] in mapping:
+                    ext = mapping[address['houseNumberExtension']]
+                home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])} {ext}".strip()
+            else:
+                home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])}".strip()
             home.city = mapping_or_raw(address['location'])
             home.url = parse.quote(f"https://woonzeker.com/aanbod/{home.city}/{res['slug']}") # slug contains the proper url formatting and is always filled in
             home.price = int(mapping_or_raw(res['handover']['price']))
