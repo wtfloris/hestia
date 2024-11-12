@@ -264,6 +264,7 @@ class HomeResults:
                    'mosaic-plaza': 'https://plaza.newnewnew.space/aanbod/huurwoningen/details/',
                    'oostwestwonen': 'https://woningzoeken.oostwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
                    'noordveluwe': 'https://www.hurennoordveluwe.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'woninghuren': 'https://www.woninghuren.nl/aanbod/te-huur/details/',
                    'hollandrijnland': 'https://www.hureninhollandrijnland.nl/aanbod/nu-te-huur/huurwoningen/details/'}
             home.url = f"{map[corp]}{res['urlKey']}"
             
