@@ -401,9 +401,9 @@ class HomeResults:
             home = Home(agency="123wonen")
 
             if res['address_num_extra']:
-                home.address = f"{res['address']} {res['address_num']}"
-            else:
                 home.address = f"{res['address']} {res['address_num']} {res['address_num_extra']}"
+            else:
+                home.address = f"{res['address']} {res['address_num']}"
 
             home.city = res["city"]
             home.url = f"https://www.123wonen.nl/{res['detailurl']}"
