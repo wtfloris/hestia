@@ -123,6 +123,8 @@ class HomeResults:
             self.parse_atta(raw)
         elif source == "ooms":
             self.parse_ooms(raw)
+        elif source == "123wonen":
+            self.parse_123wonen(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -387,6 +389,25 @@ class HomeResults:
 
             home.city = res["place"]
             home.price = res["rent_price"]
+            self.homes.append(home)
+
+    def parse_123wonen(self, r: requests.models.Response):
+        results = json.loads(r.content)["pointers"]
+        for res in results:
+            # Filter out non-rentable objects
+            if not res["transaction"] == "Verhuur":
+                continue
+                
+            home = Home(agency="123wonen")
+
+            if res['address_num_extra']:
+                home.address = f"{res['address']} {res['address_num']}"
+            else:
+                home.address = f"{res['address']} {res['address_num']} {res['address_num_extra']}"
+
+            home.city = res["city"]
+            home.url = f"https://www.123wonen.nl/{res['detailurl']}"
+            home.price = int(res["price"])
             self.homes.append(home)
 
 
