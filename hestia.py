@@ -123,6 +123,8 @@ class HomeResults:
             self.parse_atta(raw)
         elif source == "ooms":
             self.parse_ooms(raw)
+        elif source == "woonin":
+            self.parse_woonin(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -387,6 +389,22 @@ class HomeResults:
 
             home.city = res["place"]
             home.price = res["rent_price"]
+            self.homes.append(home)
+
+    def parse_woonin(self, r: requests.models.Response):
+        results = json.loads(r.content)['objects']
+        for res in results:
+            # Woonin includes houses which are already rented, we only want the empty houses!
+            if res["verhuurd"]:
+                continue
+                
+            home = Home(agency="woonin")
+            home.address = res["straatnaam"]  # Unknown if additions are included as well, will have to check later once it appears
+            home.city = res["plaats"]
+            home.url = f"https://ik-zoek.woonin.nl{res['url']}"
+            price = res["vraagPrijs"][2:].replace(".", "")  # remove prefix and dot to get whole euros+cents (tough I did not see cents yet)
+            price = price.replace(",", ".")  # change comma to dot so python can parse cents as float if it exists
+            home.price = int(float(price))  # force price as rounded int
             self.homes.append(home)
 
 
