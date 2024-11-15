@@ -395,12 +395,17 @@ class HomeResults:
         results = json.loads(r.content)['objects']
         for res in results:
             # Woonin includes houses which are already rented, we only want the empty houses!
-            if not res["verhuurd"]:
-                home = Home(agency="woonin")
-                home.address = res["straatnaam"]  # Unknown if additions are included as well, will have to check later once it appears
-                home.city = res["plaats"]
-                home.url = f"https://ik-zoek.woonin.nl{res['url']}"  # Given URL links directly to listing
-                home.price = int(res["vraagPrijs"][2:].replace(".", ""))  # Remove dot and skip currency+space prefix
+            if res["verhuurd"]:
+                continue
+                
+            home = Home(agency="woonin")
+            home.address = res["straatnaam"]  # Unknown if additions are included as well, will have to check later once it appears
+            home.city = res["plaats"]
+            home.url = f"https://ik-zoek.woonin.nl{res['url']}"
+            price = res["vraagPrijs"][2:].replace(".", "")  # remove prefix and dot to get whole euros+cents (tough I did not see cents yet)
+            price = price.replace(",", ".")  # change comma to dot so python can parse cents as float if it exists
+            home.price = int(float(price))  # force price as rounded int
+            self.homes.append(home)
 
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
