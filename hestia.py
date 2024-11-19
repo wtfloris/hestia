@@ -422,7 +422,7 @@ class HomeResults:
             else:
                 home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])}".strip()
             home.city = mapping_or_raw(address['location'])
-            home.url = parse.quote(f"https://woonzeker.com/aanbod/{home.city}/{res['slug']}") # slug contains the proper url formatting and is always filled in
+            home.url = "https://woonzeker.com" + parse.quote(f"/aanbod/{home.city}/{res['slug']}") # slug contains the proper url formatting and is always filled in
             home.price = int(mapping_or_raw(res['handover']['price']))
             self.homes.append(home)
 
