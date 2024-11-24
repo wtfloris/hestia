@@ -4,6 +4,9 @@ import logging
 import json
 import requests
 import re
+import chompjs
+import csv
+from urllib import parse
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from secrets import TOKEN, DB
@@ -109,6 +112,8 @@ class HomeResults:
             self.parse_makelaarshuis(raw)
         elif "woningnet_" in source:
             self.parse_woningnet_dak(raw, source.split("_")[1])
+        elif "hexia_" in source:
+            self.parse_hexia(raw, source.split("_")[1])
         elif source == "pararius":
             self.parse_pararius(raw)
         elif source == "funda":
@@ -119,10 +124,14 @@ class HomeResults:
             self.parse_nmg(raw)
         elif source == "vbo":
             self.parse_vbo(raw)
+        elif source == "woonzeker":
+            self.parse_woonzeker(raw)
         elif source == "atta":
             self.parse_atta(raw)
         elif source == "ooms":
             self.parse_ooms(raw)
+        elif source == "woonnet_rijnmond":
+            self.parse_woonnet_rijnmond(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -224,7 +233,58 @@ class HomeResults:
             home.url = f"https://{regio}.mijndak.nl/HuisDetails?PublicatieId={res['Id']}"
             home.price = int(float(res["Eenheid"]["Brutohuur"]))
             self.homes.append(home)
+
+    def parse_hexia(self, r: requests.models.Response, corp: str):
+        results = json.loads(r.content)["data"]
+        
+        for res in results:
+            # Filter out non-rentable properties
+            if not res['rentBuy'] == 'Huur':
+                continue
             
+            home = Home(agency=f"hexia_{corp}")
+            home.city = res['city']['name']
+            
+            # If there is an addition to the housenumber defined, format with that instead
+            if res['houseNumberAddition']:
+                address = f"{res['street']} {res['houseNumber']} {res['houseNumberAddition']}"
+            else:
+                address = f"{res['street']} {res['houseNumber']}"
+            
+            # Price is sometimes whole euros, sometimes not. But is always in period instead of comma
+            # Use default python float to int rounding method
+            home.price = int(float(res['netRent']))
+            
+            # Since the customers of this platform can have different subdomains, paths etc..
+            # We have to map the corporation to a full path where the listing is accessible
+            map = {'antares': 'https://wonen.thuisbijantares.nl/aanbod/nu-te-huur/te-huur/details/',
+                   'dewoningzoeker': 'https://www.dewoningzoeker.nl/aanbod/te-huur/details/',
+                   'frieslandhuurt': 'https://www.frieslandhuurt.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'hollandrijnland': 'https://www.hureninhollandrijnland.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'hwwonen': 'https://www.thuisbijhwwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'klikvoorwonen': 'https://www.klikvoorwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'mercatus-aanbod': 'https://woningaanbod.mercatus.nl/aanbod/te-huur/details/',
+                   'mosaic-plaza': 'https://plaza.newnewnew.space/aanbod/huurwoningen/details/',
+                   'noordveluwe': 'https://www.hurennoordveluwe.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'oostwestwonen': 'https://woningzoeken.oostwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'studentenenschede': 'https://www.roomspot.nl/aanbod/te-huur/details/',
+                   'svnk': 'https://www.svnk.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'thuisindeachterhoek': 'https://www.thuisindeachterhoek.nl/aanbod/te-huur/details/',
+                   'thuisinlimburg': 'https://www.thuisinlimburg.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'thuiskompas': 'https://www.thuiskompas.nl/aanbod/nu-te-huur/te-huur/details/',
+                   'thuispoort': 'https://www.thuispoort.nl/aanbod/te-huur/details/',
+                   'thuispoortstudenten': 'https://www.thuispoortstudentenwoningen.nl/aanbod/details/',
+                   'woninghuren': 'https://www.woninghuren.nl/aanbod/te-huur/details/',
+                   'woninginzicht': 'https://www.woninginzicht.nl/aanbod/te-huur/details/',
+                   'wooniezie': 'https://www.wooniezie.nl/aanbod/nu-te-huur/te-huur/details/',
+                   'woonkeusstedendriehoek': 'https://www.woonkeus-stedendriehoek.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'woonnethaaglanden': 'https://www.woonnet-haaglanden.nl/aanbod/nu-te-huur/te-huur/details/',
+                   'woontij': 'https://www.wonenindekop.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'zuidwestwonen': 'https://www.zuidwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/'}
+            home.url = f"{map[corp]}{res['urlKey']}"
+            
+            self.homes.append(home)
+    
     def parse_bouwinvest(self, r: requests.models.Response):
         results = json.loads(r.content)["data"]
     
@@ -362,6 +422,65 @@ class HomeResults:
             home.price = int(rawprice[2:end].replace(".", ""))
             self.homes.append(home)
 
+    """
+    Woonzeker Rentals has a really weird structure. They load all the data
+    in a JSON object on page load and then afterwards fill in the rest of the HTML
+    with that data.
+    """
+    def parse_woonzeker(self, r: requests.models.Response):
+        scripts = BeautifulSoup(r.content, "html.parser").find_all("script")
+        data = str(scripts[3]) # The third script tag has what we need
+        needle = "rent:[" # We care about the value of the 'rent' attribute
+        start = data.find(needle) + len(needle) - 1
+        end = data.find(",configuration") # configuration is the next attribute
+        results = chompjs.parse_js_object(data[start:end])
+
+        # Now, we need to get all the possible variables
+        func_needle = 'window.__NUXT__=(function('
+        func_start = data.find(func_needle)
+        func_end = data.find(')', func_start)
+        func_args = data[func_start + len(func_needle):func_end].split(",")
+        param_needle = '}('
+        param_start = data.find(param_needle)
+        param_end = data.find('));', param_start)
+        params = next(csv.reader([data[param_start + len(param_needle):param_end]], skipinitialspace=True)) # Use csv reader to allow for commas in strings.
+
+        mapping = {}
+        for i in range(0, min(len(func_args), len(params))):
+            mapping[func_args[i]] = params[i]
+
+        def mapping_or_raw(s: str):
+            if s in mapping:
+                return mapping[s]
+            else:
+                return s
+        for res in results:
+            home = Home(agency="woonzeker")
+
+            if (mapping_or_raw(res['mappedStatus']).lower() == "onder optie"):
+                continue # This house is already gone
+
+            address = res['address']
+            slug = res['slug']
+            extract_regex = re.compile(r"(.*)-([0-9]+)(-([a-zA-Z0-9]+))?") # See discussion in #48 for why we need this
+            matches = extract_regex.match(slug)
+            if not matches:
+                logging.warning("Unable to pattern match woonzeker slug: {}", slug)
+                continue
+            ext = matches.group(4) 
+            if ext:
+                if ext.lower() == address['houseNumberExtension'].lower() or address['houseNumberExtension'] not in mapping:
+                    ext = address['houseNumberExtension']
+                elif address['houseNumberExtension'] in mapping:
+                    ext = mapping[address['houseNumberExtension']]
+                home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])} {ext}".strip()
+            else:
+                home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])}".strip()
+            home.city = mapping_or_raw(address['location'])
+            home.url = "https://woonzeker.com" + parse.quote(f"/aanbod/{home.city}/{res['slug']}") # slug contains the proper url formatting and is always filled in
+            home.price = int(mapping_or_raw(res['handover']['price']))
+            self.homes.append(home)
+
     def parse_atta(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="list__object")
         for res in results:
@@ -380,14 +499,34 @@ class HomeResults:
             home.url = f"https://ooms.com/wonen/aanbod/{res['slug']}"
 
             addition = res.get("house_number_addition")
-            # Explicitly check for None because it can be {"house_number_addition": None}
-            # in which case using a default value in `get` would not work
-            if addition == None:
-                addition = ""
+            if addition:
+                home.address = f"{res['street_name']} {res['house_number']} {addition}"
+            else:
+                home.address = f"{res['street_name']} {res['house_number']}"
 
-            home.address = f"{res['street_name']} {res['house_number']} {addition}"
             home.city = res["place"]
             home.price = res["rent_price"]
+            self.homes.append(home)
+
+    def parse_woonnet_rijnmond(self, r: requests.models.Response):
+        results = json.loads(r.content)['d']['aanbod']
+        for res in results:
+            # Only include livable spaces, this excludes parking lots, buildings as a whole etc...
+            if not res['gebruik'] == 'Woning':
+                continue
+            
+            home = Home(agency="woonnet_rijnmond")
+            
+            if res['huisletter']:
+                home.address = f"{res['straat']} {res['huisnummer']} {res['huisletter']}"
+            elif res['huisnummertoevoeging']:  # Probably not needed, only seen in complex buildings
+                home.address = f"{res['straat']} {res['huisnummer']} {res['huisnummertoevoeging']}"
+            else:
+                home.address = f"{res['straat']} {res['huisnummer']}"
+            
+            home.city = res["plaats"]
+            home.url = f"https://www.woonnetrijnmond.nl/detail/{res['id']}"
+            home.price = int(float(res['kalehuur'].replace(",", ".")))  # float before int because of rounding
             self.homes.append(home)
 
 

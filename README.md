@@ -52,3 +52,4 @@ I'll take your parser and run it in the dev environment for a few days to see ho
 ### Additional contributors (thanks!):
 * [BLOKKADE](https://github.com/BLOKKADE) - NMG Wonen parser
 * [Rafaeltheraven](https://github.com/Rafaeltheraven) - VBO parser
+* [OmriSteiner](https://github.com/OmriSteiner) - Ooms and Atta parsers
