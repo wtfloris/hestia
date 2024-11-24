@@ -51,5 +51,6 @@ I'll take your parser and run it in the dev environment for a few days to see ho
 
 ### Additional contributors (thanks!):
 * [BLOKKADE](https://github.com/BLOKKADE) - NMG Wonen parser
-* [Rafaeltheraven](https://github.com/Rafaeltheraven) - VBO parser
+* [Rafaeltheraven](https://github.com/Rafaeltheraven) - VBO and Woonzeker parsers
 * [OmriSteiner](https://github.com/OmriSteiner) - Ooms and Atta parsers
+* [Ventilaar](https://github.com/ventilaar) - Hexia, Woonnet Rijnmond and Woonin parsers
