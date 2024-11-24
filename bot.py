@@ -109,16 +109,9 @@ async def stop(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> N
         chat_id=update.effective_chat.id,
         text=f"""You will no longer recieve updates for new listings\. I hope this is because you've found a new home\!
         
-Consider [buying me a beer]({donation_link}) if this bot has helped you in your search {hestia.LOVE_EMOJI}""",
+Consider [buying me a beer]({donation_link}) if Hestia has helped you in your search {hestia.LOVE_EMOJI}""",
         parse_mode="MarkdownV2",
         disable_web_page_preview=True
-    )
-
-
-async def reply(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Sorry, I can't talk to you, I'm just a scraper. If you want to see what commands I support, say /help. If you are lonely and want to chat, try ChatGPT."
     )
 
 
@@ -446,6 +439,20 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 
+async def donate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
+    donation_link = hestia.query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f"""Moving is expensive enough and similar services start at like €20/month\. Hopefully Hestia has helped you save some money\!
+        
+You could use some of those savings to [buy me a beer]({donation_link}) {hestia.LOVE_EMOJI}
+
+Good luck in your search\!""",
+        parse_mode="MarkdownV2",
+        disable_web_page_preview=True
+    )
+
 async def callback_query_handler(update: telegram.Update, _) -> None:
     query = update.callback_query
     cbid, action, agency = query.data.split(".")
@@ -483,7 +490,8 @@ async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     message += "/start - Subscribe to updates\n"
     message += "/stop - Stop recieving updates\n\n"
     message += "/filter - Show and modify your personal filters\n"
-    message += "/websites - Show info about the websites I scrape"
+    message += "/websites - Show info about the websites I scrape\n"
+    message += "/donate - Get an open Tikkie link to show your appreciation for Hestia\n"
     
     if privileged(update, "help", check_only=True):
         message += "\n\n"
@@ -507,6 +515,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("stop", stop))
     application.add_handler(CommandHandler("announce", announce))
     application.add_handler(CommandHandler("websites", websites))
+    application.add_handler(CommandHandler("donate", donate))
     application.add_handler(CommandHandler("filter", filter))
     application.add_handler(CommandHandler("filters", filter))
     application.add_handler(CommandHandler("getsubinfo", get_sub_info))
@@ -519,5 +528,5 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("setdonate", set_donation_link))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), reply))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), help))
     application.run_polling()

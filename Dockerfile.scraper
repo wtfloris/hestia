@@ -6,7 +6,7 @@ WORKDIR /scraper
 
 COPY requirements.txt requirements.txt
 
-RUN apt-get update && apt-get install cron procps -y && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install cron procps gcc -y && rm -rf /var/lib/apt/lists/*
 RUN pip3 install -r requirements.txt
 
 COPY secrets.py secrets.py

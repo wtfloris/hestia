@@ -1,3 +1,5 @@
+.vscode
+
 # Hestia specific files
 error.log
 hestia.log
