@@ -128,6 +128,8 @@ class HomeResults:
             self.parse_atta(raw)
         elif source == "ooms":
             self.parse_ooms(raw)
+        elif source == "woonnet_rijnmond":
+            self.parse_woonnet_rijnmond(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
     
@@ -452,6 +454,28 @@ class HomeResults:
             home.city = res["place"]
             home.price = res["rent_price"]
             self.homes.append(home)
+
+    def parse_woonnet_rijnmond(self, r: requests.models.Response):
+        results = json.loads(r.content)['d']['aanbod']
+        for res in results:
+            # Only include livable spaces, this excludes parking lots, buildings as a whole etc...
+            if not res['gebruik'] == 'Woning':
+                continue
+            
+            home = Home(agency="woonnet_rijnmond")
+            
+            if res['huisletter']:
+                home.address = f"{res['straat']} {res['huisnummer']} {res['huisletter']}"
+            elif res['huisnummertoevoeging']:  # Probably not needed, only seen in complex buildings
+                home.address = f"{res['straat']} {res['huisnummer']} {res['huisnummertoevoeging']}"
+            else:
+                home.address = f"{res['straat']} {res['huisnummer']}"
+            
+            home.city = res["plaats"]
+            home.url = f"https://www.woonnetrijnmond.nl/detail/{res['id']}"
+            home.price = int(float(res['kalehuur'].replace(",", ".")))  # float before int because of rounding
+            self.homes.append(home)
+
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
