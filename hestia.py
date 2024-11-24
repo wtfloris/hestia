@@ -112,6 +112,8 @@ class HomeResults:
             self.parse_makelaarshuis(raw)
         elif "woningnet_" in source:
             self.parse_woningnet_dak(raw, source.split("_")[1])
+        elif "hexia_" in source:
+            self.parse_hexia(raw, source.split("_")[1])
         elif source == "pararius":
             self.parse_pararius(raw)
         elif source == "funda":
@@ -231,7 +233,58 @@ class HomeResults:
             home.url = f"https://{regio}.mijndak.nl/HuisDetails?PublicatieId={res['Id']}"
             home.price = int(float(res["Eenheid"]["Brutohuur"]))
             self.homes.append(home)
+
+    def parse_hexia(self, r: requests.models.Response, corp: str):
+        results = json.loads(r.content)["data"]
+        
+        for res in results:
+            # Filter out non-rentable properties
+            if not res['rentBuy'] == 'Huur':
+                continue
             
+            home = Home(agency=f"hexia_{corp}")
+            home.city = res['city']['name']
+            
+            # If there is an addition to the housenumber defined, format with that instead
+            if res['houseNumberAddition']:
+                address = f"{res['street']} {res['houseNumber']} {res['houseNumberAddition']}"
+            else:
+                address = f"{res['street']} {res['houseNumber']}"
+            
+            # Price is sometimes whole euros, sometimes not. But is always in period instead of comma
+            # Use default python float to int rounding method
+            home.price = int(float(res['netRent']))
+            
+            # Since the customers of this platform can have different subdomains, paths etc..
+            # We have to map the corporation to a full path where the listing is accessible
+            map = {'antares': 'https://wonen.thuisbijantares.nl/aanbod/nu-te-huur/te-huur/details/',
+                   'dewoningzoeker': 'https://www.dewoningzoeker.nl/aanbod/te-huur/details/',
+                   'frieslandhuurt': 'https://www.frieslandhuurt.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'hollandrijnland': 'https://www.hureninhollandrijnland.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'hwwonen': 'https://www.thuisbijhwwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'klikvoorwonen': 'https://www.klikvoorwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'mercatus-aanbod': 'https://woningaanbod.mercatus.nl/aanbod/te-huur/details/',
+                   'mosaic-plaza': 'https://plaza.newnewnew.space/aanbod/huurwoningen/details/',
+                   'noordveluwe': 'https://www.hurennoordveluwe.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'oostwestwonen': 'https://woningzoeken.oostwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'studentenenschede': 'https://www.roomspot.nl/aanbod/te-huur/details/',
+                   'svnk': 'https://www.svnk.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'thuisindeachterhoek': 'https://www.thuisindeachterhoek.nl/aanbod/te-huur/details/',
+                   'thuisinlimburg': 'https://www.thuisinlimburg.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'thuiskompas': 'https://www.thuiskompas.nl/aanbod/nu-te-huur/te-huur/details/',
+                   'thuispoort': 'https://www.thuispoort.nl/aanbod/te-huur/details/',
+                   'thuispoortstudenten': 'https://www.thuispoortstudentenwoningen.nl/aanbod/details/',
+                   'woninghuren': 'https://www.woninghuren.nl/aanbod/te-huur/details/',
+                   'woninginzicht': 'https://www.woninginzicht.nl/aanbod/te-huur/details/',
+                   'wooniezie': 'https://www.wooniezie.nl/aanbod/nu-te-huur/te-huur/details/',
+                   'woonkeusstedendriehoek': 'https://www.woonkeus-stedendriehoek.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'woonnethaaglanden': 'https://www.woonnet-haaglanden.nl/aanbod/nu-te-huur/te-huur/details/',
+                   'woontij': 'https://www.wonenindekop.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                   'zuidwestwonen': 'https://www.zuidwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/'}
+            home.url = f"{map[corp]}{res['urlKey']}"
+            
+            self.homes.append(home)
+    
     def parse_bouwinvest(self, r: requests.models.Response):
         results = json.loads(r.content)["data"]
     
