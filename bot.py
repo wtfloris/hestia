@@ -440,7 +440,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def donate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
-    donation_link = hestia.query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
+    donation_link = hestia.get_donation_link()
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,

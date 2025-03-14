@@ -7,6 +7,7 @@ import re
 import csv
 import chompjs
 from urllib import parse
+from datetime import datetime
 from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
 from secrets import TOKEN, DB
@@ -592,6 +593,7 @@ def escape_markdownv2(text: str) -> str:
     text = text.replace('+', '\+')
     text = text.replace('-', '\-')
     text = text.replace('*', '\*')
+    text = text.replace('|', '\|')
     return text
 
 
@@ -623,3 +625,12 @@ def check_dev_mode() -> bool:
 
 def check_scraper_halted() -> bool:
     return query_db("SELECT scraper_halted FROM hestia.meta", fetchOne=True)["scraper_halted"]
+
+TMP_DONATE_LINK = "https://tikkie.me/pay/rj8gc92bn57avlupk3c4"
+TMP_DONATE_VALID_DATE = datetime.strptime("2025-03-14", "%Y-%m-%d").date()
+def get_donation_link() -> str:
+    today_date = datetime.now().date()
+    if abs((TMP_DONATE_VALID_DATE - today_date).days) <= 3:
+        return TMP_DONATE_LINK
+    else:
+        return query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
