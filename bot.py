@@ -74,7 +74,7 @@ To see and modify your personal filters (like city and maximum price), say /filt
 
 You will receive a message when I find a new home that matches your filters! If you want me to stop, just say /stop.
 
-If you have any issues or questions, let @WTFloris know!"""
+If you have any questions, please read the /faq!"""
     await context.bot.send_message(update.effective_chat.id, message)
 
 
