@@ -453,6 +453,42 @@ Good luck in your search\!""",
         disable_web_page_preview=True
     )
 
+
+async def faq(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
+    donation_link = hestia.get_donation_link()
+    message = f"""*Why is Hestia free?*
+    I built Hestia for myself and once we found a home, I thought it would be nice to share it with others\!
+
+*What websites does Hestia check?*
+    Use the command /websites to see the full list\.
+
+*How often does Hestia check the websites?*
+    Every 5 minutes\.
+
+*Can you add website \.\.\.?*
+    Probably, please check [this issue](https://github.com/wtfloris/hestia/issues/53) on GitHub to see if it's already on the list\.
+
+*Can you add a filter for: amount of rooms/square m2/postal code, etc\.?*
+    In short: no, because it makes Hestia more less reliable\. Please see [this issue](https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778) for the full explanation \(and feel free to discuss if you don\'t agree\)\!
+
+*Does this work if I want to buy a home?*
+    Not yet, but who knows what I might build when I\'m looking to buy something myself\!
+
+*I saw this listing on Pararius and I didn\'t get a message from Hestia\. Why?*
+    Pararius does not list a house number for all homes, so Hestia can\'t check if it\'s already seen the listing on another website\. To avoid duplicates, we skip these listings altogether\.
+
+*Can I use this without Telegram?*
+    No\. Telegram provides an easy interface for programming, this is much harder on WhatsApp\.
+
+*Can I thank you for building and sharing Hestia for free?*
+    Yes of course, you can buy me a beer [here]({donation_link})\! {hestia.LOVE_EMOJI}
+
+*Can I contact you?*
+    Yes, I'm @WTFloris on Telegram or e\-mail me at hestia@wtflor\.is\!"""
+    
+    await context.bot.send_message(update.effective_chat.id, message, parse_mode="MarkdownV2", disable_web_page_preview=True)
+
+
 async def callback_query_handler(update: telegram.Update, _) -> None:
     query = update.callback_query
     cbid, action, agency = query.data.split(".")
@@ -487,6 +523,7 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
 async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     message = "*I can do the following for you:*\n"
     message += "/help - Show this message\n"
+    message += "/faq - Show the frequently asked questions (and answers!)\n"
     message += "/start - Subscribe to updates\n"
     message += "/stop - Stop recieving updates\n\n"
     message += "/filter - Show and modify your personal filters\n"
@@ -508,6 +545,7 @@ async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
+
 if __name__ == '__main__':
     initialize()
     application = ApplicationBuilder().token(secrets.TOKEN).build()
@@ -527,6 +565,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("nodev", disable_dev))
     application.add_handler(CommandHandler("setdonate", set_donation_link))
     application.add_handler(CommandHandler("help", help))
+    application.add_handler(CommandHandler("faq", faq))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), help))
     application.run_polling()
