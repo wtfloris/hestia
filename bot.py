@@ -171,10 +171,6 @@ async def websites(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) 
         message += f"\n"
         
     await context.bot.send_message(update.effective_chat.id, message[:-1])
-    sleep(1)
-    
-    message = "If you want more information, you can also read my source code: https://github.com/wtfloris/hestia"
-    await context.bot.send_message(update.effective_chat.id, message)
 
 
 async def get_sub_info(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -529,6 +525,7 @@ async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     message += "/filter - Show and modify your personal filters\n"
     message += "/websites - Show info about the websites I scrape\n"
     message += "/donate - Get an open Tikkie link to show your appreciation for Hestia\n"
+    message += "/contribute - Go to the Hestia Bot source code\n"
     
     if privileged(update, "help", check_only=True):
         message += "\n\n"
@@ -545,6 +542,11 @@ async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
+
+async def contribution(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = "If you're interested in contributing to the Hestia Bot, you can access the source code here: https://github.com/wtfloris/hestia"
+    await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
+    
 
 if __name__ == '__main__':
     initialize()
@@ -566,6 +568,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("setdonate", set_donation_link))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("faq", faq))
+    application.add_handler(CommandHandler("contribution",contribution))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), help))
     application.run_polling()
