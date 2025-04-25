@@ -564,7 +564,7 @@ class HomeResults:
     def parse_123wonen(self, r: requests.models.Response):
         results = json.loads(r.content)['pointers']
         for res in results:
-            if(res['transaction'] == 'Verhuur'):
+            if res['transaction'] != 'Verhuur':
                 home = Home(agency="123_wonen")
                 home.url = f"https://www.123wonen.nl{res['detailurl']}"
                 if res['address_num_extra']:
