@@ -135,6 +135,8 @@ class HomeResults:
             self.parse_woonnet_rijnmond(raw)
         elif "hexia_" in source:
             self.parse_hexia(raw, source.split("_")[1])
+        elif source == "123wonen":
+            self.parse_123wonen(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
         
@@ -564,11 +566,11 @@ class HomeResults:
         for res in results:
             if(res['transaction'] == 'Verhuur'):
                 home = Home(agency="123_wonen")
-                home.full_url = f"https://www.123wonen.nl{res['detailurl']}"
+                home.url = f"https://www.123wonen.nl{res['detailurl']}"
                 if res['address_num_extra']:
-                    home.adress = f"{res['address']} {res['address_num']} {res['address_num_extra']}"
+                    home.address = f"{res['address']} {res['address_num']} {res['address_num_extra']}"
                 else:
-                    home.adress = f"{res['address']} {res['address_num']}"
+                    home.address = f"{res['address']} {res['address_num']}"
                 home.city = res['city']
                 home.price = res['price']
                 self.homes.append(home)
