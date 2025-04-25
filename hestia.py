@@ -559,6 +559,22 @@ class HomeResults:
              self.homes.append(home)
 
 
+    def parse_123wonen(self, r: requests.models.Response):
+        results = json.loads(r.content)['pointers']
+        for res in results:
+            if(res['transaction'] == 'Verhuur'):
+                home = Home(agency="123_wonen")
+                home.full_url = f"https://www.123wonen.nl{res['detailurl']}"
+                if res['address_num_extra']:
+                    home.adress = f"{res['address']} {res['address_num']} {res['address_num_extra']}"
+                else:
+                    home.adress = f"{res['address']} {res['address_num']}"
+                home.city = res['city']
+                home.price = res['price']
+                self.homes.append(home)
+            else:
+                continue
+    
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
 # TODO reuse connection
