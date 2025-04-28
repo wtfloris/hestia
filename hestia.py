@@ -605,18 +605,16 @@ class HomeResults:
     def parse_123wonen(self, r: requests.models.Response):
         results = json.loads(r.content)['pointers']
         for res in results:
-            if res['transaction'] != 'Verhuur':
+            if res['transaction'] == 'Verhuur':
                 home = Home(agency="123wonen")
                 home.url = f"https://www.123wonen.nl{res['detailurl']}"
                 if res['address_num_extra']:
-                    home.address = f"{res['address']} {res['address_num']} {res['address_num_extra']}"
+                    home.address = f"{res['address']} {res['address_num']}{res['address_num_extra']}"
                 else:
                     home.address = f"{res['address']} {res['address_num']}"
                 home.city = res['city']
-                home.price = res['price']
+                home.price = int(res['price'])
                 self.homes.append(home)
-            else:
-                continue
 
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
