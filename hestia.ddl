@@ -73,7 +73,9 @@ CREATE TABLE hestia.subscribers (
     filter_max_price integer DEFAULT 2000 NOT NULL,
     filter_cities json DEFAULT '["amsterdam"]'::json NOT NULL,
     telegram_enabled boolean DEFAULT false NOT NULL,
-    telegram_id character varying
+    telegram_id character varying,
+    filter_agencies json DEFAULT '[]'::json NOT NULL,
+    date_added timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 

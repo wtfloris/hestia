@@ -139,7 +139,6 @@ class HomeResults:
             self.parse_hexia(raw, source.split("_")[1])
         else:
             raise ValueError(f"Unknown source: {source}")
-        
 
     def parse_hexia(self, r: requests.models.Response, corp: str):
         results = json.loads(r.content)["data"]
@@ -501,45 +500,45 @@ class HomeResults:
             home.price = res["rent_price"]
             self.homes.append(home)
 
- def parse_woonmatchwaterland(self, response: requests.models.Response):
-    soup = BeautifulSoup(response.content, "html.parser")
-    house_list = soup.find("div", class_="house-list")
+    def parse_woonmatchwaterland(self, response: requests.models.Response):
+        soup = BeautifulSoup(response.content, "html.parser")
+        house_list = soup.find("div", class_="house-list")
 
-    for item in house_list.find_all("div", recursive=False):
-        home = Home(agency="woonmatchwaterland")
+        for item in house_list.find_all("div", recursive=False):
+            home = Home(agency="woonmatchwaterland")
 
-        # Extract price using the euro symbol
-        price_element = item.find(string="€")
-        if not price_element:
-            continue
-        price_text = price_element.parent.get_text()
-        # Remove non-numeric characters from the part before the comma
-        home.price = re.sub(r"[^\d]", "", price_text.split(",")[0])
+            # Extract price using the euro symbol
+            price_element = item.find(string="€")
+            if not price_element:
+                continue
+            price_text = price_element.parent.get_text()
+            # Remove non-numeric characters from the part before the comma
+            home.price = int(re.sub(r"[^\d]", "", price_text.split(",")[0]))
 
-        # Extract address from the location marker image
-        address_img = item.find("img", src="/images/location_marker.svg")
-        if not address_img:
-            continue
-        # Get the last child of the parent element that contains the address string
-        address_content = list(address_img.parent.children)[-1]
-        # Extract street, number, and city using regex
-        matches = re.findall(
-            r">([\w\s]+)<!-- --> <!-- -->(\d+)<!-- --> <!-- -->([\w\s]+)<",
-            str(address_content),
-        )
-        if not matches:
-            continue
-        street, number, city = matches[0]
-        home.address = f"{street.strip()} {number.strip()}"
-        home.city = city.strip()
+            # Extract address from the location marker image
+            address_img = item.find("img", src="/images/location_marker.svg")
+            if not address_img:
+                continue
+            # Get the last child of the parent element that contains the address string
+            address_content = list(address_img.parent.children)[-1]
+            # Extract street, number, and city using regex
+            matches = re.findall(
+                r">([\w\s]+)<!-- --> <!-- -->(\d+)<!-- --> <!-- -->([\w\s]+)<",
+                str(address_content),
+            )
+            if not matches:
+                continue
+            street, number, city = matches[0]
+            home.address = f"{street.strip()} {number.strip()}"
+            home.city = city.strip()
 
-        # Extract URL from the anchor tag that contains 'houses'
-        for link in item.find_all("a", href=True):
-            if "houses" in link["href"]:
-                home.url = f"https://www.woonmatchwaterland.nl{link['href']}"
-                break
+            # Extract URL from the anchor tag that contains 'houses'
+            for link in item.find_all("a", href=True):
+                if "houses" in link["href"]:
+                    home.url = f"https://www.woonmatchwaterland.nl{link['href']}"
+                    break
 
-        self.homes.append(home)
+            self.homes.append(home)
 
     """
     Woonzeker Rentals has a really weird structure. They load all the data
