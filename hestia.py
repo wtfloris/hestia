@@ -607,7 +607,7 @@ class HomeResults:
         for res in results:
             if res['transaction'] == 'Verhuur':
                 home = Home(agency="123wonen")
-                home.url = f"https://www.123wonen.nl{res['detailurl']}"
+                home.url = f"https://www.123wonen.nl/{res['detailurl']}"
                 if res['address_num_extra']:
                     home.address = f"{res['address']} {res['address_num']}{res['address_num_extra']}"
                 else:
