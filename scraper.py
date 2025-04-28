@@ -5,11 +5,12 @@ import secrets
 from datetime import datetime, timedelta
 from asyncio import run
 from telegram.error import Forbidden
+from time import sleep
 
 
 async def main() -> None:
     
-    # Once a day at 7pm, check some stuff and send an alert if necessary
+    # Once a day at 7pm UTC, check some stuff and send an alert if necessary
     if datetime.now().hour == 19 and datetime.now().minute < 4:
         message = ""
         if hestia.check_dev_mode():
@@ -18,13 +19,39 @@ async def main() -> None:
             message += "\n\nScraper is halted."
     
         # Check if the donation link is expiring soon
-        # Expiry of ING payment links is 35 days, start warning after 32
+        # Expiry of Tikkie links is 14 days, start warning after 13
         last_updated = hestia.query_db("SELECT donation_link_updated FROM hestia.meta", fetchOne=True)["donation_link_updated"]
-        if datetime.now() - last_updated >= timedelta(days=32):
+        if datetime.now() - last_updated >= timedelta(days=13):
             message += "\n\nDonation link expiring soon, use /setdonate."
             
         if message:
             await hestia.BOT.send_message(text=message[2:], chat_id=secrets.OWN_CHAT_ID)
+
+    # Once a week, Friday 6pm UTC, send all who subscribed three weeks ago a thanks with a donation link reminder
+    if datetime.now().weekday() == 4 and datetime.now().hour == 18 and datetime.now().minute < 4:
+        if hestia.check_dev_mode():
+            logging.warning("Dev mode is enabled, not broadcasting thanks messages.")
+        else:
+            subs = hestia.query_db("""
+                SELECT * FROM subscribers 
+                WHERE telegram_enabled = true 
+                AND date_added BETWEEN NOW() - INTERVAL '4 weeks' AND NOW() - INTERVAL '3 weeks'
+            """)
+
+            donation_link = hestia.get_donation_link()
+            logging.warning(f"Broadcasting thanks message to {len(subs)} subscribers")
+            for sub in subs:
+                sleep(1/29)  # avoid rate limit (broadcasting to max 30 users per second)
+                message = f"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
+                
+Moving is expensive enough and similar services start at like €20/month\. Hopefully Hestia has helped you save some money\! With this open Tikkie you could use some of those savings to [buy me a beer]({donation_link}) {hestia.LOVE_EMOJI}
+
+Good luck in your search\!"""
+                try:
+                    await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2", disable_web_page_preview=True)
+                except BaseException as e:
+                    logging.warning(f"Exception while broadcasting thanks message to {sub['telegram_id']}: {repr(e)}")
+                    continue
     
     if not hestia.check_scraper_halted():
         for target in hestia.query_db("SELECT * FROM hestia.targets WHERE enabled = true"):
@@ -43,9 +70,9 @@ async def broadcast(homes: list[hestia.Home]) -> None:
     subs = set()
     
     if hestia.check_dev_mode():
-        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
+        subs = hestia.query_db("SELECT * FROM subscribers WHERE telegram_enabled = true AND user_level > 1")
     else:
-        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+        subs = hestia.query_db("SELECT * FROM subscribers WHERE telegram_enabled = true")
         
     # Create dict of agencies and their pretty names
     agencies = hestia.query_db("SELECT agency, user_info FROM targets")
