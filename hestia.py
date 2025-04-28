@@ -606,7 +606,7 @@ class HomeResults:
         results = json.loads(r.content)['pointers']
         for res in results:
             if res['transaction'] != 'Verhuur':
-                home = Home(agency="123_wonen")
+                home = Home(agency="123wonen")
                 home.url = f"https://www.123wonen.nl{res['detailurl']}"
                 if res['address_num_extra']:
                     home.address = f"{res['address']} {res['address_num']} {res['address_num_extra']}"
@@ -617,7 +617,8 @@ class HomeResults:
                 self.homes.append(home)
             else:
                 continue
-    
+
+
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
 # TODO reuse connection
