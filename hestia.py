@@ -137,6 +137,8 @@ class HomeResults:
             self.parse_woonnet_rijnmond(raw)
         elif "hexia_" in source:
             self.parse_hexia(raw, source.split("_")[1])
+        elif source == "123wonen":
+            self.parse_123wonen(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -598,6 +600,21 @@ class HomeResults:
              home.url = "https://woonzeker.com/aanbod/" + parse.quote(home.city + "/" + res['slug'])  # slug contains the proper url formatting and is always filled in
              home.price = int(mapping_or_raw(res['handover']['price']))
              self.homes.append(home)
+
+
+    def parse_123wonen(self, r: requests.models.Response):
+        results = json.loads(r.content)['pointers']
+        for res in results:
+            if res['transaction'] == 'Verhuur':
+                home = Home(agency="123wonen")
+                home.url = f"https://www.123wonen.nl/{res['detailurl']}"
+                if res['address_num_extra']:
+                    home.address = f"{res['address']} {res['address_num']}{res['address_num_extra']}"
+                else:
+                    home.address = f"{res['address']} {res['address_num']}"
+                home.city = res['city']
+                home.price = int(res['price'])
+                self.homes.append(home)
 
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
