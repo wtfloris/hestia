@@ -629,7 +629,7 @@ class HomeResults:
                 if res['huisletter']:
                     home.address = f"{res['straat']} {res['huisnummer']}"
                 else:
-                    home.address = f"{res['straat']} {res['huisnummer']} {res['huisletter']}"
+                    home.address = f"{res['straat']} {res['huisnummer']}{res['huisletter']}"
                 home.city = res['plaats']
                 home.price = int(float(res['kalehuur'].replace(',','.')))
                 home.url = f"https://www.entree.nu/detail/{res['id']}"
