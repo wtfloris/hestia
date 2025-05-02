@@ -139,6 +139,8 @@ class HomeResults:
             self.parse_hexia(raw, source.split("_")[1])
         elif source == "123wonen":
             self.parse_123wonen(raw)
+        elif source == 'entree':
+            self.parse_entree(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -616,6 +618,21 @@ class HomeResults:
                 home.price = int(res['price'])
                 self.homes.append(home)
 
+    def parse_entree(self, r: requests.models.Response):
+        results = json.loads(r.content)['d']['aanbod']
+        for res in results:
+            skip_prop = ['Garage','Parkeerplaats']
+            home = Home(agency='entree')
+            if res['objecttype'] in skip_prop:
+                continue
+            else:
+                if res['huisletter']:
+                    home.address = f"{res['straat']} {res['huisnummer']}"
+                else:
+                    home.address = f"{res['straat']} {res['huisnummer']}{res['huisletter']}"
+                home.city = res['plaats']
+                home.price = int(float(res['kalehuur'].replace(',','.')))
+                home.url = f"https://www.entree.nu/detail/{res['id']}"
 
 def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
 # TODO error handling
