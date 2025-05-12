@@ -514,7 +514,7 @@ class HomeResults:
             home = Home(agency="woonmatchwaterland")
             home.address = h["address"]["street"] + " " + str(h["address"]["number"])
             home.city = h["address"]["city"]
-            home.url = "https://woonmatchwaterland.nl/" + h["house"]
+            home.url = "https://woonmatchwaterland.nl/houses/" + h["advert"]
             home.price = h["details"]["grossrent"]
             self.homes.append(home)
 
