@@ -504,42 +504,18 @@ class HomeResults:
 
     def parse_woonmatchwaterland(self, response: requests.models.Response):
         soup = BeautifulSoup(response.content, "html.parser")
-        house_list = soup.find("div", class_="house-list")
+        script = soup.find("script", id="__NEXT_DATA__", type="application/json")
+        if script is None or not script.string:
+            raise ValueError("Unable to locate JSON in <script id='__NEXT_DATA__'>.")
 
-        for item in house_list.find_all("div", recursive=False):
+        # Convert the JSON text to a Python object
+        data = json.loads(script.string)["props"]["pageProps"]["houses"]
+        for h in data:
             home = Home(agency="woonmatchwaterland")
-
-            # Extract price using the euro symbol
-            price_element = item.find(string="€")
-            if not price_element:
-                continue
-            price_text = price_element.parent.get_text()
-            # Remove non-numeric characters from the part before the comma
-            home.price = int(re.sub(r"[^\d]", "", price_text.split(",")[0]))
-
-            # Extract address from the location marker image
-            address_img = item.find("img", src="/images/location_marker.svg")
-            if not address_img:
-                continue
-            # Get the last child of the parent element that contains the address string
-            address_content = list(address_img.parent.children)[-1]
-            # Extract street, number, and city using regex
-            matches = re.findall(
-                r">([\w\s]+)<!-- --> <!-- -->(\d+)<!-- --> <!-- -->([\w\s]+)<",
-                str(address_content),
-            )
-            if not matches:
-                continue
-            street, number, city = matches[0]
-            home.address = f"{street.strip()} {number.strip()}"
-            home.city = city.strip()
-
-            # Extract URL from the anchor tag that contains 'houses'
-            for link in item.find_all("a", href=True):
-                if "houses" in link["href"]:
-                    home.url = f"https://www.woonmatchwaterland.nl{link['href']}"
-                    break
-
+            home.address = h["address"]["street"] + " " + str(h["address"]["number"])
+            home.city = h["address"]["city"]
+            home.url = "https://woonmatchwaterland.nl/" + h["house"]
+            home.price = h["details"]["grossrent"]
             self.homes.append(home)
 
     """
