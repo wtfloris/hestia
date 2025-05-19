@@ -518,13 +518,14 @@ class HomeResults:
         if script is not None and script.string:
             # Convert the JSON text to a Python object
             results = json.loads(script.string)["props"]["pageProps"]["houses"]
-            for res in results:
-                home = Home(agency="woonmatchwaterland")
-                home.address = res["address"]["street"] + " " + str(res["address"]["number"])
-                home.city = res["address"]["city"]
-                home.url = "https://woonmatchwaterland.nl/houses/" + res["advert"]
-                home.price = int(float(res["details"]["grossrent"]))
-                self.homes.append(home)
+            if results:
+                for res in results:
+                    home = Home(agency="woonmatchwaterland")
+                    home.address = res["address"]["street"] + " " + str(res["address"]["number"])
+                    home.city = res["address"]["city"]
+                    home.url = "https://woonmatchwaterland.nl/houses/" + res["advert"]
+                    home.price = int(float(res["details"]["grossrent"]))
+                    self.homes.append(home)
 
     def parse_entree(self, r: requests.models.Response):
         results = json.loads(r.content)["d"]["aanbod"]
