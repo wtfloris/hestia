@@ -135,6 +135,8 @@ class HomeResults:
             self.parse_woonin(raw)
         elif source == "woonnet_rijnmond":
             self.parse_woonnet_rijnmond(raw)
+        elif source == 'entree':
+            self.parse_entree(raw)
         elif "hexia_" in source:
             self.parse_hexia(raw, source.split("_")[1])
         elif source == "123wonen":
@@ -502,21 +504,34 @@ class HomeResults:
             home.price = res["rent_price"]
             self.homes.append(home)
 
-    def parse_woonmatchwaterland(self, response: requests.models.Response):
-        soup = BeautifulSoup(response.content, "html.parser")
+    def parse_woonmatchwaterland(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
         script = soup.find("script", id="__NEXT_DATA__", type="application/json")
-        if script is None or not script.string:
-            raise ValueError("Unable to locate JSON in <script id='__NEXT_DATA__'>.")
+        if script is not None and script.string:
+            # Convert the JSON text to a Python object
+            results = json.loads(script.string)["props"]["pageProps"]["houses"]
+            for res in results:
+                home = Home(agency="woonmatchwaterland")
+                home.address = res["address"]["street"] + " " + str(res["address"]["number"])
+                home.city = res["address"]["city"]
+                home.url = "https://woonmatchwaterland.nl/houses/" + res["advert"]
+                home.price = int(float(res["details"]["grossrent"]))
+                self.homes.append(home)
 
-        # Convert the JSON text to a Python object
-        data = json.loads(script.string)["props"]["pageProps"]["houses"]
-        for h in data:
-            home = Home(agency="woonmatchwaterland")
-            home.address = h["address"]["street"] + " " + str(h["address"]["number"])
-            home.city = h["address"]["city"]
-            home.url = "https://woonmatchwaterland.nl/houses/" + h["advert"]
-            home.price = h["details"]["grossrent"]
-            self.homes.append(home)
+    def parse_entree(self, r: requests.models.Response):
+        results = json.loads(r.content)["d"]["aanbod"]
+        for res in results:
+            skip_prop = ["Garage", "Parkeerplaats"]
+            home = Home(agency="entree")
+            if res["objecttype"] not in skip_prop:
+                if res["huisletter"]:
+                    home.address = f"{res['straat']} {res['huisnummer']}"
+                else:
+                    home.address = f"{res['straat']} {res['huisnummer']}{res['huisletter']}"
+                home.city = res["plaats"]
+                home.price = int(float(res["kalehuur"].replace(',', '.')))
+                home.url = f"https://entree.nu/detail/{res['id']}"
+                self.homes.append(home)
 
     """
     Woonzeker Rentals has a really weird structure. They load all the data
