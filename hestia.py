@@ -388,30 +388,38 @@ class HomeResults:
         results = BeautifulSoup(r.content, "html.parser").find_all("section", class_="listing-search-item--for-rent")
         
         for res in results:
-        
             home = Home(agency="pararius")
-            raw_address = str(res.find("a", class_="listing-search-item__link--title").contents[0].strip())
+        
+            # Check if the listing contains all the required information
+            address_item = res.find("a", class_="listing-search-item__link--title")
+            city_item = res.find("div", class_="listing-search-item__sub-title")
+            url_item = res.find("a", class_="listing-search-item__link--title")
+            price_item = res.find("div", class_="listing-search-item__price")
+            if not address_item or not city_item or not url_item or not price_item:
+                address_item, city_item, url_item, price_item = None, None, None, None
+                continue
         
             # A lot of properties on Pararius don't include house numbers, so it's impossible to keep track of them because
             # right now homes are tracked by address, not by URL (which has its own downsides).
             # This is probably not 100% reliable either, but it's close enough.
-            if not re.search("[0-9]", raw_address):
+            address = str(address_item.contents[0].strip())
+            if not re.search("[0-9]", address):
                 continue
-            if re.search("^[0-9]", raw_address): # Filter "1e Foobarstraat", etc.
+            if re.search("^[0-9]", address):  # Filter "1e Foobarstraat", etc.
                 continue
                 
-            home.address = ' '.join(raw_address.split(' ')[1:]) # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
-            raw_city = res.find("div", class_="listing-search-item__sub-title'").contents[0].strip()
-            home.city = ' '.join(raw_city.split(' ')[2:]).split('(')[0].strip() # Don't ask
-            home.url = "https://pararius.nl" + res.find("a", class_="listing-search-item__link--title")["href"]
-            raw_price = res.find("div", class_="listing-search-item__price").contents[0].strip().replace('\xa0', '')
-
+            home.address = ' '.join(address.split(' ')[1:])  # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
+            city = city_item.contents[0].strip()
+            home.city = ' '.join(city.split(' ')[2:]).split('(')[0].strip()  # Don't ask
+            home.url = "https://pararius.nl" + url_item["href"]
+            price = price_item.contents[0].strip().replace('\xa0', '')
+            
             # If unable to cast to int, the price is not available so skip the listing
             try:
-                home.price = int(raw_price[1:].split(' ')[0].replace('.', ''))
+                home.price = int(price[1:].split(' ')[0].replace('.', ''))
             except:
                 continue
-
+            
             self.homes.append(home)
             
     def parse_funda(self, r: requests.models.Response):
