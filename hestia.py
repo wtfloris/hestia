@@ -135,6 +135,8 @@ class HomeResults:
             self.parse_woonin(raw)
         elif source == "woonnet_rijnmond":
             self.parse_woonnet_rijnmond(raw)
+        elif source == 'entree':
+            self.parse_entree(raw)
         elif "hexia_" in source:
             self.parse_hexia(raw, source.split("_")[1])
         elif source == "123wonen":
@@ -502,45 +504,34 @@ class HomeResults:
             home.price = res["rent_price"]
             self.homes.append(home)
 
-    def parse_woonmatchwaterland(self, response: requests.models.Response):
-        soup = BeautifulSoup(response.content, "html.parser")
-        house_list = soup.find("div", class_="house-list")
+    def parse_woonmatchwaterland(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        script = soup.find("script", id="__NEXT_DATA__", type="application/json")
+        if script is not None and script.string:
+            # Convert the JSON text to a Python object
+            results = json.loads(script.string)["props"]["pageProps"]["houses"]
+            for res in results:
+                home = Home(agency="woonmatchwaterland")
+                home.address = res["address"]["street"] + " " + str(res["address"]["number"])
+                home.city = res["address"]["city"]
+                home.url = "https://woonmatchwaterland.nl/houses/" + res["advert"]
+                home.price = int(float(res["details"]["grossrent"]))
+                self.homes.append(home)
 
-        for item in house_list.find_all("div", recursive=False):
-            home = Home(agency="woonmatchwaterland")
-
-            # Extract price using the euro symbol
-            price_element = item.find(string="€")
-            if not price_element:
-                continue
-            price_text = price_element.parent.get_text()
-            # Remove non-numeric characters from the part before the comma
-            home.price = int(re.sub(r"[^\d]", "", price_text.split(",")[0]))
-
-            # Extract address from the location marker image
-            address_img = item.find("img", src="/images/location_marker.svg")
-            if not address_img:
-                continue
-            # Get the last child of the parent element that contains the address string
-            address_content = list(address_img.parent.children)[-1]
-            # Extract street, number, and city using regex
-            matches = re.findall(
-                r">([\w\s]+)<!-- --> <!-- -->(\d+)<!-- --> <!-- -->([\w\s]+)<",
-                str(address_content),
-            )
-            if not matches:
-                continue
-            street, number, city = matches[0]
-            home.address = f"{street.strip()} {number.strip()}"
-            home.city = city.strip()
-
-            # Extract URL from the anchor tag that contains 'houses'
-            for link in item.find_all("a", href=True):
-                if "houses" in link["href"]:
-                    home.url = f"https://www.woonmatchwaterland.nl{link['href']}"
-                    break
-
-            self.homes.append(home)
+    def parse_entree(self, r: requests.models.Response):
+        results = json.loads(r.content)["d"]["aanbod"]
+        for res in results:
+            skip_prop = ["Garage", "Parkeerplaats"]
+            home = Home(agency="entree")
+            if res["objecttype"] not in skip_prop:
+                if res["huisletter"]:
+                    home.address = f"{res['straat']} {res['huisnummer']}"
+                else:
+                    home.address = f"{res['straat']} {res['huisnummer']}{res['huisletter']}"
+                home.city = res["plaats"]
+                home.price = int(float(res["kalehuur"].replace(',', '.')))
+                home.url = f"https://entree.nu/detail/{res['id']}"
+                self.homes.append(home)
 
     """
     Woonzeker Rentals has a really weird structure. They load all the data
