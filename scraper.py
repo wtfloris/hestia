@@ -54,6 +54,7 @@ Good luck in your search\!"""
                     continue
     
     if not hestia.check_scraper_halted():
+        scrape_start_ts = datetime.now()
         for target in hestia.query_db("SELECT * FROM hestia.targets WHERE enabled = true"):
             try:
                 await scrape_site(target)
@@ -62,6 +63,8 @@ Good luck in your search\!"""
                 logging.error(error)
                 if "Connection reset by peer" not in error:
                     await hestia.BOT.send_message(text=error, chat_id=secrets.OWN_CHAT_ID)
+        scrape_duration = datetime.now() - scrape_start_ts
+        logging.warning(f"Scrape took {scrape_duration.total_seconds()} seconds")
     else:
         logging.warning("Scraper is halted.")
 
