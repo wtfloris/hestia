@@ -96,7 +96,7 @@ class HomeResults:
         return str([home for home in self.homes])
     
     def __init__(self, source: str, raw: requests.models.Response):
-        self.homes = []
+        self.homes: list[Home] = []
         if source == "vesteda":
             self.parse_vesteda(raw)
         elif source == "ikwilhuren":
@@ -232,9 +232,9 @@ class HomeResults:
         results = json.loads(r.content)['objects']
         for res in results:
             # Woonin includes houses which are already rented, we only want the empty houses!
-            if not res["verhuurd"]:
+            if res["type"] == "huur" and not res.get("verhuurd", False):
                 home = Home(agency="woonin")
-                home.address = res["straatnaam"]  # Unknown if additions are included as well, will have to check later once it appears
+                home.address = res["straat"]
                 home.city = res["plaats"]
                 home.url = f"https://ik-zoek.woonin.nl{res['url']}"  # Given URL links directly to listing
                 home.price = int(res["vraagPrijs"][2:].replace(".", ""))  # Remove dot and skip currency+space prefix
