@@ -96,7 +96,7 @@ class HomeResults:
         return str([home for home in self.homes])
     
     def __init__(self, source: str, raw: requests.models.Response):
-        self.homes = []
+        self.homes: list[Home] = []
         if source == "vesteda":
             self.parse_vesteda(raw)
         elif source == "ikwilhuren":
@@ -232,7 +232,7 @@ class HomeResults:
         results = json.loads(r.content)['objects']
         for res in results:
             # Woonin includes houses which are already rented, we only want the empty houses!
-            if not res["verhuurd"]:
+            if "verhuurd" not in res or not res["verhuurd"]:
                 home = Home(agency="woonin")
                 home.address = res["straatnaam"]  # Unknown if additions are included as well, will have to check later once it appears
                 home.city = res["plaats"]
