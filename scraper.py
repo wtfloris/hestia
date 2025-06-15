@@ -98,7 +98,7 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                     # Replace address placeholder then encode entire template
                     template_text = sub["response_template"].replace("[[address]]", home.address)
                     template_url = f"https://t.me/share/url?text={parse.quote(template_text)}"
-                    message += f"\n\n[Copy Response]({template_url})"
+                    message += f"\n\n[Copy Template]({template_url})"
                 
                 try:
                     await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
