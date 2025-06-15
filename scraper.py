@@ -2,6 +2,7 @@ import hestia
 import logging
 import requests
 import secrets
+from urllib import parse
 from datetime import datetime, timedelta
 from asyncio import run
 from telegram.error import Forbidden
@@ -92,6 +93,11 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                 message += f"{hestia.EURO_EMOJI} €{home.price}/m\n\n"
                 message = hestia.escape_markdownv2(message)
                 message += f"{hestia.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
+                
+                if sub["response_template"]:
+                    template_text = sub["response_template"].replace("[[address]]", home.address)
+                    template_url = f"https://t.me/share/url?text={parse.quote(template_text)}"
+                    message += f"\n\n[Copy Response]({template_url})"
                 
                 try:
                     await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
