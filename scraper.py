@@ -95,7 +95,8 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                 message += f"{hestia.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
                 
                 if sub["response_template"]:
-                    template_text = sub["response_template"].replace("[[address]]", home.address)
+                    # URL-encode the address to handle special characters
+                    template_text = sub["response_template"].replace("[[address]]", parse.quote(home.address))
                     template_url = f"https://t.me/share/url?text={parse.quote(template_text)}"
                     message += f"\n\n[Copy Response]({template_url})"
                 

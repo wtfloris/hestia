@@ -442,9 +442,19 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def settemplate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /settemplate command to save user's response template"""
     try:
-        # Get full message text after command
-        template_text = ' '.join(context.args).strip()
+        # Get full message text after command, preserving newlines
+        full_text = update.message.text
+        command = next(e for e in update.message.entities if e.type == "bot_command")
+        template_text = full_text[command.offset + command.length :].strip()
         
+        MAX_TEMPLATE_LENGTH = 2000
+        if len(template_text) > MAX_TEMPLATE_LENGTH:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"Template too long! Max {MAX_TEMPLATE_LENGTH} characters."
+            )
+            return
+            
         if not template_text:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
