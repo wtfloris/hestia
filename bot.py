@@ -473,6 +473,34 @@ async def settemplate(update: telegram.Update, context: ContextTypes.DEFAULT_TYP
         )
 
 
+async def showtemplate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
+    """Display the user's current response template"""
+    try:
+        template = hestia.query_db(
+            "SELECT response_template FROM hestia.subscribers WHERE telegram_id = %s",
+            [str(update.effective_chat.id)],
+            fetchOne=True
+        )["response_template"]
+
+        if template:
+            message = f"*Your current response template:*\n\n{template}"
+        else:
+            message = "You haven't set a response template yet. Use /settemplate to create one."
+            
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=message,
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logging.error(f"Error in showtemplate: {str(e)}")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Failed to retrieve template. Please try again later."
+        )
+
+
 async def donate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     donation_link = hestia.get_donation_link()
 
@@ -558,6 +586,7 @@ async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     message = "*I can do the following for you:*\n"
     message += "/help - Show this message\n"
     message += "/settemplate - Set auto-response template (use [[address]] placeholder)\n"
+    message += "/showtemplate - View your current response template\n"
     message += "/faq - Show the frequently asked questions (and answers!)\n"
     message += "/start - Subscribe to updates\n"
     message += "/stop - Stop recieving updates\n\n"
@@ -600,6 +629,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("nodev", disable_dev))
     application.add_handler(CommandHandler("setdonate", set_donation_link))
     application.add_handler(CommandHandler("settemplate", settemplate))
+    application.add_handler(CommandHandler("showtemplate", showtemplate))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("faq", faq))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
