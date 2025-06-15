@@ -445,7 +445,7 @@ async def settemplate(update: telegram.Update, context: ContextTypes.DEFAULT_TYP
         # Get full message text after command, preserving newlines
         full_text = update.message.text
         command = next(e for e in update.message.entities if e.type == "bot_command")
-        template_text = full_text[command.offset + command.length :].strip()
+        template_text = full_text[command.offset + command.length :]
         
         MAX_TEMPLATE_LENGTH = 2000
         if len(template_text) > MAX_TEMPLATE_LENGTH:
