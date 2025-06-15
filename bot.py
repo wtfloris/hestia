@@ -439,6 +439,40 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 
+async def settemplate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /settemplate command to save user's response template"""
+    try:
+        # Get full message text after command
+        template_text = ' '.join(context.args).strip()
+        
+        if not template_text:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="Please provide a template text! Example:\n/settemplate Hi, I'm interested in [[address]]"
+            )
+            return
+
+        # Save to database
+        hestia.query_db(
+            "UPDATE hestia.subscribers SET response_template = %s WHERE telegram_id = %s",
+            (template_text, str(update.effective_chat.id))
+        )
+        
+        # Show preview with sample address
+        preview = template_text.replace("[[address]]", "SampleStraat 123")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f"Template saved! Preview:\n\n{preview}"
+        )
+        
+    except Exception as e:
+        logging.error(f"Error in settemplate: {str(e)}")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Failed to save template. Please try again later."
+        )
+
+
 async def donate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     donation_link = hestia.get_donation_link()
 
@@ -523,6 +557,7 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
 async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     message = "*I can do the following for you:*\n"
     message += "/help - Show this message\n"
+    message += "/settemplate - Set auto-response template (use [[address]] placeholder)\n"
     message += "/faq - Show the frequently asked questions (and answers!)\n"
     message += "/start - Subscribe to updates\n"
     message += "/stop - Stop recieving updates\n\n"
@@ -564,6 +599,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("dev", enable_dev))
     application.add_handler(CommandHandler("nodev", disable_dev))
     application.add_handler(CommandHandler("setdonate", set_donation_link))
+    application.add_handler(CommandHandler("settemplate", settemplate))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("faq", faq))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
