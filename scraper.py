@@ -94,14 +94,12 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                 message = hestia.escape_markdownv2(message)
                 message += f"{hestia.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
                 
-                if sub["response_template"]:
-                    # Replace address placeholder then encode entire template
-                    template_text = sub["response_template"].replace("[[address]]", home.address)
-                    template_url = f"https://t.me/share/url?text={parse.quote(template_text)}"
-                    message += f"\n\n[Copy Template]({template_url})"
-                
                 try:
-                    await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
+                    await hestia.BOT.send_message(
+                        text=message, 
+                        chat_id=sub["telegram_id"], 
+                        parse_mode="MarkdownV2"
+                    )
                 except Forbidden as e:
                     # This means the user deleted their account or blocked the bot, so disable them
                     hestia.query_db("UPDATE hestia.subscribers SET telegram_enabled = false WHERE id = %s", params=[str(sub["id"])])
@@ -110,6 +108,18 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                 except Exception as e:
                     # Log any other exceptions
                     logging.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
+                    
+                # Send response template as separate message if exists
+                if sub["response_template"]:
+                    response_text = sub["response_template"].replace("[[address]]", home.address)
+                    try:
+                        await hestia.BOT.send_message(
+                            text=f"Your response:\n```\n{response_text}\n```",
+                            chat_id=sub["telegram_id"],
+                            parse_mode=None
+                        )
+                    except Exception as e:
+                        logging.warning(f"Failed to send response template to {sub['telegram_id']}: {repr(e)}")
 
 
 async def scrape_site(target: dict) -> None:
