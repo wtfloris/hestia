@@ -469,7 +469,7 @@ async def faq(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     Probably, please check [this issue](https://github.com/wtfloris/hestia/issues/53) on GitHub to see if it's already on the list\.
 
 *Can you add a filter for: amount of rooms/square m2/postal code, etc\.?*
-    In short: no, because it makes Hestia more less reliable\. Please see [this issue](https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778) for the full explanation \(and feel free to discuss if you don\'t agree\)\!
+    In short: no, because it makes Hestia less reliable\. Please see [this comment](https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778) for the full explanation \(and feel free to discuss if you don\'t agree\)\!
 
 *Does this work if I want to buy a home?*
     Not yet, but who knows what I might build when I\'m looking to buy something myself\!
