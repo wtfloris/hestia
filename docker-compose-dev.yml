@@ -35,7 +35,7 @@ services:
 
   hestia-database-dev:
     container_name: hestia-database-dev
-    image: postgres:latest
+    image: postgres:16
     networks: 
       - hestia-network-dev
     ports:

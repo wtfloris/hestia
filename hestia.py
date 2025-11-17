@@ -423,7 +423,7 @@ class HomeResults:
             self.homes.append(home)
             
     def parse_funda(self, r: requests.models.Response):
-        results = json.loads(r.content)["search_result"]["hits"]["hits"]
+        results = json.loads(r.content)["responses"][0]["hits"]["hits"]
         
         for res in results:
             # Some listings don't have house numbers, so skip

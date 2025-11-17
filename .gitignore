@@ -5,6 +5,7 @@ error.log
 hestia.log
 data/*
 secrets.py
+playground.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

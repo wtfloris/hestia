@@ -1,3 +1,4 @@
+import json
 import hestia
 import logging
 import requests
@@ -110,6 +111,9 @@ async def scrape_site(target: dict) -> None:
         r = requests.get(target["queryurl"], headers=target["headers"])
     elif target["method"] == "POST":
         r = requests.post(target["queryurl"], json=target["post_data"], headers=target["headers"])
+    elif target["method"] == "POST_NDJSON":
+        post_data = "\n".join(json.dumps(obj, separators=(",", ":")) for obj in target["post_data"]) + "\n"
+        r = requests.post(target["queryurl"], data=post_data, headers=target["headers"])
         
     if r.status_code == 200:
         prev_homes: list[hestia.Home] = []
