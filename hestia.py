@@ -423,7 +423,7 @@ class HomeResults:
             self.homes.append(home)
             
     def parse_funda(self, r: requests.models.Response):
-        results = json.loads(r.content)["search_result"]["hits"]["hits"]
+        results = json.loads(r.content)["responses"][0]["hits"]["hits"]
         
         for res in results:
             # Some listings don't have house numbers, so skip
@@ -460,15 +460,15 @@ class HomeResults:
             self.homes.append(home)
 
     def parse_nmg(self, r: requests.models.Response):
-        results = [map_item.get("template", "") for map_item in json.loads(r.content)["maps"]]
+        results = BeautifulSoup(r.content, "html.parser").find_all("article", class_="house huur")
         for res in results:
-            soup = BeautifulSoup(res, "html.parser")
             home = Home(agency="nmg")
-            home.address = soup.select_one('.house__heading h2').text.strip().split('\t\t\t\t')[0]
-            home.city = soup.select_one('.house__heading h2 span').text.strip()
-            home.url = soup.select_one('.house__overlay')["href"]
+            content = res.find_all("div", class_="house__content")[0]
+            home.address = content.select_one('.house__heading h2').text.strip().split('\t\t\t\t')[0]
+            home.city = content.select_one('.house__heading h2 span').text.strip()
+            home.url = res.select_one('.house__overlay')["href"]
             # Remove all non-numeric characters from the price
-            rawprice = soup.select_one('.house__list-item .house__icon--value + span').text.strip()
+            rawprice = res.select_one('.house__list-item .house__icon--value + span').text.strip()
             home.price = int(re.sub(r'\D', '', rawprice))
             self.homes.append(home)
 
