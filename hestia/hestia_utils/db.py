@@ -1,9 +1,15 @@
 import psycopg2
-from typing import Iterable
+import logging
 from datetime import datetime
 from psycopg2.extras import RealDictCursor, RealDictRow
 
 from hestia_utils.secrets import DB
+
+logging.basicConfig(
+    format="%(asctime)s [%(levelname)s]: %(message)s",
+    level=logging.WARNING,
+    filename="/data/hestia.log"
+)
 
 
 def get_connection():
@@ -22,6 +28,9 @@ def fetch_one(query: str, params: list[str] = []) -> dict:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query, params)
             result = cur.fetchone()
+    except Exception as e:
+        logging.error(f"Database read error: {repr(e)}\nQuery: {query}\nParams: {params}")
+        result = {}
     finally:
         if conn: conn.close()
     if not result:
@@ -34,6 +43,9 @@ def fetch_all(query: str, params: list[str] = []) -> list[RealDictRow]:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(query, params)
             result = cur.fetchall()
+    except Exception as e:
+        logging.error(f"Database read error: {repr(e)}\nQuery: {query}\nParams: {params}")
+        result = []
     finally:
         if conn: conn.close()
     return result
@@ -62,12 +74,14 @@ def get_donation_link_updated() -> datetime:
 
 ### Write actions
 
-def _write(query: str, params: Iterable[str] = []) -> None:
+def _write(query: str, params: list[str] = []) -> None:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(query, tuple(params))
+            cur.execute(query, params)
             conn.commit()
+    except Exception as e:
+        logging.error(f"Database write error: {repr(e)}\nQuery: {query}\nParams: {params}")
     finally:
         if conn: conn.close()
 

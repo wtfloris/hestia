@@ -1,7 +1,6 @@
 import logging
 import telegram
 
-import hestia_utils.db as db
 from hestia_utils.secrets import TOKEN
 
 def escape_markdownv2(text: str) -> str:
@@ -13,15 +12,10 @@ def escape_markdownv2(text: str) -> str:
     text = text.replace('|', r'\|')
     return text
 
-WORKDIR = "./"
-get_workdir = db.fetch_one("SELECT workdir FROM hestia.meta")
-if get_workdir and "workdir" in get_workdir:
-    WORKDIR = get_workdir["workdir"]
-
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s]: %(message)s",
     level=logging.WARNING,
-    filename=WORKDIR + "hestia.log"
+    filename="/data/hestia.log"
 )
 
 BOT = telegram.Bot(TOKEN)

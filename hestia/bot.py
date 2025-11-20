@@ -78,10 +78,10 @@ If you have any questions, please read the /faq!"""
 
 async def start(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat: return
-    checksub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)])
+    checksub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])
     
-    if checksub is not None:
-        if checksub["telegram_enabled"]:
+    if checksub:
+        if "telegram_enabled" in checksub and checksub["telegram_enabled"]:
             message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
             await context.bot.send_message(update.effective_chat.id, message)
         else:
@@ -92,9 +92,9 @@ async def start(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def stop(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat: return
-    checksub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)])
+    checksub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])
 
-    if checksub is not None:
+    if checksub:
         if checksub["telegram_enabled"]:
             # Disabling is setting telegram_enabled to false in the db
             db.disable_user(update.effective_chat.id)
@@ -265,7 +265,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
     
     # Fetch subscriber from database
-    sub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)])
+    sub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])
     if not sub:
         logging.error(f"Subscriber {update.effective_chat.id} used /filter but is not in database. Msg: {update.message.text}")
         await context.bot.send_message(update.effective_chat.id, "Couldn't fetch your filter settings, please let @WTFloris know because this is unexpected")
