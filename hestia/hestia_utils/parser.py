@@ -1,16 +1,11 @@
-import psycopg2
-import telegram
-import logging
-import json
-import requests
 import re
 import csv
+import json
 import chompjs
+import logging
+import requests
 from urllib import parse
-from datetime import datetime
-from psycopg2.extras import RealDictCursor
 from bs4 import BeautifulSoup
-from secrets import TOKEN, DB
 
 
 class Home:
@@ -27,7 +22,7 @@ class Home:
     def __str__(self) -> str:
         return f"{self.address}, {self.city} ({self.agency.title()})"
         
-    def __eq__(self, other: 'Home') -> bool:
+    def __eq__(self, other) -> bool:
         if self.address.lower() == other.address.lower():
             if self.city.lower() == other.city.lower():
                 return True
@@ -48,7 +43,7 @@ class Home:
     @city.setter
     def city(self, city: str) -> None:
         # Strip the trailing province if present
-        if re.search(" \([a-zA-Z]{2}\)$", city):
+        if re.search(r" \([a-zA-Z]{2}\)$", city):
             city = ' '.join(city.split(' ')[:-1])
     
         # Handle cities with two names and other edge cases
@@ -99,8 +94,6 @@ class HomeResults:
         self.homes: list[Home] = []
         if source == "vesteda":
             self.parse_vesteda(raw)
-        elif source == "ikwilhuren":
-            self.parse_ikwilhuren(raw)
         elif source == "bouwinvest":
             self.parse_bouwinvest(raw)
         elif source == "alliantie":
@@ -111,8 +104,6 @@ class HomeResults:
             self.parse_krk(raw)
         elif source == "woonmatchwaterland":
             self.parse_woonmatchwaterland(raw)
-        elif source == "makelaarshuis":
-            self.parse_makelaarshuis(raw)
         elif "woningnet_" in source:
             self.parse_woningnet_dak(raw, source.split("_")[1])
         elif source == "pararius":
@@ -262,30 +253,6 @@ class HomeResults:
             home.url = "https://vesteda.com" + res["url"]
             home.price = int(res["priceUnformatted"])
             self.homes.append(home)
-            
-    def parse_ikwilhuren(self, r: requests.models.Response):
-        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="card-woning")
-    
-        for res in results:
-            # Filter "zorgwoningen"
-            if "Zorgwoning" in res.get_text():
-                continue
-        
-            home = Home(agency="ikwilhuren")
-            home.address = str(res.find(class_="stretched-link").contents[0].strip())
-            
-            postcodecity = str(res.find(class_="card-body").contents[3].get_text())
-            home.city = ' '.join(postcodecity.split(' ')[1:])
-            
-            # ikwilhuren lists some Bouwinvest properties, which have a full link attached
-            link = res.find(class_="stretched-link")["href"]
-            if "wonenbijbouwinvest.nl" in link:
-                home.url = link
-            else:
-                home.url = "https://ikwilhuren.nu" + link
-                
-            home.price = int(str(res.find(class_="fw-bold")).split(' ')[2].replace('.', '')[:-2])
-            self.homes.append(home)
         
     def parse_vbt(self, r: requests.models.Response):
         results = json.loads(r.content)["houses"]
@@ -369,21 +336,6 @@ class HomeResults:
             home.price = int(res["rent_price"])
             self.homes.append(home)
             
-    def parse_makelaarshuis(self, r: requests.models.Response):
-        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="object")
-    
-        for res in results:
-            # Filter rented properties
-            if 'rented' in str(res.find(class_="object_status")):
-                continue
-        
-            home = Home(agency="makelaarshuis")
-            home.address = str(res.find("span", class_="street").contents[0])
-            home.city = str(res.find("span", class_="locality").contents[0])
-            home.url = "https://yourexpatbroker.nl" + res.find("a", class_="saletitle")["href"].split('?')[0]
-            home.price = int(str(res.find("span", class_="obj_price").contents[0]).split('€')[1][1:6].split(',')[0].replace('.', ''))
-            self.homes.append(home)
-            
     def parse_pararius(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("section", class_="listing-search-item--for-rent")
         
@@ -402,17 +354,17 @@ class HomeResults:
             # A lot of properties on Pararius don't include house numbers, so it's impossible to keep track of them because
             # right now homes are tracked by address, not by URL (which has its own downsides).
             # This is probably not 100% reliable either, but it's close enough.
-            address = str(address_item.contents[0].strip())
+            address = str(address_item.contents[0]).strip()
             if not re.search("[0-9]", address):
                 continue
             if re.search("^[0-9]", address):  # Filter "1e Foobarstraat", etc.
                 continue
                 
             home.address = ' '.join(address.split(' ')[1:])  # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
-            city = city_item.contents[0].strip()
+            city = str(city_item.contents[0]).strip()
             home.city = ' '.join(city.split(' ')[2:]).split('(')[0].strip()  # Don't ask
-            home.url = "https://pararius.nl" + url_item["href"]
-            price = price_item.contents[0].strip().replace('\xa0', '')
+            home.url = "https://pararius.nl" + str(url_item["href"])
+            price = str(price_item.contents[0]).strip().replace('\xa0', '')
             
             # If unable to cast to int, the price is not available so skip the listing
             try:
@@ -464,35 +416,49 @@ class HomeResults:
         for res in results:
             home = Home(agency="nmg")
             content = res.find_all("div", class_="house__content")[0]
-            home.address = content.select_one('.house__heading h2').text.strip().split('\t\t\t\t')[0]
-            home.city = content.select_one('.house__heading h2 span').text.strip()
-            home.url = res.select_one('.house__overlay')["href"]
+            if address_tag := content.select_one('.house__heading h2'):
+                home.address = address_tag.text.strip().split('\t\t\t\t')[0]
+            if city_tag := content.select_one('.house__heading h2 span'):
+                home.city = city_tag.text.strip()
+            if url_tag := res.select_one('.house__overlay'):
+                home.url = str(url_tag["href"])
             # Remove all non-numeric characters from the price
-            rawprice = res.select_one('.house__list-item .house__icon--value + span').text.strip()
-            home.price = int(re.sub(r'\D', '', rawprice))
-            self.homes.append(home)
+            if price_tag := res.select_one('.house__list-item .house__icon--value + span'):
+                rawprice = price_tag.text.strip()
+                home.price = int(re.sub(r'\D', '', rawprice))
+            if (home.address and home.city and home.url and home.price):
+                self.homes.append(home)
 
     def parse_vbo(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("a", class_="propertyLink")
         for res in results:
             home = Home(agency="vbo")
-            home.url = res["href"]
-            home.address = res.select_one(".street").text.strip()
-            home.city = res.select_one(".city").text.strip()
-            rawprice = res.select_one(".price").text
-            end = rawprice.index(",") # Every price is terminated with a trailing ,
-            home.price = int(rawprice[2:end].replace(".", ""))
-            self.homes.append(home)
+            home.url = str(res["href"])
+            if address_tag := res.select_one(".street"):
+                home.address = address_tag.text.strip()
+            if city_tag := res.select_one(".city"):
+                home.city = city_tag.text.strip()
+            if price_tag := res.select_one(".price"):
+                rawprice = price_tag.text
+                end = rawprice.index(",") # Every price is terminated with a trailing ,
+                home.price = int(rawprice[2:end].replace(".", ""))
+            if (home.address and home.city and home.url and home.price):
+                self.homes.append(home)
 
     def parse_atta(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="list__object")
         for res in results:
             home = Home(agency="atta")
-            home.url = res.select_one("a")["href"]
-            home.address = res.select_one(".object-list__address").text
-            home.city = res.select_one(".object-list__city").text.strip()
-            home.price = int(res.select_one(".object-list__price").text[2:].replace(".", ""))
-            self.homes.append(home)
+            if url_tag := res.select_one("a"):
+                home.url = str(url_tag["href"])
+            if address_tag := res.select_one(".object-list__address"):
+                home.address = address_tag.text
+            if city_tag := res.select_one(".object-list__city"):
+                home.city = city_tag.text.strip()
+            if price_tag := res.select_one(".object-list__price"):
+                home.price = int(price_tag.text[2:].replace(".", ""))
+            if (home.address and home.city and home.url and home.price):
+                self.homes.append(home)
 
     def parse_ooms(self, r: requests.models.Response):
         results = json.loads(r.content)["objects"]
@@ -615,80 +581,3 @@ class HomeResults:
                 home.city = res['city']
                 home.price = int(res['price'])
                 self.homes.append(home)
-
-
-def query_db(query: str, params: list[str] = [], fetchOne: bool = False) -> list[dict] | dict | None:
-# TODO error handling
-# TODO reuse connection
-    db = psycopg2.connect(database=DB["database"],
-                            host=DB["host"],
-                            user=DB["user"],
-                            password=DB["password"],
-                            port=DB["port"])
-    
-    cursor = db.cursor(cursor_factory=RealDictCursor)
-    cursor.execute(query, params)
-    
-    # Try, because not all queries will return data
-    try:
-        if fetchOne:
-            result = cursor.fetchone()
-        else:
-            result = cursor.fetchall()
-    except:
-        result = None
-    
-    db.commit()
-    cursor.close()
-    db.close()
-    
-    return result
-
-
-def escape_markdownv2(text: str) -> str:
-    text = text.replace('.', '\.')
-    text = text.replace('!', '\!')
-    text = text.replace('+', '\+')
-    text = text.replace('-', '\-')
-    text = text.replace('*', '\*')
-    text = text.replace('|', '\|')
-    return text
-
-
-WORKDIR = query_db("SELECT workdir FROM hestia.meta", fetchOne=True)["workdir"]
-
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s]: %(message)s",
-    level=logging.WARNING,
-    filename=WORKDIR + "hestia.log"
-)
-
-BOT = telegram.Bot(TOKEN)
-
-HOUSE_EMOJI = "\U0001F3E0"
-LINK_EMOJI = "\U0001F517"
-EURO_EMOJI = "\U0001F4B6"
-LOVE_EMOJI = "\U0001F970"
-CHECK_EMOJI = "\U00002705"
-CROSS_EMOJI = "\U0000274C"
-
-# The identifier of the used settings in the database (default = default)
-SETTINGS_ID = "default"
-
-# The Dockerfile replaces this with the git commit id
-APP_VERSION = ''
-
-def check_dev_mode() -> bool:
-    return query_db("SELECT devmode_enabled FROM hestia.meta", fetchOne=True)["devmode_enabled"]
-
-def check_scraper_halted() -> bool:
-    return query_db("SELECT scraper_halted FROM hestia.meta", fetchOne=True)["scraper_halted"]
-
-TMP_DONATE_LINK = "https://tikkie.me/pay/rj8gc92bn57avlupk3c4"
-TMP_DONATE_VALID_DATE = datetime.strptime("2025-03-14", "%Y-%m-%d").date()
-def get_donation_link() -> str:
-    today_date = datetime.now().date()
-    if abs((TMP_DONATE_VALID_DATE - today_date).days) <= 3:
-        return TMP_DONATE_LINK
-    else:
-        return query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]

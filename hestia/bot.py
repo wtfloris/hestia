@@ -1,40 +1,40 @@
-import hestia
-import logging
-import secrets
 import re
+import logging
 import telegram
-from datetime import datetime
-from telegram.error import BadRequest
-from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 from time import sleep
+from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+
+import hestia_utils.db as db
+import hestia_utils.meta as meta
+import hestia_utils.secrets as secrets
 
 
 def initialize():
     logging.warning("Initializing application...")
 
-    if hestia.check_scraper_halted():
+    if db.get_scraper_halted():
         logging.warning("Scraper is halted.")
         
-    if hestia.check_dev_mode():
+    if db.get_dev_mode():
         logging.warning("Dev mode is enabled.")
 
 
-def privileged(update: telegram.Update, command: str, check_only: bool = True) -> bool:
-    admins = hestia.query_db("SELECT * FROM hestia.subscribers WHERE user_level = 9")
+def privileged(chat: telegram.Chat, msg: str, command: str, check_only: bool = True) -> bool:
+    admins = db.fetch_all("SELECT * FROM hestia.subscribers WHERE user_level = 9")
     admin_chat_ids = [int(admin["telegram_id"]) for admin in admins]
     
-    if update.effective_chat.id in admin_chat_ids:
+    if chat and chat.id in admin_chat_ids:
         if not check_only:
-            logging.warning(f"Command {command} by ID {update.effective_chat.id}: {update.message.text}")
+            logging.warning(f"Command {command} by ID {chat.id}: {msg}")
         return True
     else:
         if not check_only:
-            logging.warning(f"Unauthorized {command} attempted by ID {update.effective_chat.id}.")
+            logging.warning(f"Unauthorized {command} attempted by ID {chat.id}.")
         return False
 
 
 def parse_argument(text: str, key: str) -> dict:
-    arg = re.search(f"{key}=(.*?)(?:\s|$)", text)
+    arg = re.search(rf"{key}=(.*?)(?:\s|$)", text)
     
     if not arg:
         return dict()
@@ -48,23 +48,21 @@ def parse_argument(text: str, key: str) -> dict:
 
 
 async def get_sub_name(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    name = update.effective_chat.username
-    if name is None:
-        chat = await context.bot.get_chat(update.effective_chat.id)
-        name = chat.first_name
-    return name
+    if not update.effective_chat: return ""
+    if update.effective_chat.username: return update.effective_chat.username
+    return str((await context.bot.get_chat(update.effective_chat.id)).first_name)
 
 
 async def new_sub(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE, reenable: bool = False) -> None:
+    if not update.effective_chat: return
     name = await get_sub_name(update, context)
-    log_msg = f"New subscriber: {name} ({update.effective_chat.id})"
-    logging.warning(log_msg)
+    logging.warning(f"New subscriber: {name} ({update.effective_chat.id})")
     
     # If the user existed before, then re-enable the telegram updates
     if reenable:
-        hestia.query_db("UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = %s", params=[str(update.effective_chat.id)])
+        db.enable_user(update.effective_chat.id)
     else:
-        hestia.query_db("INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, DEFAULT, true, %s)", params=[str(update.effective_chat.id)])
+        db.add_user(update.effective_chat.id)
         
     message ="""Hi there!
 
@@ -79,7 +77,8 @@ If you have any questions, please read the /faq!"""
 
 
 async def start(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    checksub = hestia.query_db("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)
+    if not update.effective_chat: return
+    checksub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)])
     
     if checksub is not None:
         if checksub["telegram_enabled"]:
@@ -92,37 +91,36 @@ async def start(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def stop(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    checksub = hestia.query_db("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)
+    if not update.effective_chat: return
+    checksub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)])
 
     if checksub is not None:
         if checksub["telegram_enabled"]:
             # Disabling is setting telegram_enabled to false in the db
-            hestia.query_db("UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = %s", params=[str(update.effective_chat.id)])
+            db.disable_user(update.effective_chat.id)
             
             name = await get_sub_name(update, context)
-            log_msg = f"Removed subscriber: {name} ({update.effective_chat.id})"
-            logging.warning(log_msg)
-
-    donation_link = hestia.query_db("SELECT donation_link FROM hestia.meta", fetchOne=True)["donation_link"]
+            logging.warning(f"Removed subscriber: {name} ({update.effective_chat.id})")
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=f"""You will no longer recieve updates for new listings\. I hope this is because you've found a new home\!
+        text=rf"""You will no longer recieve updates for new listings\. I hope this is because you've found a new home\!
         
-Consider [buying me a beer]({donation_link}) if Hestia has helped you in your search {hestia.LOVE_EMOJI}""",
+Consider [buying me a beer]({db.get_donation_link()}) if Hestia has helped you in your search {meta.LOVE_EMOJI}""",
         parse_mode="MarkdownV2",
         disable_web_page_preview=True
     )
 
 
 async def announce(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "announce", check_only=False): return
+    if not update.effective_chat or not update.message or not update.message.text: return
+    if not privileged(update.effective_chat, update.message.text, "announce", check_only=False): return
         
-    if hestia.check_dev_mode():
-        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
+    if db.get_dev_mode():
+        subs = db.fetch_all("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Dev mode is enabled, message not broadcasted to all subscribers.")
     else:
-        subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+        subs = db.fetch_all("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
     # Remove /announce
     msg = update.message.text[10:]
@@ -153,7 +151,8 @@ async def announce(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def websites(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    targets = hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true")
+    if not update.effective_chat: return
+    targets = db.fetch_all("SELECT agency, user_info FROM hestia.targets WHERE enabled = true")
 
     message = "Here are the websites I scrape every five minutes:\n\n"
     
@@ -177,145 +176,104 @@ async def websites(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) 
     await context.bot.send_message(update.effective_chat.id, message)
 
 
-async def get_sub_info(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "get_sub_info", check_only=False): return
-        
-    sub = update.message.text.split(' ')[1]
-    try:
-        chat = await context.bot.get_chat(sub)
-        message = f"Username: {chat.username}\n"
-        message += f"Name: {chat.first_name} {chat.last_name}\n"
-        message += f"Bio: {chat.bio}"
-    except:
-        logging.error(f"/getsubinfo for unknown chat id: {sub}")
-        message = f"Unknown chat id."
-    
-    await context.bot.send_message(update.effective_chat.id, message)
-
-
 async def halt(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "halt", check_only=False): return
-    
-    hestia.query_db("UPDATE hestia.meta SET scraper_halted = true WHERE id = %s", params=[hestia.SETTINGS_ID])
-    
-    message = "Halting scraper."
-    await context.bot.send_message(update.effective_chat.id, message)
+    if not update.effective_chat or not update.message or not update.message.text: return
+    if not privileged(update.effective_chat, update.message.text, "halt", check_only=False): return
+    db.halt_scraper()
+    await context.bot.send_message(update.effective_chat.id, "Scraper halted")
 
 
 async def resume(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "resume", check_only=False): return
+    if not update.effective_chat or not update.message or not update.message.text: return
+    if not privileged(update.effective_chat, update.message.text, "resume", check_only=False): return
     
-    settings = hestia.query_db("SELECT scraper_halted FROM hestia.meta WHERE id = %s", params=[hestia.SETTINGS_ID], fetchOne=True)
-    
-    if settings["scraper_halted"]:
-        hestia.query_db("UPDATE hestia.meta SET scraper_halted = false WHERE id = %s", params=[hestia.SETTINGS_ID])
-        message = "Resuming scraper. Note that this may create a massive update within the next 5 minutes. Consider enabling /dev mode."
+    if db.get_scraper_halted():
+        db.resume_scraper()
+        await context.bot.send_message(update.effective_chat.id, "Resuming scraper. Note that this may create a massive update within the next 5 minutes. Consider enabling /dev mode.")
     else:
-        message = "Scraper is not halted."
-        
-    await context.bot.send_message(update.effective_chat.id, message)
+        await context.bot.send_message(update.effective_chat.id, "Scraper is not halted.")
 
 
 async def enable_dev(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "dev", check_only=False): return
-    
-    hestia.query_db("UPDATE hestia.meta SET devmode_enabled = true WHERE id = %s", params=[hestia.SETTINGS_ID])
-    
-    message = "Dev mode enabled."
-    await context.bot.send_message(update.effective_chat.id, message)
+    if not update.effective_chat or not update.message or not update.message.text: return
+    if not privileged(update.effective_chat, update.message.text, "dev", check_only=False): return
+    db.enable_dev_mode()
+    await context.bot.send_message(update.effective_chat.id, "Dev mode enabled")
 
 
 async def disable_dev(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "nodev", check_only=False): return
-    
-    hestia.query_db("UPDATE hestia.meta SET devmode_enabled = false WHERE id = %s", params=[hestia.SETTINGS_ID])
-    
-    message = "Dev mode disabled."
-    await context.bot.send_message(update.effective_chat.id, message)
-
-
-async def get_all_subs(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "get_all_subs", check_only=False): return
-    
-    subs = hestia.query_db("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
-    
-    message = "Current active subscribers:\n\n"
-    for sub in subs:
-        try:
-            chat = await context.bot.get_chat(sub["telegram_id"])
-        except BadRequest:
-            # This means a user in the db has blocked the bot without unsubscribing
-            continue
-        message += f"{sub['telegram_id']} {chat.username} ({chat.first_name} {chat.last_name})\n"
-    
-    await context.bot.send_message(update.effective_chat.id, message)
+    if not update.effective_chat or not update.message or not update.message.text: return
+    if not privileged(update.effective_chat, update.message.text, "nodev", check_only=False): return
+    db.disable_dev_mode()
+    await context.bot.send_message(update.effective_chat.id, "Dev mode disabled")
 
 
 async def status(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "status", check_only=False): return
-
-    settings = hestia.query_db("SELECT * FROM hestia.meta WHERE id = %s", params=[hestia.SETTINGS_ID], fetchOne=True)
+    if not update.effective_chat or not update.message or not update.message.text: return
+    if not privileged(update.effective_chat, update.message.text, "status", check_only=False): return
     
-    message = f"Running version: {hestia.APP_VERSION}\n\n"
+    message = f"Running version: {meta.APP_VERSION}\n\n"
     
-    if settings["devmode_enabled"]:
-        message += f"{hestia.CROSS_EMOJI} Dev mode: enabled\n"
+    if db.get_dev_mode():
+        message += f"{meta.CROSS_EMOJI} Dev mode: enabled\n"
     else:
-        message += f"{hestia.CHECK_EMOJI} Dev mode: disabled\n"
+        message += f"{meta.CHECK_EMOJI} Dev mode: disabled\n"
         
-    if settings["scraper_halted"]:
-        message += f"{hestia.CROSS_EMOJI} Scraper: halted\n"
+    if db.get_scraper_halted():
+        message += f"{meta.CROSS_EMOJI} Scraper: halted\n"
     else:
-        message += f"{hestia.CHECK_EMOJI} Scraper: active\n"
+        message += f"{meta.CHECK_EMOJI} Scraper: active\n"
 
-    active_sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers WHERE telegram_enabled = true", fetchOne=True)
-    sub_count = hestia.query_db("SELECT COUNT(*) FROM hestia.subscribers", fetchOne=True)
+    active_sub_count = db.fetch_one("SELECT COUNT(*) FROM hestia.subscribers WHERE telegram_enabled = true")
+    sub_count = db.fetch_one("SELECT COUNT(*) FROM hestia.subscribers")
     message += "\n"
     message += f"Active subscriber count: {active_sub_count['count']}\n"
     message += f"Total subscriber count: {sub_count['count']}\n"
     
-    donation_link = hestia.query_db("SELECT donation_link, donation_link_updated FROM hestia.meta", fetchOne=True)
+    donation_link = db.fetch_one("SELECT donation_link, donation_link_updated FROM hestia.meta")
     message += "\n"
     message += f"Current donation link: {donation_link['donation_link']}\n"
     message += f"Last updated: {donation_link['donation_link_updated']}\n"
 
-    targets = hestia.query_db("SELECT * FROM hestia.targets")
+    targets = db.fetch_all("SELECT * FROM hestia.targets")
     message += "\n"
     message += "Targets (id): listings in past 7 days\n"
         
     for target in targets:
         agency = target["agency"]
         target_id = target["id"]
-        count = hestia.query_db("SELECT COUNT(*) FROM hestia.homes WHERE agency = %s AND date_added > now() - '1 week'::interval", params=[agency], fetchOne=True)
+        count = db.fetch_one("SELECT COUNT(*) FROM hestia.homes WHERE agency = %s AND date_added > now() - '1 week'::interval", [agency])
         message += f"{agency} ({target_id}): {count['count']} listings\n"
 
     await context.bot.send_message(update.effective_chat.id, message, disable_web_page_preview=True)
 
 
 async def set_donation_link(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not privileged(update, "setdonationlink", check_only=False): return
+    if not update.effective_chat or not update.message or not update.message.text: return
+    if not privileged(update.effective_chat, update.message.text, "setdonationlink", check_only=False): return
     
-    link = update.message.text.split(' ')[1]
-    
-    hestia.query_db("UPDATE hestia.meta SET donation_link = %s, donation_link_updated = %s WHERE id = %s", params=[link, datetime.now().isoformat(), hestia.SETTINGS_ID])
-    
-    message = "Donation link updated."
-    await context.bot.send_message(update.effective_chat.id, message)
+    db.update_donation_link(update.message.text.split(' ')[1])
+    await context.bot.send_message(update.effective_chat.id, "Donation link updated")
     
 
-# TODO check if user is in db (and enabled)
-# TODO some restrictions on numeric filters: min, max etc
 async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_chat or not update.message or not update.message.text: return
     try:
         cmd = [token.lower() for token in update.message.text.split(' ')]
     except AttributeError:
         # This means the user edited a message, do nothing
         return
     
+    # Fetch subscriber from database
+    sub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)])
+    if not sub:
+        logging.error(f"Subscriber {update.effective_chat.id} used /filter but is not in database. Msg: {update.message.text}")
+        await context.bot.send_message(update.effective_chat.id, "Couldn't fetch your filter settings, please let @WTFloris know because this is unexpected")
+        return
+    
     # '/filter' only
     if len(cmd) == 1:
-        sub = hestia.query_db("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)
-        
+
         cities_str = ""
         for c in sub["filter_cities"]:
             cities_str += f"{c.title()}, "
@@ -341,8 +299,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(update.effective_chat.id, message)
             return
             
-        hestia.query_db("UPDATE subscribers SET filter_min_price = %s WHERE telegram_id = %s", params=(minprice, str(update.effective_chat.id)))
-        
+        db.set_filter_minprice(minprice, update.effective_chat.id)
         message = f"Minimum price filter set to {minprice}!"
     
     # Set maxprice filter
@@ -354,13 +311,12 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(update.effective_chat.id, message)
             return
             
-        hestia.query_db("UPDATE subscribers SET filter_max_price = %s WHERE telegram_id = %s", params=(maxprice, str(update.effective_chat.id)))
-        
+        db.set_filter_maxprice(maxprice, update.effective_chat.id)
         message = f"Maximum price filter set to {maxprice}!"
             
     # View city possibilities
     elif len(cmd) == 2 and cmd[1] == "city":
-        all_filter_cities = [c["city"] for c in hestia.query_db("SELECT DISTINCT city FROM hestia.homes")]
+        all_filter_cities = [c["city"] for c in db.fetch_all("SELECT DISTINCT city FROM hestia.homes")]
         all_filter_cities.sort()
         
         message = "Supported cities for the city filter are:\n\n"
@@ -375,14 +331,14 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Modify agency filter
     elif len(cmd) == 2 and cmd[1] in ["agency", "agencies", "website", "websites"]:
         included, reply_keyboard = [], []
-        enabled_agencies = hestia.query_db("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)["filter_agencies"]
-        for row in hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
+        enabled_agencies = db.fetch_one("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])["filter_agencies"]
+        for row in db.fetch_all("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
             if row["agency"] not in included:
                 included.append(row["agency"])
                 if row["agency"] in enabled_agencies:
-                    reply_keyboard.append([telegram.InlineKeyboardButton(hestia.CHECK_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.d.{row['agency']}")])
+                    reply_keyboard.append([telegram.InlineKeyboardButton(meta.CHECK_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.d.{row['agency']}")])
                 else:
-                    reply_keyboard.append([telegram.InlineKeyboardButton(hestia.CROSS_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.e.{row['agency']}")])
+                    reply_keyboard.append([telegram.InlineKeyboardButton(meta.CROSS_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.e.{row['agency']}")])
 
         await update.message.reply_text("Select the agencies you want to receive updates from", reply_markup=telegram.InlineKeyboardMarkup(reply_keyboard))
         return
@@ -396,11 +352,11 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         city = city[:-1]
         
         # Get cities currently in filter of subscriber
-        sub_filter_cities = hestia.query_db("SELECT filter_cities FROM hestia.subscribers WHERE telegram_id = %s", params=[str(update.effective_chat.id)], fetchOne=True)["filter_cities"]
+        sub_filter_cities = db.fetch_one("SELECT filter_cities FROM hestia.subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])["filter_cities"]
         
         if cmd[2] == "add":
             # Get possible cities from database
-            all_filter_cities = [c["city"] for c in hestia.query_db("SELECT DISTINCT city FROM hestia.homes")]
+            all_filter_cities = [c["city"] for c in db.fetch_all("SELECT DISTINCT city FROM hestia.homes")]
             all_filter_cities.sort()
             
             # Check if the city is valid
@@ -417,7 +373,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
         
-            hestia.query_db("UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", params=(str(sub_filter_cities).replace("'", '"'), str(update.effective_chat.id)))
+            db.set_filter_cities(update.effective_chat.id, sub_filter_cities)
             message = f"{city.title()} added to your city filter."
         
         else:
@@ -428,7 +384,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
                 
-            hestia.query_db("UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", params=(str(sub_filter_cities).replace("'", '"'), str(update.effective_chat.id)))
+            db.set_filter_cities(update.effective_chat.id, sub_filter_cities)
             message = f"{city.title()} removed from your city filter."
             
             if len(sub_filter_cities) == 0:
@@ -440,13 +396,14 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def donate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
-    donation_link = hestia.get_donation_link()
+    if not update.effective_chat: return
+    donation_link = db.get_donation_link()
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=f"""Moving is expensive enough and similar services start at like €20/month\. Hopefully Hestia has helped you save some money\!
+        text=rf"""Moving is expensive enough and similar services start at like €20/month\. Hopefully Hestia has helped you save some money\!
         
-You could use some of those savings to [buy me a beer]({donation_link}) {hestia.LOVE_EMOJI}
+You could use some of those savings to [buy me a beer]({donation_link}) {meta.LOVE_EMOJI}
 
 Good luck in your search\!""",
         parse_mode="MarkdownV2",
@@ -455,8 +412,9 @@ Good luck in your search\!""",
 
 
 async def faq(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
-    donation_link = hestia.get_donation_link()
-    message = f"""*Why is Hestia free?*
+    if not update.effective_chat: return
+    donation_link = db.get_donation_link()
+    message = rf"""*Why is Hestia free?*
     I built Hestia for myself and once we found a home, I thought it would be nice to share it with others\!
 
 *What websites does Hestia check?*
@@ -481,7 +439,7 @@ async def faq(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     No\. Telegram provides an easy interface for programming, this is much harder on WhatsApp\.
 
 *Can I thank you for building and sharing Hestia for free?*
-    Yes of course, you can buy me a beer [here]({donation_link})\! {hestia.LOVE_EMOJI}
+    Yes of course, you can buy me a beer [here]({donation_link})\! {meta.LOVE_EMOJI}
 
 *Can I contact you?*
     Yes, I'm @WTFloris on Telegram or e\-mail me at hestia@wtflor\.is\!"""
@@ -491,6 +449,7 @@ async def faq(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def callback_query_handler(update: telegram.Update, _) -> None:
     query = update.callback_query
+    if not query or not query.data or not query.message: return
     cbid, action, agency = query.data.split(".")
 
     # Agency filter callback
@@ -498,7 +457,7 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
         included, reply_keyboard = [], []
 
         # Update list of enabled agencies for the user
-        enabled_agencies = set(hestia.query_db("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", params=[str(query.message.chat.id)], fetchOne=True)["filter_agencies"])
+        enabled_agencies: set[str] = set(db.fetch_one("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", [str(query.message.chat.id)])["filter_agencies"])
         if action == "d":
             try:
                 enabled_agencies.remove(agency)
@@ -506,21 +465,22 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
                 pass
         elif action == "e":
             enabled_agencies.add(agency)
-        hestia.query_db("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", params=(str(list(enabled_agencies)).replace("'", '"'), str(query.message.chat.id)))
+        db.set_filter_agencies(query.message.chat.id, enabled_agencies)
 
         # Build inline keyboard
-        for row in hestia.query_db("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
+        for row in db.fetch_all("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
             if row["agency"] not in included:
                 included.append(row["agency"])
                 if row["agency"] in enabled_agencies:
-                    reply_keyboard.append([telegram.InlineKeyboardButton(hestia.CHECK_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.d.{row['agency']}")])
+                    reply_keyboard.append([telegram.InlineKeyboardButton(meta.CHECK_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.d.{row['agency']}")])
                 else:
-                    reply_keyboard.append([telegram.InlineKeyboardButton(hestia.CROSS_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.e.{row['agency']}")])
+                    reply_keyboard.append([telegram.InlineKeyboardButton(meta.CROSS_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.e.{row['agency']}")])
         await query.answer()
         await query.edit_message_reply_markup(telegram.InlineKeyboardMarkup(reply_keyboard))
 
 
 async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat or not update.message or not update.message.text: return
     message = "*I can do the following for you:*\n"
     message += "/help - Show this message\n"
     message += "/faq - Show the frequently asked questions (and answers!)\n"
@@ -530,12 +490,10 @@ async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     message += "/websites - Show info about the websites I scrape\n"
     message += "/donate - Get an open Tikkie link to show your appreciation for Hestia\n"
     
-    if privileged(update, "help", check_only=True):
+    if privileged(update.effective_chat, update.message.text, "help", check_only=True):
         message += "\n\n"
         message += "*Admin commands:*\n"
         message += "/announce - Broadcast a message to all subscribers\n"
-        message += "/getallsubs - Get all subscriber info\n"
-        message += "/getsubinfo <id> - Get info by Telegram chat ID\n"
         message += "/status - Get system status\n"
         message += "/halt - Halts the scraper\n"
         message += "/resume - Resumes the scraper\n"
@@ -556,8 +514,6 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("donate", donate))
     application.add_handler(CommandHandler("filter", filter))
     application.add_handler(CommandHandler("filters", filter))
-    application.add_handler(CommandHandler("getsubinfo", get_sub_info))
-    application.add_handler(CommandHandler("getallsubs", get_all_subs))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("halt", halt))
     application.add_handler(CommandHandler("resume", resume))
