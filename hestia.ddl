@@ -78,6 +78,8 @@ CREATE TABLE hestia.subscribers (
     date_added timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+ALTER TABLE hestia.subscribers
+    ADD COLUMN response_template TEXT;
 
 ALTER TABLE hestia.subscribers OWNER TO postgres;
 

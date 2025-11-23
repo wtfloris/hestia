@@ -3,6 +3,7 @@ import hestia
 import logging
 import requests
 import secrets
+from urllib import parse
 from datetime import datetime, timedelta
 from asyncio import run
 from telegram.error import Forbidden
@@ -95,7 +96,11 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                 message += f"{hestia.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
                 
                 try:
-                    await hestia.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
+                    await hestia.BOT.send_message(
+                        text=message, 
+                        chat_id=sub["telegram_id"], 
+                        parse_mode="MarkdownV2"
+                    )
                 except Forbidden as e:
                     # This means the user deleted their account or blocked the bot, so disable them
                     hestia.query_db("UPDATE hestia.subscribers SET telegram_enabled = false WHERE id = %s", params=[str(sub["id"])])
@@ -104,6 +109,18 @@ async def broadcast(homes: list[hestia.Home]) -> None:
                 except Exception as e:
                     # Log any other exceptions
                     logging.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
+                    
+                # Send response template as separate message if exists
+                if sub["response_template"]:
+                    response_text = sub["response_template"].replace("[[address]]", home.address)
+                    try:
+                        await hestia.BOT.send_message(
+                            text=f"Your response:\n```\n{response_text}\n```",
+                            chat_id=sub["telegram_id"],
+                            parse_mode=None
+                        )
+                    except Exception as e:
+                        logging.warning(f"Failed to send response template to {sub['telegram_id']}: {repr(e)}")
 
 
 async def scrape_site(target: dict) -> None:
