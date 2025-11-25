@@ -199,24 +199,13 @@ class HomeResults:
             self.homes.append(home)
 
     def parse_woonnet_rijnmond(self, r: requests.models.Response):
-        results = json.loads(r.content)['d']['aanbod']
+        results = json.loads(r.content)["data"]["housingPublications"]["nodes"]["edges"]
         for res in results:
-            # Only include livable spaces, this excludes parking lots, buildings as a whole etc...
-            if not res['gebruik'] == 'Woning':
-                continue
-
             home = Home(agency="woonnet_rijnmond")
-
-            if res['huisletter']:
-                home.address = f"{res['straat']} {res['huisnummer']} {res['huisletter']}"
-            elif res['huisnummertoevoeging']:  # Probably not needed, only seen in complex buildings
-                home.address = f"{res['straat']} {res['huisnummer']} {res['huisnummertoevoeging']}"
-            else:
-                home.address = f"{res['straat']} {res['huisnummer']}"
-
-            home.city = res["plaats"]
-            home.url = f"https://www.woonnetrijnmond.nl/detail/{res['id']}"
-            home.price = int(float(res['kalehuur'].replace(",", ".")))  # float before int because of rounding
+            home.address = res["node"]["unit"]["location"]["addressLine1"]
+            home.city = res["node"]["unit"]["location"]["addressLine2"]
+            home.url = f"https://www.woonnetrijnmond.nl/nl-NL/aanbod/advertentie/{res['node']['unit']['slug']['value']}"
+            home.price = int(res["node"]["unit"]["basicRent"]["exact"])
             self.homes.append(home)
         
     def parse_woonin(self, r: requests.models.Response):
