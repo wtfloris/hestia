@@ -2,6 +2,7 @@ import psycopg2
 import logging
 from datetime import datetime
 from psycopg2.extras import RealDictCursor, RealDictRow
+from telegram import Chat
 
 from hestia_utils.secrets import DB
 
@@ -104,11 +105,11 @@ def disable_dev_mode() -> None:
 def update_donation_link(link: str) -> None:
     _write("UPDATE hestia.meta SET donation_link = %s, donation_link_updated = now() WHERE id = 'default'", [link])
 
-def set_filter_minprice(telegram_id: int, min_price: int) -> None:
-    _write("UPDATE hestia.subscribers SET filter_min_price = %s WHERE telegram_id = %s", [str(min_price), str(telegram_id)])
-def set_filter_maxprice(telegram_id: int, max_price: int) -> None:
-    _write("UPDATE hestia.subscribers SET filter_max_price = %s WHERE telegram_id = %s", [str(max_price), str(telegram_id)])
-def set_filter_cities(telegram_id: int, cities: str) -> None:
-    _write("UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", [str(cities).replace("'", '"'), str(telegram_id)])
-def set_filter_agencies(telegram_id: int, agencies: set[str]) -> None:
-    _write("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", [str(list(agencies)).replace("'", '"'), str(telegram_id)])
+def set_filter_minprice(telegram_chat: Chat, min_price: int) -> None:
+    _write("UPDATE hestia.subscribers SET filter_min_price = %s WHERE telegram_id = %s", [str(min_price), str(telegram_chat.id)])
+def set_filter_maxprice(telegram_chat: Chat, max_price: int) -> None:
+    _write("UPDATE hestia.subscribers SET filter_max_price = %s WHERE telegram_id = %s", [str(max_price), str(telegram_chat.id)])
+def set_filter_cities(telegram_chat: Chat, cities: str) -> None:
+    _write("UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", [str(cities).replace("'", '"'), str(telegram_chat.id)])
+def set_filter_agencies(telegram_chat: Chat, agencies: set[str]) -> None:
+    _write("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", [str(list(agencies)).replace("'", '"'), str(telegram_chat.id)])

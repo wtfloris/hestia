@@ -295,11 +295,11 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         try:
             minprice = int(cmd[2])
         except ValueError:
-            message = f"Invalid value: {cmd[2]} is not a number."
+            message = f"Invalid value: {cmd[2]} is not a number"
             await context.bot.send_message(update.effective_chat.id, message)
             return
             
-        db.set_filter_minprice(minprice, update.effective_chat.id)
+        db.set_filter_minprice(update.effective_chat, minprice)
         message = f"Minimum price filter set to {minprice}!"
     
     # Set maxprice filter
@@ -307,11 +307,11 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         try:
             maxprice = int(cmd[2])
         except ValueError:
-            message = f"Invalid value: {cmd[2]} is not a number."
+            message = f"Invalid value: {cmd[2]} is not a number"
             await context.bot.send_message(update.effective_chat.id, message)
             return
             
-        db.set_filter_maxprice(maxprice, update.effective_chat.id)
+        db.set_filter_maxprice(update.effective_chat, maxprice)
         message = f"Maximum price filter set to {maxprice}!"
             
     # View city possibilities
@@ -373,7 +373,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
         
-            db.set_filter_cities(update.effective_chat.id, sub_filter_cities)
+            db.set_filter_cities(update.effective_chat, sub_filter_cities)
             message = f"{city.title()} added to your city filter."
         
         else:
@@ -384,7 +384,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
                 
-            db.set_filter_cities(update.effective_chat.id, sub_filter_cities)
+            db.set_filter_cities(update.effective_chat, sub_filter_cities)
             message = f"{city.title()} removed from your city filter."
             
             if len(sub_filter_cities) == 0:
@@ -465,7 +465,7 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
                 pass
         elif action == "e":
             enabled_agencies.add(agency)
-        db.set_filter_agencies(query.message.chat.id, enabled_agencies)
+        db.set_filter_agencies(query.message.chat, enabled_agencies)
 
         # Build inline keyboard
         for row in db.fetch_all("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
