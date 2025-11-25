@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.11-slim-bookworm
+RUN apt-get update && apt-get install gcc -y
+
+COPY hestia/requirements.txt /bot/requirements.txt
+RUN pip3 install -r /bot/requirements.txt
+
+COPY hestia /bot/hestia
+
+ARG APP_VERSION
+RUN sed -i "s/APP_VERSION = ''/APP_VERSION = '$APP_VERSION'/g" /bot/hestia/hestia_utils/meta.py
+
+WORKDIR /bot/hestia
+CMD ["python3", "/bot/hestia/bot.py"]
+# CMD ["sleep", "infinity"]

@@ -36,7 +36,7 @@ def parse_vbo(self, r: requests.models.Response):
         self.homes.append(home)
 ```
 
-Some websites list homes that have already been rented out. You can filter them out in this code as well. Check the file `hestia.py`, this contains all the parsers for Hestia. The generic structure is that it takes an unprocessed `Response` object from the Python library `requests` (e.g. from `requests.get(url)`) and fills a `Home` object.
+Some websites list homes that have already been rented out. You can filter them out in this code as well. Check the file `hestia/parser.py`, this contains all the parsers for Hestia. The generic structure is that it takes an unprocessed `Response` object from the Python library `requests` (e.g. from `requests.get(url)`) and fills a `Home` object.
 
 If you wrote a parser and want to submit a PR, please include the following info:
 

@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.11-slim-bookworm
+RUN apt-get update && apt-get install cron procps gcc -y && rm -rf /var/lib/apt/lists/*
+
+COPY hestia/requirements.txt /scraper/requirements.txt
+RUN pip3 install -r /scraper/requirements.txt
+
+COPY hestia /scraper/hestia
+
+RUN echo "*/5 * * * * root /usr/local/bin/python3 /scraper/hestia/scraper.py > /proc/1/fd/1 2>/proc/1/fd/2" >> /etc/crontab
+
+ARG APP_VERSION
+RUN sed -i "s/APP_VERSION = ''/APP_VERSION = '$APP_VERSION'/g" /scraper/hestia/hestia_utils/meta.py
+
+CMD ["cron", "-f"]
