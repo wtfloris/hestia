@@ -234,5 +234,4 @@ def get(key: str, telegram_id: int = -1, params: list[str] = []) -> str:
     user_lang = "en"
     if telegram_id != -1:
         user_lang = get_user_lang(telegram_id)
-    response = _STRINGS.get(key, {}).get(user_lang, "")
-    return response.format(*params)
+    return _STRINGS.get(key, {}).get(user_lang, "en").format(*params)
