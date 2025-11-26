@@ -20,7 +20,7 @@ If you have any questions, please read the /faq!
         "nl": "Je bent al geregistreerd, ik stuur een berichtje als er nieuwe huurwoningen online komen!"
     },
     "stop": {
-        "en": rf"""You will no longer recieve updates for new listings\. I hope this is because you've found a new home\!
+        "en": rf"""You will no longer receive updates for new listings\. I hope this is because you've found a new home\!
         
 Consider [buying me a beer]({{}}) if Hestia has helped you in your search {LOVE_EMOJI}""",
         "nl": rf"""Je ontvangt geen updates meer voor nieuwe woningen\. Ik hoop dat dit is omdat je een nieuw huis hebt gevonden\!
@@ -204,7 +204,7 @@ Succes met je zoektocht\!"""
     "help": {
         "en": """*I can do the following for you:*
 /start - Start receiving updates
-/stop - Stop recieving updates
+/stop - Stop receiving updates
 /faq - Show the frequently asked questions (and answers!)
 
 /filter - Show and modify your personal filters

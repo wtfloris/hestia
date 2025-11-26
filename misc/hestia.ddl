@@ -76,6 +76,7 @@ CREATE TABLE hestia.subscribers (
     telegram_id character varying,
     filter_agencies json DEFAULT '[]'::json NOT NULL,
     date_added timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    lang varchar DEFAULT 'en'::character varying NOT NULL
 );
 
 

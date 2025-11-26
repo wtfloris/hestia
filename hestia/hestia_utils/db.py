@@ -101,7 +101,7 @@ def _write(query: str, params: list[str] = []) -> None:
 def add_home(url: str, address: str, city: str, price: int, agency: str, date_added: str) -> None:
     _write("INSERT INTO hestia.homes (url, address, city, price, agency, date_added) VALUES (%s, %s, %s, %s, %s, %s)", [url, address, city, str(price), agency, date_added])
 def add_user(telegram_id: int) -> None:
-    _write("INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, DEFAULT, true, %s)", [str(telegram_id)])
+    _write("INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, DEFAULT, true, %s, DEFAULT)", [str(telegram_id)])
 def enable_user(telegram_id: int) -> None:
     _write("UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = %s", [str(telegram_id)])
 def disable_user(telegram_id: int) -> None:
