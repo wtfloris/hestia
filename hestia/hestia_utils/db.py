@@ -1,8 +1,9 @@
 import psycopg2
 import logging
+from telegram import Chat
+from typing import Literal
 from datetime import datetime
 from psycopg2.extras import RealDictCursor, RealDictRow
-from telegram import Chat
 
 from hestia_utils.secrets import DB
 
@@ -11,6 +12,8 @@ logging.basicConfig(
     level=logging.WARNING,
     filename="/data/hestia.log"
 )
+
+LANG_CACHE = {}
 
 
 def get_connection():
@@ -72,6 +75,15 @@ def get_donation_link_updated() -> datetime:
         return result["donation_link_updated"]
     return datetime.min
 
+def get_user_lang(telegram_id: int) -> Literal["en", "nl"]:
+    if telegram_id in LANG_CACHE:
+        return LANG_CACHE[telegram_id]
+    result = fetch_one("SELECT lang FROM hestia.subscribers WHERE telegram_id = %s", [str(telegram_id)])
+    if result and "lang" in result and result["lang"] in ["en", "nl"]:
+        LANG_CACHE[telegram_id] = result["lang"]
+        return result["lang"]
+    return "en"
+
 
 ### Write actions
 
@@ -113,3 +125,7 @@ def set_filter_cities(telegram_chat: Chat, cities: str) -> None:
     _write("UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", [str(cities).replace("'", '"'), str(telegram_chat.id)])
 def set_filter_agencies(telegram_chat: Chat, agencies: set[str]) -> None:
     _write("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", [str(list(agencies)).replace("'", '"'), str(telegram_chat.id)])
+
+def set_user_lang(telegram_chat: Chat, lang: Literal["en", "nl"]) -> None:
+    _write("UPDATE hestia.subscribers SET lang = %s WHERE telegram_id = %s", [lang, str(telegram_chat.id)])
+    LANG_CACHE[telegram_chat.id] = lang
