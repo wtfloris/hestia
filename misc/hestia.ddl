@@ -1,168 +1,126 @@
---
--- PostgreSQL database dump
---
+-- DROP SCHEMA hestia;
 
--- Dumped from database version 15.6 (Debian 15.6-1.pgdg120+2)
--- Dumped by pg_dump version 15.6 (Debian 15.6-1.pgdg120+2)
+CREATE SCHEMA hestia AUTHORIZATION postgres;
 
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
+-- DROP SEQUENCE hestia.subscribers_id_seq;
 
---
--- Name: hestia; Type: SCHEMA; Schema: -; Owner: postgres
---
+CREATE SEQUENCE hestia.subscribers_id_seq
+    INCREMENT BY 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    START 1
+    CACHE 1
+    NO CYCLE;
+-- DROP SEQUENCE hestia.targets_id_seq;
 
-CREATE SCHEMA hestia;
+CREATE SEQUENCE hestia.targets_id_seq
+    INCREMENT BY 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    START 1
+    CACHE 1
+    NO CYCLE;-- hestia.homes definition
 
+-- Drop table
 
-ALTER SCHEMA hestia OWNER TO postgres;
-
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
---
--- Name: homes; Type: TABLE; Schema: hestia; Owner: postgres
---
+-- DROP TABLE hestia.homes;
 
 CREATE TABLE hestia.homes (
-    url character varying NOT NULL,
-    address character varying NOT NULL,
-    city character varying NOT NULL,
-    price integer DEFAULT '-1'::integer NOT NULL,
-    agency character varying,
-    date_added timestamp without time zone NOT NULL
+    url varchar NOT NULL,
+    address varchar NOT NULL,
+    city varchar NOT NULL,
+    price int4 DEFAULT '-1'::integer NOT NULL,
+    agency varchar NULL,
+    date_added timestamp NOT NULL
 );
 
 
-ALTER TABLE hestia.homes OWNER TO postgres;
+-- hestia.link_codes definition
 
---
--- Name: meta; Type: TABLE; Schema: hestia; Owner: postgres
---
+-- Drop table
+
+-- DROP TABLE hestia.link_codes;
+
+CREATE TABLE hestia.link_codes (
+    code varchar(4) NOT NULL,
+    email_address varchar NOT NULL,
+    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+    expires_at timestamptz NOT NULL,
+    CONSTRAINT link_codes_pkey PRIMARY KEY (code)
+);
+CREATE INDEX idx_link_codes_email ON hestia.link_codes USING btree (email_address);
+CREATE INDEX idx_link_codes_expires_at ON hestia.link_codes USING btree (expires_at);
+
+
+-- hestia.magic_tokens definition
+
+-- Drop table
+
+-- DROP TABLE hestia.magic_tokens;
+
+CREATE TABLE hestia.magic_tokens (
+    token_id varchar(36) NOT NULL,
+    email_address varchar NOT NULL,
+    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+    expires_at timestamptz NOT NULL,
+    CONSTRAINT magic_tokens_pkey PRIMARY KEY (token_id)
+);
+CREATE INDEX idx_magic_tokens_email ON hestia.magic_tokens USING btree (email_address);
+CREATE INDEX idx_magic_tokens_expires_at ON hestia.magic_tokens USING btree (expires_at);
+
+
+-- hestia.meta definition
+
+-- Drop table
+
+-- DROP TABLE hestia.meta;
 
 CREATE TABLE hestia.meta (
-    id character varying NOT NULL,
-    devmode_enabled boolean DEFAULT false NOT NULL,
-    scraper_halted boolean DEFAULT false NOT NULL,
-    workdir character varying NOT NULL,
-    donation_link character varying,
-    donation_link_updated timestamp without time zone
+    id varchar NOT NULL,
+    devmode_enabled bool DEFAULT false NOT NULL,
+    scraper_halted bool DEFAULT false NOT NULL,
+    workdir varchar NOT NULL,
+    donation_link varchar NULL,
+    donation_link_updated timestamp NULL
 );
 
 
-ALTER TABLE hestia.meta OWNER TO postgres;
+-- hestia.subscribers definition
 
---
--- Name: subscribers; Type: TABLE; Schema: hestia; Owner: postgres
---
+-- Drop table
+
+-- DROP TABLE hestia.subscribers;
 
 CREATE TABLE hestia.subscribers (
-    id integer NOT NULL,
-    subscription_expiry timestamp without time zone DEFAULT '2099-01-01 00:00:00'::timestamp without time zone,
-    user_level integer DEFAULT 0 NOT NULL,
-    filter_min_price integer DEFAULT 500 NOT NULL,
-    filter_max_price integer DEFAULT 2000 NOT NULL,
+    id int4 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START 1 CACHE 1 NO CYCLE) NOT NULL,
+    subscription_expiry timestamp DEFAULT '2099-01-01 00:00:00'::timestamp without time zone NULL,
+    user_level int4 DEFAULT 0 NOT NULL,
+    filter_min_price int4 DEFAULT 500 NOT NULL,
+    filter_max_price int4 DEFAULT 2000 NOT NULL,
     filter_cities json DEFAULT '["amsterdam"]'::json NOT NULL,
-    telegram_enabled boolean DEFAULT false NOT NULL,
-    telegram_id character varying,
-    filter_agencies json DEFAULT '[]'::json NOT NULL,
-    date_added timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
-    lang varchar DEFAULT 'en'::character varying NOT NULL
+    telegram_enabled bool DEFAULT false NOT NULL,
+    telegram_id varchar NULL,
+    filter_agencies json DEFAULT '["woningnet_amsterdam", "woningnet_huiswaarts", "woningnet_bovengroningen", "woningnet_eemvallei", "rebo", "woningnet_groningen", "woningnet_middenholland", "woningnet_woonkeus", "woningnet_woongaard", "krk", "alliantie", "woningnet_utrecht", "nmg", "bouwinvest", "vesteda", "vbt", "woningnet_almere", "woningnet_gooienvecht", "funda", "pararius", "woningnet_mijnwoonservice"]'::json NOT NULL,
+    date_added timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+    lang varchar DEFAULT 'en'::character varying NOT NULL,
+    email_address varchar NULL
 );
+CREATE INDEX idx_subscribers_email_address ON hestia.subscribers USING btree (email_address);
 
 
-ALTER TABLE hestia.subscribers OWNER TO postgres;
+-- hestia.targets definition
 
---
--- Name: subscribers_id_seq; Type: SEQUENCE; Schema: hestia; Owner: postgres
---
+-- Drop table
 
-ALTER TABLE hestia.subscribers ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME hestia.subscribers_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: targets; Type: TABLE; Schema: hestia; Owner: postgres
---
+-- DROP TABLE hestia.targets;
 
 CREATE TABLE hestia.targets (
-    id integer NOT NULL,
-    agency character varying NOT NULL,
-    queryurl character varying NOT NULL,
-    method character varying NOT NULL,
-    user_info json NOT NULL,
-    post_data json DEFAULT '{}'::json NOT NULL,
+    id int4 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START 1 CACHE 1 NO CYCLE) NOT NULL,
+    agency varchar NOT NULL,
+    queryurl varchar NOT NULL,
+    "method" varchar NOT NULL,
+    user_info jsonb NOT NULL,
+    post_data jsonb DEFAULT '{}'::json NOT NULL,
     headers json DEFAULT '{}'::json NOT NULL,
-    enabled boolean DEFAULT false NOT NULL
+    enabled bool DEFAULT false NOT NULL
 );
-
-
-ALTER TABLE hestia.targets OWNER TO postgres;
-
---
--- Name: targets_id_seq; Type: SEQUENCE; Schema: hestia; Owner: postgres
---
-
-ALTER TABLE hestia.targets ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME hestia.targets_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: SCHEMA hestia; Type: ACL; Schema: -; Owner: postgres
---
-
-GRANT USAGE ON SCHEMA hestia TO hestia;
-
-
---
--- Name: TABLE homes; Type: ACL; Schema: hestia; Owner: postgres
---
-
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE hestia.homes TO hestia;
-
-
---
--- Name: TABLE meta; Type: ACL; Schema: hestia; Owner: postgres
---
-
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE hestia.meta TO hestia;
-
-
---
--- Name: TABLE subscribers; Type: ACL; Schema: hestia; Owner: postgres
---
-
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE hestia.subscribers TO hestia;
-
-
---
--- Name: TABLE targets; Type: ACL; Schema: hestia; Owner: postgres
---
-
-GRANT SELECT ON TABLE hestia.targets TO hestia;
-
-
---
--- PostgreSQL database dump complete
---

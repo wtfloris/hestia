@@ -129,3 +129,40 @@ def set_filter_agencies(telegram_chat: Chat, agencies: set[str]) -> None:
 def set_user_lang(telegram_chat: Chat, lang: Literal["en", "nl"]) -> None:
     _write("UPDATE hestia.subscribers SET lang = %s WHERE telegram_id = %s", [lang, str(telegram_chat.id)])
     LANG_CACHE[telegram_chat.id] = lang
+
+
+def link_account(telegram_id: int, code: str) -> Literal["success", "invalid_code", "already_linked"]:
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Look up the code
+            cur.execute("SELECT email_address FROM hestia.link_codes WHERE code = %s AND expires_at > now()", [code])
+            row = cur.fetchone()
+            if not row:
+                return "invalid_code"
+
+            email = row["email_address"]
+
+            # Check if the Telegram user already has an email linked
+            cur.execute("SELECT email_address FROM hestia.subscribers WHERE telegram_id = %s", [str(telegram_id)])
+            sub = cur.fetchone()
+            if sub and sub["email_address"]:
+                return "already_linked"
+
+            # Set email on the Telegram user's row
+            cur.execute("UPDATE hestia.subscribers SET email_address = %s WHERE telegram_id = %s", [email, str(telegram_id)])
+
+            # Delete the web-only subscriber row (has email but no telegram_id)
+            cur.execute("DELETE FROM hestia.subscribers WHERE email_address = %s AND telegram_id IS NULL", [email])
+
+            # Delete the used link code
+            cur.execute("DELETE FROM hestia.link_codes WHERE code = %s", [code])
+
+            conn.commit()
+            return "success"
+    except Exception as e:
+        conn.rollback()
+        logging.error(f"Database error in link_account: {repr(e)}")
+        return "invalid_code"
+    finally:
+        if conn: conn.close()

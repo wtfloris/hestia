@@ -426,6 +426,25 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
         await query.edit_message_reply_markup(telegram.InlineKeyboardMarkup(reply_keyboard))
 
 
+async def link(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_chat or not update.message or not update.message.text: return
+
+    parts = update.message.text.split()
+    if len(parts) < 2:
+        await context.bot.send_message(update.effective_chat.id, strings.get("link_usage", update.effective_chat.id))
+        return
+
+    code = parts[1].strip()
+    result = db.link_account(update.effective_chat.id, code)
+
+    if result == "success":
+        await context.bot.send_message(update.effective_chat.id, strings.get("link_success", update.effective_chat.id))
+    elif result == "already_linked":
+        await context.bot.send_message(update.effective_chat.id, strings.get("link_already_linked", update.effective_chat.id))
+    else:
+        await context.bot.send_message(update.effective_chat.id, strings.get("link_invalid_code", update.effective_chat.id))
+
+
 async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat or not update.message or not update.message.text: return
     message = strings.get("help", update.effective_chat.id)
@@ -460,6 +479,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("dev", enable_dev))
     application.add_handler(CommandHandler("nodev", disable_dev))
     application.add_handler(CommandHandler("setdonate", set_donation_link))
+    application.add_handler(CommandHandler("link", link))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("faq", faq))
     application.add_handler(CommandHandler("nl", set_lang_nl))

@@ -201,6 +201,23 @@ Succes met je zoektocht\!"""
     Ja, op Telegram heet ik @WTFloris of je kunt mailen naar hestia@wtflor\.is\!"""
     },
 
+    "link_success": {
+        "en": "Your account has been linked successfully!",
+        "nl": "Je account is succesvol gekoppeld!"
+    },
+    "link_invalid_code": {
+        "en": "Invalid or expired code. Please request a new code on the website.",
+        "nl": "Ongeldige of verlopen code. Vraag een nieuwe code aan op de website."
+    },
+    "link_already_linked": {
+        "en": "Your Telegram account is already linked to an email address.",
+        "nl": "Je Telegram-account is al gekoppeld aan een e-mailadres."
+    },
+    "link_usage": {
+        "en": "Usage: /link <code>\n\nEnter the 4-character code from the website to link your account.",
+        "nl": "Gebruik: /link <code>\n\nVoer de 4-tekens code van de website in om je account te koppelen."
+    },
+
     "help": {
         "en": """*I can do the following for you:*
 /start - Start receiving updates
@@ -210,6 +227,7 @@ Succes met je zoektocht\!"""
 /filter - Show and modify your personal filters
 /websites - Show info about the websites Hestia checks
 /donate - Get an open Tikkie link to show your appreciation for Hestia
+/link - Link your website account to Telegram
 
 /nl - Gebruik Hestia in het Nederlands
 /en - Use Hestia in English
@@ -222,6 +240,7 @@ Succes met je zoektocht\!"""
 /filter - Bekijk en wijzig je persoonlijke filters
 /websites - Bekijk welke websites Hestia checkt
 /donate - Ontvang een open Tikkie link en waardeer Hestia met een biertje voor de maker
+/link - Koppel je website-account aan Telegram
 
 /nl - Gebruik Hestia in het Nederlands
 /en - Use Hestia in English
