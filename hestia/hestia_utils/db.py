@@ -131,6 +131,37 @@ def set_user_lang(telegram_chat: Chat, lang: Literal["en", "nl"]) -> None:
     LANG_CACHE[telegram_chat.id] = lang
 
 
+FILTER_COLUMNS = ["filter_min_price", "filter_max_price", "filter_cities", "filter_agencies"]
+
+
+def _load_filter_defaults(cur) -> dict:
+    cur.execute(
+        """
+        SELECT column_name, column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'hestia'
+          AND table_name = 'subscribers'
+          AND column_name = ANY(%s)
+        """,
+        [FILTER_COLUMNS],
+    )
+    defaults = {row["column_name"]: row["column_default"] for row in cur.fetchall()}
+    for col in FILTER_COLUMNS:
+        if col not in defaults or defaults[col] is None:
+            defaults[col] = "NULL"
+    return defaults
+
+
+def _filters_are_default(cur, where_sql: str, params: list[str], defaults: dict) -> bool:
+    checks = [f"{col} IS NOT DISTINCT FROM {defaults[col]} AS {col}_default" for col in FILTER_COLUMNS]
+    query = f"SELECT {', '.join(checks)} FROM hestia.subscribers WHERE {where_sql}"
+    cur.execute(query, params)
+    result = cur.fetchone()
+    if not result:
+        return False
+    return all(result.values())
+
+
 def link_account(telegram_id: int, code: str) -> Literal["success", "invalid_code", "already_linked"]:
     conn = get_connection()
     try:
@@ -148,6 +179,38 @@ def link_account(telegram_id: int, code: str) -> Literal["success", "invalid_cod
             sub = cur.fetchone()
             if sub and sub["email_address"]:
                 return "already_linked"
+
+            # Read both subscriber rows and compare filters with DB defaults
+            cur.execute("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", [str(telegram_id)])
+            tg_sub = cur.fetchone()
+            cur.execute("SELECT * FROM hestia.subscribers WHERE email_address = %s AND telegram_id IS NULL", [email])
+            web_sub = cur.fetchone()
+
+            defaults = _load_filter_defaults(cur)
+            tg_default = _filters_are_default(cur, "telegram_id = %s", [str(telegram_id)], defaults)
+            web_default = True
+            if web_sub:
+                web_default = _filters_are_default(cur, "email_address = %s AND telegram_id IS NULL", [email], defaults)
+
+            # Overwrite the default filters with the non-default filters
+            if tg_sub and web_sub and tg_default and not web_default:
+                cur.execute(
+                    """
+                    UPDATE hestia.subscribers
+                    SET filter_min_price = %s,
+                        filter_max_price = %s,
+                        filter_cities = %s,
+                        filter_agencies = %s
+                    WHERE telegram_id = %s
+                    """,
+                    [
+                        web_sub["filter_min_price"],
+                        web_sub["filter_max_price"],
+                        web_sub["filter_cities"],
+                        web_sub["filter_agencies"],
+                        str(telegram_id),
+                    ],
+                )
 
             # Set email on the Telegram user's row
             cur.execute("UPDATE hestia.subscribers SET email_address = %s WHERE telegram_id = %s", [email, str(telegram_id)])
