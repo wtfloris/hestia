@@ -7,16 +7,17 @@ from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHan
 import hestia_utils.db as db
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
+import hestia_utils.strings as strings
 
 
 def initialize():
     logging.warning("Initializing application...")
 
     if db.get_scraper_halted():
-        logging.warning("Scraper is halted.")
+        logging.warning("Scraper is halted")
         
     if db.get_dev_mode():
-        logging.warning("Dev mode is enabled.")
+        logging.warning("Dev mode is enabled")
 
 
 def privileged(chat: telegram.Chat, msg: str, command: str, check_only: bool = True) -> bool:
@@ -64,30 +65,26 @@ async def new_sub(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE, r
     else:
         db.add_user(update.effective_chat.id)
         
-    message ="""Hi there!
-
-I check real estate websites for new rental homes in The Netherlands. For more info on which websites I check, say /websites.
-
-To see and modify your personal filters (like city and maximum price), say /filter.
-
-You will receive a message when I find a new home that matches your filters! If you want me to stop, just say /stop.
-
-If you have any questions, please read the /faq!"""
-    await context.bot.send_message(update.effective_chat.id, message)
+    await context.bot.send_message(update.effective_chat.id, strings.get("start"))
 
 
 async def start(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat: return
     checksub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])
     
+    payload = context.args[0] if context.args else None
     if checksub:
-        if "telegram_enabled" in checksub and checksub["telegram_enabled"]:
-            message = "You are already a subscriber, I'll let you know if I see any new rental homes online!"
-            await context.bot.send_message(update.effective_chat.id, message)
-        else:
+        if "telegram_enabled" in checksub and checksub["telegram_enabled"] and not payload:
+            await context.bot.send_message(update.effective_chat.id, strings.get("already_subscribed", update.effective_chat.id))
+        elif not payload:
             await new_sub(update, context, reenable=True)
     else:
         await new_sub(update, context)
+
+    if payload and payload.startswith("hestia-web-link-"):
+        print(payload)
+        print(payload[16:])
+        await link(update, context, payload[16:])
 
 
 async def stop(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -104,9 +101,7 @@ async def stop(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=rf"""You will no longer recieve updates for new listings\. I hope this is because you've found a new home\!
-        
-Consider [buying me a beer]({db.get_donation_link()}) if Hestia has helped you in your search {meta.LOVE_EMOJI}""",
+        text=strings.get("stop", update.effective_chat.id, [db.get_donation_link()]),
         parse_mode="MarkdownV2",
         disable_web_page_preview=True
     )
@@ -118,7 +113,7 @@ async def announce(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) 
         
     if db.get_dev_mode():
         subs = db.fetch_all("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Dev mode is enabled, message not broadcasted to all subscribers.")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Dev mode is enabled, message not broadcasted to all subscribers")
     else:
         subs = db.fetch_all("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
@@ -154,7 +149,7 @@ async def websites(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) 
     if not update.effective_chat: return
     targets = db.fetch_all("SELECT agency, user_info FROM hestia.targets WHERE enabled = true")
 
-    message = "Here are the websites I scrape every five minutes:\n\n"
+    message = strings.get("websites", update.effective_chat.id)
     
     # Some agencies have multiple targets, but that's duplicate information for the user
     already_included = []
@@ -164,16 +159,10 @@ async def websites(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) 
             continue
             
         already_included.append(target["agency"])
-        
-        message += f"Agency: {target['user_info']['agency']}\n"
-        message += f"Website: {target['user_info']['website']}\n"
-        message += f"\n"
+        message += strings.get("website_info", update.effective_chat.id, [target['user_info']['agency'], target['user_info']['website']])
         
     await context.bot.send_message(update.effective_chat.id, message[:-1])
-    sleep(1)
-    
-    message = "If you want more information, you can also read my source code: https://github.com/wtfloris/hestia"
-    await context.bot.send_message(update.effective_chat.id, message)
+    await context.bot.send_message(update.effective_chat.id, strings.get("source_code", update.effective_chat.id))
 
 
 async def halt(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -191,7 +180,7 @@ async def resume(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         db.resume_scraper()
         await context.bot.send_message(update.effective_chat.id, "Resuming scraper. Note that this may create a massive update within the next 5 minutes. Consider enabling /dev mode.")
     else:
-        await context.bot.send_message(update.effective_chat.id, "Scraper is not halted.")
+        await context.bot.send_message(update.effective_chat.id, "Scraper is not halted")
 
 
 async def enable_dev(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -278,55 +267,43 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         for c in sub["filter_cities"]:
             cities_str += f"{c.title()}, "
         
-        message = "*Currently, your filters are:*\n"
-        message += f"Min. price: {sub['filter_min_price']}\n"
-        message += f"Max. price: {sub['filter_max_price']}\n"
-        message += f"Cities: {cities_str[:-2]}\n\n"
-        message += "*To change your filters, you can say:*\n"
-        message += "`/filter minprice 1200`\n"
-        message += "`/filter maxprice 1800`\n"
-        message += "`/filter city add Amsterdam`\n"
-        message += "`/filter city remove Den Haag`\n"
-        message += "I will only send you homes in cities that you've included in your filter. Say  `/filter city`  to see the list of possible cities.\n\n"
-        message += "Additionally, you can disable updates from certain agencies/websites. Say  `/filter agency`  to select your preference."
+        message = strings.get("filter", update.effective_chat.id, [sub['filter_min_price'], sub['filter_max_price'], cities_str[:-2]])
         
     # Set minprice filter
     elif len(cmd) == 3 and cmd[1] in ["minprice", "min"]:
         try:
             minprice = int(cmd[2])
         except ValueError:
-            message = f"Invalid value: {cmd[2]} is not a number"
-            await context.bot.send_message(update.effective_chat.id, message)
+            await context.bot.send_message(update.effective_chat.id, strings.get("filter_invalid_number", update.effective_chat.id, [cmd[2]]))
             return
             
         db.set_filter_minprice(update.effective_chat, minprice)
-        message = f"Minimum price filter set to {minprice}!"
+        message = strings.get("filter_minprice", update.effective_chat.id, [str(minprice)])
     
     # Set maxprice filter
     elif len(cmd) == 3 and cmd[1] in ["maxprice", "max"]:
         try:
             maxprice = int(cmd[2])
         except ValueError:
-            message = f"Invalid value: {cmd[2]} is not a number"
-            await context.bot.send_message(update.effective_chat.id, message)
+            await context.bot.send_message(update.effective_chat.id, strings.get("filter_invalid_number", update.effective_chat.id, [cmd[2]]))
             return
             
         db.set_filter_maxprice(update.effective_chat, maxprice)
-        message = f"Maximum price filter set to {maxprice}!"
+        message = strings.get("filter_maxprice", update.effective_chat.id, [str(maxprice)])
             
     # View city possibilities
     elif len(cmd) == 2 and cmd[1] == "city":
         all_filter_cities = [c["city"] for c in db.fetch_all("SELECT DISTINCT city FROM hestia.homes")]
         all_filter_cities.sort()
         
-        message = "Supported cities for the city filter are:\n\n"
+        message = strings.get("filter_city_header", update.effective_chat.id)
         for city in all_filter_cities:
-            message += f"{city.title()}\n"
+            message += city.title() + "\n"
             if len(message) > 4000:
                 await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
                 message = ""
             
-        message += "\nThis list is based on the cities I've seen so far while scraping, so it might not be fully complete."
+        message += strings.get("filter_city_trailer", update.effective_chat.id)
 
     # Modify agency filter
     elif len(cmd) == 2 and cmd[1] in ["agency", "agencies", "website", "websites"]:
@@ -340,7 +317,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
                 else:
                     reply_keyboard.append([telegram.InlineKeyboardButton(meta.CROSS_EMOJI + " " + row["user_info"]["agency"], callback_data=f"hfa.e.{row['agency']}")])
 
-        await update.message.reply_text("Select the agencies you want to receive updates from", reply_markup=telegram.InlineKeyboardMarkup(reply_keyboard))
+        await update.message.reply_text(strings.get("filter_agency", update.effective_chat.id), reply_markup=telegram.InlineKeyboardMarkup(reply_keyboard))
         return
             
     # Modify city filter
@@ -361,36 +338,34 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             # Check if the city is valid
             if city not in [c.lower() for c in all_filter_cities]:
-                message = f"Invalid city: {city}\n\n"
-                message += "To see possible cities, say: `/filter city`"
+                message = strings.get("filter_city_invalid", update.effective_chat.id, [city.title()])
                 await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
                 return
                 
             if city not in sub_filter_cities:
                 sub_filter_cities.append(city)
             else:
-                message = f"{city.title()} is already in your filter, so nothing has been changed."
+                message = strings.get("filter_city_already_in", update.effective_chat.id, [city.title()])
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
-        
+
             db.set_filter_cities(update.effective_chat, sub_filter_cities)
-            message = f"{city.title()} added to your city filter."
-        
+            message = strings.get("filter_city_added", update.effective_chat.id, [city.title()])
         else:
             if city in sub_filter_cities:
                 sub_filter_cities.remove(city)
             else:
-                message = f"{city.title()} is not in your filter, so nothing has been changed."
+                message = strings.get("filter_city_not_in", update.effective_chat.id, [city.title()])
                 await context.bot.send_message(update.effective_chat.id, message)
                 return
-                
+
             db.set_filter_cities(update.effective_chat, sub_filter_cities)
-            message = f"{city.title()} removed from your city filter."
-            
+            message = strings.get("filter_city_removed", update.effective_chat.id, [city.title()])
+
             if len(sub_filter_cities) == 0:
-                message += "\n\nYour city filter is now empty, you will not receive messages about any homes."
+                message += strings.get("filter_city_empty", update.effective_chat.id)
     else:
-        message = "Invalid filter command, say /filter to see options."
+        message = strings.get("filter_invalid_command", update.effective_chat.id)
         
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
@@ -401,11 +376,7 @@ async def donate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=rf"""Moving is expensive enough and similar services start at like €20/month\. Hopefully Hestia has helped you save some money\!
-        
-You could use some of those savings to [buy me a beer]({donation_link}) {meta.LOVE_EMOJI}
-
-Good luck in your search\!""",
+        text=strings.get("donate", update.effective_chat.id, [donation_link]),
         parse_mode="MarkdownV2",
         disable_web_page_preview=True
     )
@@ -414,37 +385,19 @@ Good luck in your search\!""",
 async def faq(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat: return
     donation_link = db.get_donation_link()
-    message = rf"""*Why is Hestia free?*
-    I built Hestia for myself and once we found a home, I thought it would be nice to share it with others\!
+    await context.bot.send_message(update.effective_chat.id, strings.get("faq", update.effective_chat.id, [donation_link]), parse_mode="MarkdownV2", disable_web_page_preview=True)
 
-*What websites does Hestia check?*
-    Use the command /websites to see the full list\.
 
-*How often does Hestia check the websites?*
-    Every 5 minutes\.
+async def set_lang_nl(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat: return
+    db.set_user_lang(update.effective_chat, "nl")
+    await context.bot.send_message(update.effective_chat.id, "Ik spreek vanaf nu Nederlands")
 
-*Can you add website \.\.\.?*
-    Probably, please check [this issue](https://github.com/wtfloris/hestia/issues/53) on GitHub to see if it's already on the list\.
 
-*Can you add a filter for: amount of rooms/square m2/postal code, etc\.?*
-    In short: no, because it makes Hestia less reliable\. Please see [this comment](https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778) for the full explanation \(and feel free to discuss if you don\'t agree\)\!
-
-*Does this work if I want to buy a home?*
-    Not yet, but who knows what I might build when I\'m looking to buy something myself\!
-
-*I saw this listing on Pararius and I didn\'t get a message from Hestia\. Why?*
-    Pararius does not list a house number for all homes, so Hestia can\'t check if it\'s already seen the listing on another website\. To avoid duplicates, we skip these listings altogether\.
-
-*Can I use this without Telegram?*
-    No\. Telegram provides an easy interface for programming, this is much harder on WhatsApp\.
-
-*Can I thank you for building and sharing Hestia for free?*
-    Yes of course, you can buy me a beer [here]({donation_link})\! {meta.LOVE_EMOJI}
-
-*Can I contact you?*
-    Yes, I'm @WTFloris on Telegram or e\-mail me at hestia@wtflor\.is\!"""
-    
-    await context.bot.send_message(update.effective_chat.id, message, parse_mode="MarkdownV2", disable_web_page_preview=True)
+async def set_lang_en(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat: return
+    db.set_user_lang(update.effective_chat, "en")
+    await context.bot.send_message(update.effective_chat.id, "I'll speak English")
 
 
 async def callback_query_handler(update: telegram.Update, _) -> None:
@@ -479,16 +432,29 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
         await query.edit_message_reply_markup(telegram.InlineKeyboardMarkup(reply_keyboard))
 
 
+async def link(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE, code: str = "") -> None:
+    if not update.effective_chat or not update.message or not update.message.text: return
+
+    if not code:
+        parts = update.message.text.split()
+        if len(parts) < 2:
+            await context.bot.send_message(update.effective_chat.id, strings.get("link_usage", update.effective_chat.id))
+            return
+        code = parts[1].strip().upper()
+
+    result = db.link_account(update.effective_chat.id, code)
+
+    if result == "success":
+        await context.bot.send_message(update.effective_chat.id, strings.get("link_success", update.effective_chat.id))
+    elif result == "already_linked":
+        await context.bot.send_message(update.effective_chat.id, strings.get("link_already_linked", update.effective_chat.id))
+    else:
+        await context.bot.send_message(update.effective_chat.id, strings.get("link_invalid_code", update.effective_chat.id))
+
+
 async def help(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat or not update.message or not update.message.text: return
-    message = "*I can do the following for you:*\n"
-    message += "/help - Show this message\n"
-    message += "/faq - Show the frequently asked questions (and answers!)\n"
-    message += "/start - Subscribe to updates\n"
-    message += "/stop - Stop recieving updates\n\n"
-    message += "/filter - Show and modify your personal filters\n"
-    message += "/websites - Show info about the websites I scrape\n"
-    message += "/donate - Get an open Tikkie link to show your appreciation for Hestia\n"
+    message = strings.get("help", update.effective_chat.id)
     
     if privileged(update.effective_chat, update.message.text, "help", check_only=True):
         message += "\n\n"
@@ -520,8 +486,11 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("dev", enable_dev))
     application.add_handler(CommandHandler("nodev", disable_dev))
     application.add_handler(CommandHandler("setdonate", set_donation_link))
+    application.add_handler(CommandHandler("link", link))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("faq", faq))
+    application.add_handler(CommandHandler("nl", set_lang_nl))
+    application.add_handler(CommandHandler("en", set_lang_en))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), help))
     application.run_polling()
