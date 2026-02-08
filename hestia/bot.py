@@ -72,13 +72,19 @@ async def start(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not update.effective_chat: return
     checksub = db.fetch_one("SELECT * FROM hestia.subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])
     
+    payload = context.args[0] if context.args else None
     if checksub:
-        if "telegram_enabled" in checksub and checksub["telegram_enabled"]:
+        if "telegram_enabled" in checksub and checksub["telegram_enabled"] and not payload:
             await context.bot.send_message(update.effective_chat.id, strings.get("already_subscribed", update.effective_chat.id))
-        else:
+        elif not payload:
             await new_sub(update, context, reenable=True)
     else:
         await new_sub(update, context)
+
+    if payload and payload.startswith("hestia-web-link-"):
+        print(payload)
+        print(payload[16:])
+        await link(update, context, payload[16:])
 
 
 async def stop(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -426,15 +432,16 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
         await query.edit_message_reply_markup(telegram.InlineKeyboardMarkup(reply_keyboard))
 
 
-async def link(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def link(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE, code: str = "") -> None:
     if not update.effective_chat or not update.message or not update.message.text: return
 
-    parts = update.message.text.split()
-    if len(parts) < 2:
-        await context.bot.send_message(update.effective_chat.id, strings.get("link_usage", update.effective_chat.id))
-        return
+    if not code:
+        parts = update.message.text.split()
+        if len(parts) < 2:
+            await context.bot.send_message(update.effective_chat.id, strings.get("link_usage", update.effective_chat.id))
+            return
+        code = parts[1].strip().upper()
 
-    code = parts[1].strip().upper()
     result = db.link_account(update.effective_chat.id, code)
 
     if result == "success":

@@ -137,7 +137,7 @@ FILTER_COLUMNS = ["filter_min_price", "filter_max_price", "filter_cities", "filt
 def _load_filter_defaults(cur) -> dict:
     cur.execute(
         """
-        SELECT column_name, column_default
+        SELECT column_name, column_default, data_type
         FROM information_schema.columns
         WHERE table_schema = 'hestia'
           AND table_name = 'subscribers'
@@ -145,15 +145,28 @@ def _load_filter_defaults(cur) -> dict:
         """,
         [FILTER_COLUMNS],
     )
-    defaults = {row["column_name"]: row["column_default"] for row in cur.fetchall()}
+    defaults = {
+        row["column_name"]: {
+            "default": row["column_default"],
+            "type": row["data_type"],
+        }
+        for row in cur.fetchall()
+    }
     for col in FILTER_COLUMNS:
-        if col not in defaults or defaults[col] is None:
-            defaults[col] = "NULL"
+        if col not in defaults or defaults[col]["default"] is None:
+            defaults[col] = {"default": "NULL", "type": "unknown"}
     return defaults
 
 
 def _filters_are_default(cur, where_sql: str, params: list[str], defaults: dict) -> bool:
-    checks = [f"{col} IS NOT DISTINCT FROM {defaults[col]} AS {col}_default" for col in FILTER_COLUMNS]
+    checks = []
+    for col in FILTER_COLUMNS:
+        default_expr = defaults[col]["default"]
+        col_type = defaults[col]["type"]
+        if col_type in ["json", "jsonb"]:
+            checks.append(f"({col})::text IS NOT DISTINCT FROM ({default_expr})::text AS {col}_default")
+        else:
+            checks.append(f"{col} IS NOT DISTINCT FROM {default_expr} AS {col}_default")
     query = f"SELECT {', '.join(checks)} FROM hestia.subscribers WHERE {where_sql}"
     cur.execute(query, params)
     result = cur.fetchone()
