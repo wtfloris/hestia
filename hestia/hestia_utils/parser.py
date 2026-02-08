@@ -171,7 +171,7 @@ class HomeResults:
             map = {
                 'antares': 'https://wonen.thuisbijantares.nl/aanbod/nu-te-huur/te-huur/details/',
                 'dewoningzoeker': 'https://www.dewoningzoeker.nl/aanbod/te-huur/details/',
-                'frieslandhuurt': 'https://www.frieslandhuurt.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                'frieslandhuurt': 'https://www.frieslandhuurt.nl/nu-te-huur/woningen/details/',
                 'hollandrijnland': 'https://www.hureninhollandrijnland.nl/aanbod/nu-te-huur/huurwoningen/details/',
                 'hwwonen': 'https://www.thuisbijhwwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
                 'klikvoorwonen': 'https://www.klikvoorwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',

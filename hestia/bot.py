@@ -434,7 +434,7 @@ async def link(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await context.bot.send_message(update.effective_chat.id, strings.get("link_usage", update.effective_chat.id))
         return
 
-    code = parts[1].strip()
+    code = parts[1].strip().upper()
     result = db.link_account(update.effective_chat.id, code)
 
     if result == "success":
