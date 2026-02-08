@@ -4,7 +4,7 @@ import requests
 from time import sleep
 from asyncio import run
 from telegram.error import Forbidden
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import hestia_utils.db as db
 import hestia_utils.meta as meta
@@ -137,7 +137,7 @@ async def scrape_site(target: dict) -> None:
                         home.city,
                         home.price,
                         home.agency,
-                        datetime.now().isoformat())
+                        datetime.now(timezone.utc))
 
         await broadcast(new_homes)
     else:

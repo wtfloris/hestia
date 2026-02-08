@@ -17,11 +17,14 @@ LANG_CACHE = {}
 
 
 def get_connection():
-    return psycopg2.connect(database=DB["database"],
+    conn = psycopg2.connect(database=DB["database"],
                             host=DB["host"],
                             user=DB["user"],
                             password=DB["password"],
                             port=DB["port"])
+    with conn.cursor() as cur:
+        cur.execute("SET TIME ZONE 'UTC'")
+    return conn
 
 
 ### Read actions
@@ -98,7 +101,7 @@ def _write(query: str, params: list[str] = []) -> None:
     finally:
         if conn: conn.close()
 
-def add_home(url: str, address: str, city: str, price: int, agency: str, date_added: str) -> None:
+def add_home(url: str, address: str, city: str, price: int, agency: str, date_added: datetime) -> None:
     _write("INSERT INTO hestia.homes (url, address, city, price, agency, date_added) VALUES (%s, %s, %s, %s, %s, %s)", [url, address, city, str(price), agency, date_added])
 def add_user(telegram_id: int) -> None:
     _write("INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, DEFAULT, true, %s, DEFAULT)", [str(telegram_id)])
