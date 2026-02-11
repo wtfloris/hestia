@@ -2,6 +2,7 @@ import re
 import logging
 import telegram
 from time import sleep
+from telegram.error import Forbidden
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 import hestia_utils.db as db
@@ -140,6 +141,10 @@ async def announce(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) 
                 await context.bot.send_message(sub["telegram_id"], msg, parse_mode="MarkdownV2", disable_web_page_preview=bool(disablepreview['value']))
             else:
                 await context.bot.send_message(sub["telegram_id"], msg, disable_web_page_preview=bool(disablepreview['value']))
+        except Forbidden as e:
+            # This means the user deleted their account or blocked the bot, so disable them
+            db.disable_user(sub["telegram_id"])
+            logging.warning(f"Removed subscriber with Telegram id {str(sub['telegram_id'])} due to announce failure: {repr(e)}")
         except BaseException as e:
             logging.warning(f"Exception while broadcasting announcement to {sub['telegram_id']}: {repr(e)}")
             continue
