@@ -202,8 +202,8 @@ Succes met je zoektocht\!"""
     },
 
     "link_success": {
-        "en": "Your account has been linked successfully!",
-        "nl": "Je account is succesvol gekoppeld!"
+        "en": "Your account has been linked successfully! You can now modify your filters and view results on the website.",
+        "nl": "Je account is succesvol gekoppeld! Je kunt nu je filters aanpassen en woningen bekijken via de website."
     },
     "link_invalid_code": {
         "en": "Invalid or expired code. Please request a new code on the website.",
