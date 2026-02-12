@@ -489,9 +489,9 @@ class HomeResults:
             home = Home(agency="entree")
             if res["objecttype"] not in skip_prop and res["gebruik"] != "Cluster":
                 if res["huisletter"]:
-                    home.address = f"{res['straat']} {res['huisnummer']}"
-                else:
                     home.address = f"{res['straat']} {res['huisnummer']}{res['huisletter']}"
+                else:
+                    home.address = f"{res['straat']} {res['huisnummer']}"
                 home.city = res["plaats"]
                 home.price = int(float(res["kalehuur"].replace(',', '.')))
                 home.url = f"https://entree.nu/detail/{res['id']}"
