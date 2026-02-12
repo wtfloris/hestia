@@ -1,4 +1,6 @@
 .vscode
+CLAUDE.md
+misc/maintenance.py
 
 # Hestia specific files
 error.log

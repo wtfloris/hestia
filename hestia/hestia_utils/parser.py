@@ -487,7 +487,7 @@ class HomeResults:
         for res in results:
             skip_prop = ["Garage", "Parkeerplaats"]
             home = Home(agency="entree")
-            if res["objecttype"] not in skip_prop:
+            if res["objecttype"] not in skip_prop and res["gebruik"] != "Cluster":
                 if res["huisletter"]:
                     home.address = f"{res['straat']} {res['huisnummer']}"
                 else:
