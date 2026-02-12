@@ -132,6 +132,8 @@ class HomeResults:
             self.parse_hexia(raw, source.split("_")[1])
         elif source == "123wonen":
             self.parse_123wonen(raw)
+        elif source == "roofz":
+            self.parse_roofz(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -570,3 +572,115 @@ class HomeResults:
                 home.city = res['city']
                 home.price = int(res['price'])
                 self.homes.append(home)
+
+    def parse_roofz(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        # Find the __NUXT__ script containing all page data
+        nuxt_data = None
+        for script in soup.find_all("script"):
+            if script.string and 'window.__NUXT__' in script.string:
+                nuxt_data = script.string
+                break
+        if not nuxt_data:
+            return
+
+        # Build variable mapping from the Nuxt IIFE: (function(a,b,...){return {...}}(val1,val2,...))
+        func_start = nuxt_data.index('(function(') + len('(function(')
+        func_end = nuxt_data.index(')', func_start)
+        func_args = nuxt_data[func_start:func_end].split(',')
+
+        param_end = nuxt_data.rfind('))')
+        param_start = nuxt_data.rfind('}(', 0, param_end)
+        params = next(csv.reader([nuxt_data[param_start + 2:param_end]], skipinitialspace=True))
+
+        mapping = {}
+        for i in range(min(len(func_args), len(params))):
+            mapping[func_args[i]] = params[i]
+
+        # Find the rent array in the raw JS
+        rent_idx = nuxt_data.find('rent:[') + len('rent:')
+        bracket_count = 0
+        rent_end = rent_idx
+        for i, c in enumerate(nuxt_data[rent_idx:]):
+            if c == '[':
+                bracket_count += 1
+            elif c == ']':
+                bracket_count -= 1
+                if bracket_count == 0:
+                    rent_end = rent_idx + i + 1
+                    break
+
+        # Substitute unquoted variable references with their resolved values
+        # This preserves quoted strings while resolving bare identifiers
+        rent_resolved = self._substitute_nuxt_vars(nuxt_data[rent_idx:rent_end], mapping)
+        results = chompjs.parse_js_object(rent_resolved)
+
+        for res in results:
+            addr = res.get('address', {})
+            ho = res.get('handover', {})
+            status = str(res.get('status', ''))
+
+            # Filter already-rented and under-option listings
+            if any(x in status.lower() for x in ['rented', 'option', 'contract']):
+                continue
+
+            street = addr.get('street', '')
+            house_num = str(addr.get('houseNumber', ''))
+            ext = addr.get('houseNumberExtension', '')
+            city = addr.get('location', '')
+            price = ho.get('price', 0)
+            slug = res.get('slug', '')
+
+            if not street or not house_num or not city or not price:
+                continue
+
+            home = Home(agency="roofz")
+            home.address = f"{street} {house_num}"
+            if ext:
+                home.address += f" {ext}"
+            home.city = city
+            home.url = f"https://roofz.eu/availability/{slug}"
+            home.price = int(float(price))
+            self.homes.append(home)
+
+    @staticmethod
+    def _substitute_nuxt_vars(js_text, mapping):
+        """Replace unquoted variable references in JS text with their mapped string values.
+        Properly skips quoted strings to avoid corrupting literal values."""
+        result = []
+        i = 0
+        n = len(js_text)
+        while i < n:
+            c = js_text[i]
+            if c in ('"', "'"):
+                quote = c
+                j = i + 1
+                while j < n:
+                    if js_text[j] == '\\' and j + 1 < n:
+                        j += 2
+                    elif js_text[j] == quote:
+                        j += 1
+                        break
+                    else:
+                        j += 1
+                result.append(js_text[i:j])
+                i = j
+            elif c.isalpha() or c in ('_', '$'):
+                j = i + 1
+                while j < n and (js_text[j].isalnum() or js_text[j] in ('_', '$')):
+                    j += 1
+                ident = js_text[i:j]
+                if ident in ('true', 'false', 'null', 'undefined'):
+                    result.append(ident)
+                elif ident in mapping:
+                    val = mapping[ident]
+                    val = val.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
+                    result.append(f'"{val}"')
+                else:
+                    result.append(ident)
+                i = j
+            else:
+                result.append(c)
+                i += 1
+        return ''.join(result)
