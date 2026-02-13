@@ -134,6 +134,8 @@ class HomeResults:
             self.parse_123wonen(raw)
         elif source == "roofz":
             self.parse_roofz(raw)
+        elif source == "vanderlinden":
+            self.parse_vanderlinden(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -642,6 +644,42 @@ class HomeResults:
             home.city = city
             home.url = f"https://roofz.eu/availability/{slug}"
             home.price = int(float(price))
+            self.homes.append(home)
+
+    def parse_vanderlinden(self, r: requests.models.Response):
+        results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="woninginfo")
+        for res in results:
+            # Filter "Onder optie" listings (already taken)
+            label = res.find("div", class_="fotolabel")
+            if label and "onder optie" in label.text.lower():
+                continue
+
+            address_tag = res.select_one("strong")
+            city_tag = res.select_one("div.text-80.mb-0")
+            price_tag = res.select_one("div.mt-2")
+            url_tag = res.select_one("a.blocklink")
+            if not address_tag or not city_tag or not price_tag or not url_tag:
+                continue
+
+            home = Home(agency="vanderlinden")
+            home.address = address_tag.text.strip()
+            # City text contains the icon text and possible "Seniorenwoning" suffix; take only the city name
+            city_text = city_tag.get_text(strip=True)
+            # Remove the location dot icon character if present, and strip "Seniorenwoning" info
+            if "Seniorenwoning" in city_text:
+                city_text = city_text[:city_text.index("Seniorenwoning")].strip()
+            home.city = city_text
+            home.url = "https://www.vanderlinden.nl" + str(url_tag["href"])
+            # Price format: "€ 1.184 per maand" or "€ 1.090 - 1.160" (range, use lowest)
+            # Some listings say "Op aanvraag" (on request), skip those
+            raw_price = price_tag.text.strip()
+            raw_price = raw_price.split("per")[0].strip()  # Remove "per maand"
+            raw_price = raw_price.replace("€", "").strip()
+            raw_price = raw_price.split("-")[0].strip()  # Take lowest price in range
+            try:
+                home.price = int(raw_price.replace(".", ""))
+            except ValueError:
+                continue
             self.homes.append(home)
 
     @staticmethod
