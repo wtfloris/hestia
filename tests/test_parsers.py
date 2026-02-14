@@ -1144,6 +1144,190 @@ class TestParseVanderLinden:
         assert len(results.homes) == 0
 
 
+class TestParseHoekstra:
+    def test_parses_api_payload(self, mock_response):
+        data = {
+            "items": [
+                {
+                    "id": "abc-123",
+                    "status": "Beschikbaar",
+                    "street": "Kerkstraat",
+                    "houseNumber": "10",
+                    "houseNumberAddition": "A",
+                    "city": "Leeuwarden",
+                    "rentPrice": "1250"
+                }
+            ]
+        }
+        r = mock_response(data)
+        results = HomeResults("hoekstra", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Kerkstraat 10A"
+        assert results[0].city == "Leeuwarden"
+        assert results[0].price == 1250
+        assert results[0].url == "https://verhuur.makelaardijhoekstra.nl/property-detail.html?id=abc-123"
+
+    def test_api_filters_unavailable_status(self, mock_response):
+        data = {
+            "items": [
+                {
+                    "id": "x-1",
+                    "status": "Onder Optie",
+                    "street": "Kerkstraat",
+                    "houseNumber": "10",
+                    "city": "Leeuwarden",
+                    "rentPrice": "1250"
+                },
+                {
+                    "id": "x-2",
+                    "status": "Verhuurd",
+                    "street": "Havenstraat",
+                    "houseNumber": "5",
+                    "city": "Drachten",
+                    "rentPrice": "995"
+                }
+            ]
+        }
+        r = mock_response(data)
+        results = HomeResults("hoekstra", r)
+        assert len(results.homes) == 0
+
+    def test_api_filters_other_unavailable_statuses(self, mock_response):
+        data = {
+            "items": [
+                {
+                    "id": "x-3",
+                    "status": "RentedWithReservation",
+                    "street": "Astraat",
+                    "houseNumber": "1",
+                    "city": "Leeuwarden",
+                    "rentPrice": "1000"
+                },
+                {
+                    "id": "x-4",
+                    "status": "Withdrawn",
+                    "street": "Bstraat",
+                    "houseNumber": "2",
+                    "city": "Drachten",
+                    "rentPrice": "1100"
+                }
+            ]
+        }
+        r = mock_response(data)
+        results = HomeResults("hoekstra", r)
+        assert len(results.homes) == 0
+
+    def test_api_accepts_available_from_availability_field(self, mock_response):
+        data = {
+            "items": [
+                {
+                    "id": "x-5",
+                    "status": "",
+                    "availability": {"availability": "Immediatelly"},
+                    "street": "Cstraat",
+                    "houseNumber": "3",
+                    "city": "Sneek",
+                    "rentPrice": "1200"
+                }
+            ]
+        }
+        r = mock_response(data)
+        results = HomeResults("hoekstra", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Cstraat 3"
+        assert results[0].city == "Sneek"
+        assert results[0].price == 1200
+
+    def test_parses_json_ld_itemlist(self, mock_response):
+        data = {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "itemListElement": [
+                {
+                    "@type": "ListItem",
+                    "item": {
+                        "@type": "Apartment",
+                        "name": "Kerkstraat 10, Leeuwarden",
+                        "url": "/aanbod/kerkstraat-10",
+                        "address": {
+                            "@type": "PostalAddress",
+                            "streetAddress": "Kerkstraat 10",
+                            "addressLocality": "Leeuwarden"
+                        },
+                        "offers": {
+                            "@type": "Offer",
+                            "price": "1.250",
+                            "availability": "https://schema.org/InStock"
+                        }
+                    }
+                }
+            ]
+        }
+        html = f'<html><script type="application/ld+json">{json.dumps(data)}</script></html>'
+        r = mock_response(html)
+        results = HomeResults("hoekstra", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Kerkstraat 10"
+        assert results[0].city == "Leeuwarden"
+        assert results[0].price == 1250
+        assert results[0].agency == "hoekstra"
+        assert results[0].url == "https://verhuur.makelaardijhoekstra.nl/aanbod/kerkstraat-10"
+
+    def test_filters_unavailable(self, mock_response):
+        data = {
+            "@type": "Apartment",
+            "name": "Havenstraat 5, Drachten",
+            "url": "/aanbod/havenstraat-5",
+            "address": {
+                "streetAddress": "Havenstraat 5",
+                "addressLocality": "Drachten"
+            },
+            "offers": {
+                "price": "995",
+                "availability": "Verhuurd"
+            }
+        }
+        html = f'<html><script type="application/ld+json">{json.dumps(data)}</script></html>'
+        r = mock_response(html)
+        results = HomeResults("hoekstra", r)
+        assert len(results.homes) == 0
+
+    def test_filters_no_house_number(self, mock_response):
+        data = {
+            "@type": "Apartment",
+            "name": "Nieuwbouwproject, Heerenveen",
+            "url": "/aanbod/nieuwbouwproject",
+            "address": {
+                "streetAddress": "Nieuwbouwproject",
+                "addressLocality": "Heerenveen"
+            },
+            "offers": {"price": "1200"}
+        }
+        html = f'<html><script type="application/ld+json">{json.dumps(data)}</script></html>'
+        r = mock_response(html)
+        results = HomeResults("hoekstra", r)
+        assert len(results.homes) == 0
+
+    def test_html_fallback(self, mock_response):
+        html = """
+        <html>
+            <article>
+                <a href="/aanbod/sneek/klein-3">Bekijk</a>
+                <h2 class="address">Klein 3</h2>
+                <div class="city">Sneek</div>
+                <div>€ 1.050 p/m</div>
+            </article>
+        </html>
+        """
+        r = mock_response(html)
+        results = HomeResults("hoekstra", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Klein 3"
+        assert results[0].city == "Sneek"
+        assert results[0].price == 1050
+        assert results[0].url == "https://verhuur.makelaardijhoekstra.nl/aanbod/sneek/klein-3"
+
+
 class TestSubstituteNuxtVars:
     def test_replaces_variables(self):
         js = '{street:a,city:b}'
