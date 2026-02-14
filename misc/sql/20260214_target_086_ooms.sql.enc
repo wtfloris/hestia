@@ -1,0 +1,20 @@
+{
+	"data": "ENC[AES256_GCM,data:JqslEcko1limY/INI48jn+Wb72oBzMRAlCEIKlAQf6EOA1h79jvcS0iabSbSimmdGSWNPALxVpu2voj8N4q6Ngt3U4sjZp/3OW6pbtw3Qc1lO+W1hRYkFQWlWV23e4pkONH3kjf+g5BdQ1pZOz0hFkCHptOv8TX/cBwKl8fkEXhMBCEs511mQGEM9C3lZXTmwCvmqdS1u5vLAz80fcm251h7AGW9OSS7oOY3BaiJ9TEPLyyd0xXFcz23F0QDm/IMh0PwWAwj687j7GqnJsBLCIdcNfsZePiux2g3rDwp7YiGdYZ4BkXIJyILwa1fppGrKLewFuN6TEhy5g02jlSV4KidyzNlcZJ9UR0xYEOMDc2SL9HBnbpX2TxjNF7vrgx/nRlTg9HcWCzKWBPa5XPQIvBmiIKK2njLIk01YYy6eGhZRPgBT2xuhiYvUdAe4w8DGoUSPxdWMzT5ju+gNlXW8BJOr2g9TzajPf/qL4o97hqDDLCEeUq/Ibw7r+CSycQvSceoz+/+4ycQbfxiZrur0Zm2nc7xVVMnw50zjidSZASvFsruVvsUR7aefNdikxWTS1Y0afCntcZaNTXR8xYf7jSaTQQlbZVqEALHK/MRrfrTXFrq62CdFQ5ycTbiIczdNGme4q8iMKsVE43f7wCsuFxLaopKK5piNOfgZx/d/aeuE6/iMiMd2YyvdTjY7W5kEpMW6eWAZNXDlfPAUzKSuTUOuXhSH/vgkqgHkxJoLyVAwBKV0Q4YCG+v3x/U23vglYNKsvCwAE1TYSGm8q75MX87OKFuPHy15n1sc0j43BfS+Ti9pRuE9jhkjnc2hRSECMdGPQDSOL4pCOi+KG2+xG2GSFAyPayLUNFozmBqu8bXWnyPbhRE70S3t3cNu+krlTo4syUSkDCQnojHDp0wOuS+Zpi+BbPWvh+ap7KCXMRQ5TSbFKKWrN/0Fg0tDCHwqhKTQYy0UX/kWsUmqFBwR2ZlAFDI+0y9dGEJc9e3p4N2F01+ztwWeXdkuTEC7ccOQI6z5zrQSj/Sb4P3FNyK2mLIsySSKGnnYBPlonH6ZoHMBP53Jw1mFvbTQvz5jm0m8iuXE4Sm0ZtE+URxVwI/D0RLsr3rMne5jnoWhjyo2rPaOng1lP3hsYuzaq2sqcJcGnPmXEHmTJSHVbqwPcHfvitf3eBqKYeh4xj+m5lcXwJvQewWI45UCuS1Kvt+23aI/QLNQkhgbTB/2W3cPIHkIDynaBQzfbl7GeLX8Q6pA1+DbV5a0W32IhRHjFKkXtGZprfdfSiAt/mL3GJmWxLYrZzyhENcO2kViHlO5bvAubTKL7DfqWtUxLjydbZcuOIh5SpnlQ==,iv:uGGrkQ4BJSvUFnxMSphB37wZqbweqlJ8pAzX+UEPgsE=,tag:Iixrunot/MEUKjgSx/6Fiw==,type:str]",
+	"sops": {
+		"kms": null,
+		"gcp_kms": null,
+		"azure_kv": null,
+		"hc_vault": null,
+		"age": [
+			{
+				"recipient": "age1euw2jq4h4m88g377mj39fqpxzsg6hn8gyq72adgzrdgsy9jtj3yqrhdvk5",
+				"enc": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBtVUo0Nk1OWm5kT3dmdks0\nM3FXWHNHbHIzSng5TUNGK3NhMnp3VzNTS1ZNCnU0QXY2bTdqaEJxMjlXdm5yakZE\nNzhtajdiRkJVN0Jkb1JXNDVGVUsvNEkKLS0tIFF0eXAvNFowSzZmRHFoZmtZOE5v\nczhvYm5jVnJROVladnJENW5CMDFWemMKiCtblSYJLt9EFxJEd4z8LxY8wDzTrZjS\nzi+6FOHkSkHxBrLpttpN+048jTtVx7TgINT0M6NChe8L9ASpjsXzkQ==\n-----END AGE ENCRYPTED FILE-----\n"
+			}
+		],
+		"lastmodified": "2026-02-14T16:06:21Z",
+		"mac": "ENC[AES256_GCM,data:qTOd4Re4COIfXGEPQOyLMg6eySyGjTKQ+USI91p7VKo1Qx4dXwhUV6foH8FMobuWVFFBzptS96IxB9y+pWZTF1DOwfJUirhd09eAgwV6psrhlIY2usexm7EIyqSPKyNoM57t9x85doK1Dv8Q2Az0BX1553QJDV0Tt1JZ4rofQZk=,iv:k7oGNKSw3L7NNQ8eywJbDGepp5klTsHZm4KsEuHsjHw=,tag:fs8iCxNVvZvYJ0wozhD9oQ==,type:str]",
+		"pgp": null,
+		"unencrypted_suffix": "_unencrypted",
+		"version": "3.9.4"
+	}
+}

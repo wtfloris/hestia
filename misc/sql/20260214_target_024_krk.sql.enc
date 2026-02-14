@@ -1,0 +1,20 @@
+{
+	"data": "ENC[AES256_GCM,data:/FLgENbCKhP3MEwegiXYYU5zw3/yUwsgxvUTAE++hYQUXLakEJ8gpncGy2e8MTQhOxM8EaB7jg8ZZ5wJOPxltenSHlG5RRdp2OGyqGG35E1SoNc6Krz2h/mNv4zB1MpTfuVzD1viovCr+Z7ps7C1P6PshfZ/mPY9xHMfD94CgBEuK0CO8jZgGAYYNKYMAKk1x6I6zCC1hP4KoqiGvrWxkrSvRNZ8JXBggowTb9JQWM/JIZNCWAADbVnejHPQUBdDh6UQIZThgT+a5YJs2Mj/yvdD8z2uXfhulHjVdvzgwl+exe25S7lRAGsaFg5MGKk8AUrFeuafp/xmMLUCKMx106CieYuJLgG4I0j0WlpTKGxSz3xTaJ7GePFeKIZUrKTUq3u13m4JgWJpd9fJol26ho57gyP+dfBF+DQlSAnCl2tvjESbRg6enzSgNRPHyO9UkNgAV5yr0tQPg9334/7J3mwLN29NCMTgZQOfKlJtQbSZMOa4XpUv2Or7J/NLS9sYEwoNWLKPU3iGNIPfa8jAk4Hr8uQzL2qYHCueOcVCRRuU7QqLZ9xVGHn6EcLbn/brz52/33L6VROsxagU4rvt5ugp8cR0pCdZEt0DY0QGhioPPER6bNZxs0ximHKvxyLUU6O2ZLLf761vOm6rTbhmOX7QvrvbXO/9PefOtqZD6xcjod4Q5TVwvRI7OijRZuVV7+GLQkCIbNZDLPuf/l77v6do5ih1jLUAth0f3lwg887xXLtmojwdSjo03HNhBadiwbaHx9D59pxZerTGARL+E/VgYwN1TB7wLX8t0rIwsZboHqrdUUtPYxrgRE/dkHNHdbAYerQ+0ksbyCS+8WCAh8+Ax2C9a9NdV0w+60gOCGcqitsMOFqUmvrovsQHwDmVMC0+i/Zb7jRCRTBqBvBcuFNGqttK0Pa/J2VBIRuLAfg5vQ6lT0y+0IHGKbMM0RVmtOa0KIumE8l5aYfSDEySbWhf4oJPgTIv7i9Bqc9Eu6dpRxMqA/6/oYWGIl90ixkGa6jN6Mh+K3NxUpB3Bdesxb6+bknPEmkGj8tiOjSGTl9TCS3J7g8JNSIzsAvkotuwLsLiQSz+dn4dUMaUDyK8P6LqF31ckdVYwmLxH0ta5KzAYMuxZawN4ttRwKndMoOsiwotkUjyd4dKzvwzmnZx23gtAr3sZUmmpVLlSi+EM/0oTrPWEaQ69kbyxPCPWK4ai0tDDzyI+ttohnNt5UMgqszh1phMMJP8bbsDNqJbwbRulO+eMRfcIwH8WOzQAfwlQes6hUltYhKep8CWil4Ipi5dlMjmRFbMQC4sAh2TzcIKeGok,iv:Am92FbC0MJVzRm8GVnNh7zUv24mMB4a43LKBdxGG2AI=,tag:MOtNw+4F+SXcOv/h+HR45A==,type:str]",
+	"sops": {
+		"kms": null,
+		"gcp_kms": null,
+		"azure_kv": null,
+		"hc_vault": null,
+		"age": [
+			{
+				"recipient": "age1euw2jq4h4m88g377mj39fqpxzsg6hn8gyq72adgzrdgsy9jtj3yqrhdvk5",
+				"enc": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBKUytxUTBQWkxNVXYxOUxB\ncWx3ODlYc3pDRys5U1lNeGNMM05zSkVqNjBNCnVkcktaVDZSTHpiTjBvSUkwekhO\nK0xnK1M5aFcwUVBUNmpWQjVIWmx0WlUKLS0tIDVaVTVLeTBaVUlaTm5sL0FqYkdu\nc2ZZUXFRKzc0NzFqR1B6K2hmaUxDMEkKa3Ohi4qL0dlrwtn0dYAt3Tt8OCPUr7GN\nbha1bnDDuQfpErfPuiLoI0qTWM3YMqa/RKtIZWbKjig8Fr8X6ykF8A==\n-----END AGE ENCRYPTED FILE-----\n"
+			}
+		],
+		"lastmodified": "2026-02-14T16:06:20Z",
+		"mac": "ENC[AES256_GCM,data:zqgAiPPk09rcT3wKzxevrAUJZq1daAGL/MhjHDCdyhIrBdF5YOxFI1m2ZyWDExpn96PLLXkUoLUF+XqAgTGQ0cUbKY+5KB7AGHE+K0di/eVzA0XosCSNL+pgGSkdTJiDWTZ7DLy8umqjTuWg3G+0ixsx6Z4jzxLltAPI3guk32o=,iv:K+11i6UaCeFiYyvOavOCbWchke9kLiSlPAk18MY1o0I=,tag:S2m8w9wjuADhrAxoYN8DoQ==,type:str]",
+		"pgp": null,
+		"unencrypted_suffix": "_unencrypted",
+		"version": "3.9.4"
+	}
+}
