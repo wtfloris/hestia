@@ -5,7 +5,7 @@ import chompjs
 import logging
 import requests
 from urllib import parse
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 
 class Home:
@@ -661,13 +661,18 @@ class HomeResults:
             if not address_tag or not city_tag or not price_tag or not url_tag:
                 continue
 
+            address = address_tag.text.strip()
+            # Skip project/complex listings without a house number
+            if not any(c.isdigit() for c in address):
+                continue
+
             home = Home(agency="vanderlinden")
-            home.address = address_tag.text.strip()
-            # City text contains the icon text and possible "Seniorenwoning" suffix; take only the city name
-            city_text = city_tag.get_text(strip=True)
-            # Remove the location dot icon character if present, and strip "Seniorenwoning" info
-            if "Seniorenwoning" in city_text:
-                city_text = city_text[:city_text.index("Seniorenwoning")].strip()
+            home.address = address
+            # City is a direct text node in the div; ignore text from child elements
+            # (e.g. <span>Studentenwoning</span>, <span>Beschikbaar /</span>)
+            city_text = ''.join(
+                child for child in city_tag.children if isinstance(child, NavigableString)
+            ).strip()
             home.city = city_text
             home.url = "https://www.vanderlinden.nl" + str(url_tag["href"])
             # Price format: "€ 1.184 per maand" or "€ 1.090 - 1.160" (range, use lowest)
