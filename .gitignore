@@ -1,6 +1,9 @@
 .vscode
 AGENTS.md
 misc/maintenance.py
+misc/sql/*.sql
+!misc/sql/*.sql.enc
+!misc/sql/README.md
 
 # Hestia specific files
 error.log

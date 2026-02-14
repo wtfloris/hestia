@@ -136,6 +136,8 @@ class HomeResults:
             self.parse_roofz(raw)
         elif source == "vanderlinden":
             self.parse_vanderlinden(raw)
+        elif source == "hoekstra":
+            self.parse_hoekstra(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -686,6 +688,242 @@ class HomeResults:
             except ValueError:
                 continue
             self.homes.append(home)
+
+    def parse_hoekstra(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        seen: set[tuple[str, str]] = set()
+
+        def normalize_space(text: str) -> str:
+            return " ".join(text.split()).strip()
+
+        def parse_price(value):
+            if value is None:
+                return None
+            if isinstance(value, (int, float)):
+                return int(float(value))
+            price = ''.join(ch for ch in str(value) if ch.isdigit())
+            if not price:
+                return None
+            return int(price)
+
+        def is_unavailable(text: str) -> bool:
+            lowered = text.lower()
+            blocked = [
+                "verhuurd",
+                "onder optie",
+                "onder voorbehoud",
+                "niet beschikbaar",
+                "withdrawn",
+                "rentedwithreservation",
+                "gereserveerd",
+                "rented",
+                "under option",
+                "not available",
+            ]
+            return any(word in lowered for word in blocked)
+
+        def is_available_status(status_text: str, availability_text: str = "") -> bool:
+            status_norm = normalize_space(status_text).lower()
+            availability_norm = normalize_space(availability_text).lower()
+            combined = f"{status_norm} {availability_norm}".strip()
+            if not combined:
+                return False
+            if is_unavailable(combined):
+                return False
+            allowed = ["beschikbaar", "available", "immediatelly", "direct beschikbaar"]
+            return any(word in combined for word in allowed)
+
+        def add_home(address: str, city: str, url: str, price, status_text: str = ""):
+            address = normalize_space(address or "")
+            city = normalize_space(city or "")
+            url = normalize_space(url or "")
+            parsed_price = parse_price(price)
+            if not address or not city or not url or not parsed_price:
+                return
+            # Project/complex listings without a house number are not trackable.
+            if not any(c.isdigit() for c in address):
+                return
+            if is_unavailable(status_text):
+                return
+
+            key = (address.lower(), city.lower())
+            if key in seen:
+                return
+            seen.add(key)
+
+            home = Home(agency="hoekstra")
+            home.address = address
+            home.city = city
+            home.url = parse.urljoin("https://verhuur.makelaardijhoekstra.nl/", url)
+            home.price = parsed_price
+            self.homes.append(home)
+
+        def parse_ld_node(node):
+            if not isinstance(node, dict):
+                return
+
+            if "itemListElement" in node and isinstance(node["itemListElement"], list):
+                for item in node["itemListElement"]:
+                    child = item.get("item", item) if isinstance(item, dict) else item
+                    parse_ld_node(child)
+                return
+
+            address_data = node.get("address", {})
+            if isinstance(address_data, list):
+                address_data = address_data[0] if address_data else {}
+            if not isinstance(address_data, dict):
+                address_data = {}
+
+            offers = node.get("offers", {})
+            if isinstance(offers, list):
+                offers = offers[0] if offers else {}
+            if not isinstance(offers, dict):
+                offers = {}
+
+            street = address_data.get("streetAddress", "")
+            city = address_data.get("addressLocality", "") or node.get("addressLocality", "")
+            url = node.get("url") or offers.get("url")
+            price = (
+                offers.get("price")
+                or (offers.get("priceSpecification", {}) if isinstance(offers.get("priceSpecification"), dict) else {}).get("price")
+                or node.get("price")
+            )
+            status_text = " ".join(
+                [
+                    str(node.get("availability", "")),
+                    str(offers.get("availability", "")),
+                    str(node.get("description", "")),
+                    str(node.get("name", "")),
+                ]
+            )
+
+            if not street and isinstance(node.get("name"), str):
+                name = normalize_space(node["name"])
+                if "," in name:
+                    street, maybe_city = [part.strip() for part in name.split(",", 1)]
+                    if not city:
+                        city = maybe_city
+                else:
+                    street = name
+
+            add_home(street, city, url, price, status_text)
+
+        # Primary path: Hoekstra JSON API payload (`/api/pim`, `/api/search`, etc.).
+        # The raw HTML page itself does not include listing data server-side.
+        try:
+            parsed_json = json.loads(r.content)
+            if isinstance(parsed_json, dict):
+                api_items = parsed_json.get("items")
+                if not isinstance(api_items, list):
+                    api_items = parsed_json.get("data")
+                if not isinstance(api_items, list):
+                    api_items = []
+            elif isinstance(parsed_json, list):
+                api_items = parsed_json
+            else:
+                api_items = []
+
+            for item in api_items:
+                if not isinstance(item, dict):
+                    continue
+
+                status = normalize_space(str(item.get("status", "")))
+                availability = ""
+                if isinstance(item.get("availability"), dict):
+                    availability = str(item["availability"].get("availability", ""))
+
+                if not is_available_status(status, availability):
+                    continue
+
+                street = normalize_space(str(item.get("street", "")))
+                house_number = normalize_space(str(item.get("houseNumber", "")))
+                house_number_addition = normalize_space(str(item.get("houseNumberAddition", "")))
+                city = normalize_space(str(item.get("city", "")))
+
+                address = f"{street} {house_number}".strip()
+                if house_number_addition and house_number_addition.lower() != "none":
+                    address = f"{address}{house_number_addition}"
+
+                listing_id = item.get("id")
+                url = ""
+                if listing_id:
+                    url = f"https://verhuur.makelaardijhoekstra.nl/property-detail.html?id={listing_id}"
+
+                price = (
+                    item.get("rentPrice")
+                    or item.get("rentPriceExclVat")
+                    or item.get("rentPriceInclVat")
+                    or (item.get("pimprices", {}) if isinstance(item.get("pimprices"), dict) else {}).get("pricing", {}).get("rent", [{}])[0].get("priceInclVat")
+                )
+
+                add_home(address, city, url, price, status)
+
+            if self.homes:
+                return
+        except json.JSONDecodeError:
+            pass
+
+        for script in soup.find_all("script", type="application/ld+json"):
+            if not script.string:
+                continue
+            try:
+                data = json.loads(script.string)
+            except json.JSONDecodeError:
+                continue
+
+            stack = [data]
+            while stack:
+                node = stack.pop()
+                if isinstance(node, dict):
+                    parse_ld_node(node)
+                    for value in node.values():
+                        if isinstance(value, (dict, list)):
+                            stack.append(value)
+                elif isinstance(node, list):
+                    stack.extend(node)
+
+        # HTML fallback for card-based listings when JSON-LD is missing/incomplete.
+        if not self.homes:
+            card_selectors = [
+                "article",
+                "li",
+                "div.aanbod-item",
+                "div.object-item",
+                "div.property-item",
+                "div.search-result__item",
+            ]
+            for selector in card_selectors:
+                for card in soup.select(selector):
+                    card_text = normalize_space(card.get_text(" "))
+                    if "€" not in card_text:
+                        continue
+                    if is_unavailable(card_text):
+                        continue
+
+                    link = card.select_one("a[href]")
+                    if not link:
+                        continue
+
+                    address = ""
+                    city = ""
+                    for node in card.select(
+                        ".address, .object-address, .property-address, [itemprop='streetAddress'], h1, h2, h3"
+                    ):
+                        candidate = normalize_space(node.get_text(" "))
+                        if any(ch.isdigit() for ch in candidate):
+                            address = candidate
+                            break
+                    city_node = card.select_one(".city, .object-city, .property-city, [itemprop='addressLocality']")
+                    if city_node:
+                        city = normalize_space(city_node.get_text(" "))
+                    elif address and "," in address:
+                        address, city = [part.strip() for part in address.split(",", 1)]
+
+                    price_match = re.search(r"€\s*([\d\.\,]+)", card_text)
+                    if not price_match:
+                        continue
+
+                    add_home(address, city, link.get("href", ""), price_match.group(1), card_text)
 
     @staticmethod
     def _substitute_nuxt_vars(js_text, mapping):

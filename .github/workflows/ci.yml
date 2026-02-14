@@ -12,6 +12,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Enforce encrypted SQL files
+        run: |
+          plaintext="$(git ls-files misc/sql | grep -E '\.sql$' || true)"
+          if [ -n "$plaintext" ]; then
+            echo "Plain SQL files are tracked in misc/sql (must be .sql.enc):"
+            echo "$plaintext"
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
