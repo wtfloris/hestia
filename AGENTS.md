@@ -23,14 +23,13 @@ Real estate rental listing scraper that broadcasts results via Telegram.
 ## Build & Run
 
 ```sh
-bash build.sh -y        # build + run production containers
-bash build.sh dev -y    # build + run dev containers (if you are in hestia-dev)
+bash build.sh -y        # build + run containers
 ```
 
 Manual scrape:
 - Ensure that scraper_halted in the hestia.meta table is false
 ```
-docker exec hestia-scraper-dev python3 hestia/scraper.py  # run the scraper manually (dev)
+docker exec hestia-scraper-dev python3 hestia/scraper.py  # run the scraper manually
 ```
 
 ## Git
@@ -54,3 +53,4 @@ docker exec hestia-scraper-dev python3 hestia/scraper.py  # run the scraper manu
 - Filter out project/complex listings that don't have a house number in the address (the address is used as a unique identifier)
 - When testing a new parser, always verify at least 2 parsed listing URLs return HTTP 200
 - When testing a new parser, verify all parsed results contain a house number in the address
+- Always encrypt secret SQL files (`misc/sql/*.sql`) to `*.sql.enc` before `git add`/`git commit`
