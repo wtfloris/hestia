@@ -1388,6 +1388,119 @@ class TestParseWooove:
         assert len(results.homes) == 0
 
 
+class TestParseIkwilhuren:
+    def test_basic_parsing(self, mock_response):
+        html = """
+        <div class="card card-woning">
+            <div class="card-body d-flex flex-column">
+                <span class="card-title h5 text-secondary mb-0">
+                    <a class="stretched-link" href="/object/amsterdam-1014ag-8-e4-molenwerf-ppl-133-f2ab4e4cb26a0c328f49a21c026f7559/">
+                        Appartement Molenwerf + PPL 133 8 E4
+                    </a>
+                </span>
+                <span>1014AG Amsterdam</span>
+                <span class="small"><span>Direct beschikbaar</span></span>
+                <div class="pt-4 dotted-spans mt-auto">
+                    <span class="fw-bold">€ 1.625,- /mnd</span>
+                </div>
+            </div>
+        </div>
+        """
+        r = mock_response(html)
+        results = HomeResults("ikwilhuren", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "ikwilhuren"
+        assert results[0].address == "Molenwerf + PPL 133 8 E4"
+        assert results[0].city == "Amsterdam"
+        assert results[0].price == 1625
+        assert results[0].url == "https://ikwilhuren.nu/object/amsterdam-1014ag-8-e4-molenwerf-ppl-133-f2ab4e4cb26a0c328f49a21c026f7559/"
+
+    def test_filters_unavailable_status(self, mock_response):
+        html = """
+        <div class="card card-woning">
+            <div class="card-img-top">
+                <span class="badge">Verhuurd onder voorbehoud</span>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <span class="card-title h5 text-secondary mb-0">
+                    <a class="stretched-link" href="/object/x/">Appartement Teststraat 10</a>
+                </span>
+                <span>1011AA Amsterdam</span>
+                <div class="pt-4 dotted-spans mt-auto">
+                    <span class="fw-bold">€ 1.000,- /mnd</span>
+                </div>
+            </div>
+        </div>
+        """
+        r = mock_response(html)
+        results = HomeResults("ikwilhuren", r)
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_house_number(self, mock_response):
+        html = """
+        <div class="card card-woning">
+            <div class="card-body d-flex flex-column">
+                <span class="card-title h5 text-secondary mb-0">
+                    <a class="stretched-link" href="/object/x/">Appartement Nieuwbouwproject</a>
+                </span>
+                <span>1011AA Amsterdam</span>
+                <div class="pt-4 dotted-spans mt-auto">
+                    <span class="fw-bold">€ 1.000,- /mnd</span>
+                </div>
+            </div>
+        </div>
+        """
+        r = mock_response(html)
+        results = HomeResults("ikwilhuren", r)
+        assert len(results.homes) == 0
+
+
+class TestParseMaxxhuren:
+    def test_basic_parsing(self, mock_response):
+        html = """
+        <a id="object-23478" href="/objects/ads/view/id-23478/" class="object w-inline-block">
+            <div class="object-beschikbaar">Nieuw - Beschikbaar</div>
+            <div class="text-block-34">Grote Markt  2</div>
+            <div class="plaatsnaam-object">Groningen</div>
+            <div class="huurprijs-object">€1.350,00 per maand</div>
+        </a>
+        """
+        r = mock_response(html)
+        results = HomeResults("maxxhuren", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "maxxhuren"
+        assert results[0].address == "Grote Markt 2"
+        assert results[0].city == "Groningen"
+        assert results[0].price == 1350
+        assert results[0].url == "https://maxxhuren.nl/objects/ads/view/id-23478/"
+
+    def test_filters_unavailable_status(self, mock_response):
+        html = """
+        <a id="object-1" href="/objects/ads/view/id-1/" class="object w-inline-block">
+            <div class="object-beschikbaar">Verhuurd onder voorbehoud</div>
+            <div class="text-block-34">Teststraat 10</div>
+            <div class="plaatsnaam-object">Amsterdam</div>
+            <div class="huurprijs-object">€1.000,00 per maand</div>
+        </a>
+        """
+        r = mock_response(html)
+        results = HomeResults("maxxhuren", r)
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_house_number(self, mock_response):
+        html = """
+        <a id="object-2" href="/objects/ads/view/id-2/" class="object w-inline-block">
+            <div class="object-beschikbaar">Beschikbaar</div>
+            <div class="text-block-34">Nieuwbouwproject Centrum</div>
+            <div class="plaatsnaam-object">Utrecht</div>
+            <div class="huurprijs-object">€950,00 per maand</div>
+        </a>
+        """
+        r = mock_response(html)
+        results = HomeResults("maxxhuren", r)
+        assert len(results.homes) == 0
+
+
 class TestSubstituteNuxtVars:
     def test_replaces_variables(self):
         js = '{street:a,city:b}'

@@ -138,6 +138,10 @@ class HomeResults:
             self.parse_vanderlinden(raw)
         elif source == "wooove":
             self.parse_wooove(raw)
+        elif source == "ikwilhuren":
+            self.parse_ikwilhuren(raw)
+        elif source == "maxxhuren":
+            self.parse_maxxhuren(raw)
         elif source == "hoekstra":
             self.parse_hoekstra(raw)
         else:
@@ -736,6 +740,117 @@ class HomeResults:
             home.city = city_tag.get_text(" ", strip=True)
             home.url = parse.urljoin("https://hurenbijwooove.nl", str(res["href"]))
             home.price = int(price_digits)
+            self.homes.append(home)
+
+    def parse_ikwilhuren(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        results = soup.select(".card.card-woning")
+
+        unavailable_keywords = [
+            "verhuurd",
+            "onder optie",
+            "onder voorbehoud",
+            "withdrawn",
+            "rentedwithreservation",
+            "rented",
+            "not available",
+            "niet beschikbaar",
+            "gereserveerd",
+        ]
+
+        title_prefixes = [
+            "Appartement",
+            "Eengezinswoning",
+            "Maisonnette",
+            "Studio",
+            "Kamer",
+            "Woonhuis",
+            "Penthouse",
+        ]
+
+        for res in results:
+            card_text = res.get_text(" ", strip=True).lower()
+            if any(keyword in card_text for keyword in unavailable_keywords):
+                continue
+
+            link_tag = res.select_one(".card-title a[href]")
+            price_tag = res.select_one(".dotted-spans .fw-bold")
+            city_tag = res.select_one(".card-body > span:not(.card-title):not(.small)")
+            if not link_tag or not price_tag or not city_tag:
+                continue
+
+            address = link_tag.get_text(" ", strip=True)
+            for prefix in title_prefixes:
+                if address.lower().startswith(prefix.lower() + " "):
+                    address = address[len(prefix):].strip()
+                    break
+            if not re.search(r"\d", address):
+                continue
+
+            city_text = city_tag.get_text(" ", strip=True)
+            # Format: "1014AG Amsterdam" -> "Amsterdam"
+            city = re.sub(r"^\d{4}\s?[A-Za-z]{2}\s+", "", city_text).strip()
+            if not city:
+                continue
+
+            price_digits = ''.join(ch for ch in price_tag.get_text(" ", strip=True) if ch.isdigit())
+            if not price_digits:
+                continue
+
+            home = Home(agency="ikwilhuren")
+            home.address = address
+            home.city = city
+            home.url = parse.urljoin("https://ikwilhuren.nu", str(link_tag["href"]))
+            home.price = int(price_digits)
+            self.homes.append(home)
+
+    def parse_maxxhuren(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        results = soup.select("a.object[href]")
+
+        unavailable_keywords = [
+            "verhuurd",
+            "onder optie",
+            "onder voorbehoud",
+            "withdrawn",
+            "rentedwithreservation",
+            "rented",
+            "not available",
+            "niet beschikbaar",
+            "gereserveerd",
+        ]
+
+        for res in results:
+            status_text = " ".join(
+                tag.get_text(" ", strip=True).lower()
+                for tag in res.select(".object-beschikbaar")
+            )
+            if any(keyword in status_text for keyword in unavailable_keywords):
+                continue
+
+            address_tag = res.select_one(".text-block-34")
+            city_tag = res.select_one(".plaatsnaam-object")
+            price_tag = res.select_one(".huurprijs-object")
+            if not address_tag or not city_tag or not price_tag:
+                continue
+
+            address = " ".join(address_tag.get_text(" ", strip=True).split())
+            if not re.search(r"\d", address):
+                continue
+
+            price_text = price_tag.get_text(" ", strip=True)
+            amount_match = re.search(r"(\d[\d\.,]*)", price_text)
+            if not amount_match:
+                continue
+            euros = amount_match.group(1).split(",")[0].replace(".", "")
+            if not euros.isdigit():
+                continue
+
+            home = Home(agency="maxxhuren")
+            home.address = address
+            home.city = city_tag.get_text(" ", strip=True)
+            home.url = parse.urljoin("https://maxxhuren.nl", str(res["href"]))
+            home.price = int(euros)
             self.homes.append(home)
 
     def parse_hoekstra(self, r: requests.models.Response):

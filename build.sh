@@ -60,7 +60,9 @@ docker build --build-arg=APP_VERSION="$APP_VERSION" --tag wtfloris/hestia-scrape
 
 if [[ $1 == -y ]] || [[ $2 == -y ]]; then
         docker compose $DOCKER_COMPOSE_ARGS up -d
-        run_sql_files
+        if [[ $1 != dev ]]; then
+                run_sql_files
+        fi
         exit
 fi
 
@@ -69,5 +71,7 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
         docker compose $DOCKER_COMPOSE_ARGS up -d
-        run_sql_files
+        if [[ $1 != dev ]]; then
+                run_sql_files
+        fi
 fi
