@@ -1328,6 +1328,66 @@ class TestParseHoekstra:
         assert results[0].url == "https://verhuur.makelaardijhoekstra.nl/aanbod/sneek/klein-3"
 
 
+class TestParseWooove:
+    def test_basic_parsing(self, mock_response):
+        html = """
+        <div class="woningList clearer row">
+            <a href="/Rotterdam/K.P.%20van%20der%20Mandelelaan-130-1105/35252304/tehuur.html">
+                <div class="object">
+                    <h2 class="adresregel">
+                        <span class="straat"> K.P. van der Mandelelaan 130-1105</span>
+                        <span class="plaats">Rotterdam</span>
+                    </h2>
+                    <div class="prijs">
+                        <div>Huurprijs:&nbsp;€ 1.625,- p/m</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        """
+        r = mock_response(html)
+        results = HomeResults("wooove", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "wooove"
+        assert results[0].address == "K.P. van der Mandelelaan 130-1105"
+        assert results[0].city == "Rotterdam"
+        assert results[0].price == 1625
+        assert results[0].url == "https://hurenbijwooove.nl/Rotterdam/K.P.%20van%20der%20Mandelelaan-130-1105/35252304/tehuur.html"
+
+    def test_filters_unavailable_status(self, mock_response):
+        html = """
+        <div class="woningList clearer row">
+            <a href="/Amsterdam/Koningin%20Wilhelminaplein-224/35249377/tehuur.html">
+                <span class="statusbutton">Verhuurd onder voorbehoud</span>
+                <h2 class="adresregel">
+                    <span class="straat"> Koningin Wilhelminaplein 224</span>
+                    <span class="plaats">Amsterdam</span>
+                </h2>
+                <div class="prijs"><div>Huurprijs:&nbsp;€ 1.870,- p/m</div></div>
+            </a>
+        </div>
+        """
+        r = mock_response(html)
+        results = HomeResults("wooove", r)
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_trackable_house_number(self, mock_response):
+        html = """
+        <div class="woningList clearer row">
+            <a href="/Maastricht/Vijfharingenstraat-0ong/35267093/tehuur.html">
+                <h2 class="adresregel">
+                    <span class="straat"> Vijfharingenstraat 0ong</span>
+                    <span class="plaats">Maastricht</span>
+                </h2>
+                <div class="prijs"><div>Huurprijs:&nbsp;€ 1.750,- p/m</div></div>
+            </a>
+        </div>
+        """
+        r = mock_response(html)
+        results = HomeResults("wooove", r)
+        assert len(results.homes) == 0
+
+
 class TestSubstituteNuxtVars:
     def test_replaces_variables(self):
         js = '{street:a,city:b}'

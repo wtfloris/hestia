@@ -136,6 +136,8 @@ class HomeResults:
             self.parse_roofz(raw)
         elif source == "vanderlinden":
             self.parse_vanderlinden(raw)
+        elif source == "wooove":
+            self.parse_wooove(raw)
         elif source == "hoekstra":
             self.parse_hoekstra(raw)
         else:
@@ -687,6 +689,53 @@ class HomeResults:
                 home.price = int(raw_price.replace(".", ""))
             except ValueError:
                 continue
+            self.homes.append(home)
+
+    def parse_wooove(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        results = soup.select(".woningList > a[href]")
+
+        unavailable_keywords = [
+            "verhuurd",
+            "onder optie",
+            "onder voorbehoud",
+            "withdrawn",
+            "rentedwithreservation",
+            "rented",
+            "not available",
+        ]
+
+        for res in results:
+            status_text = " ".join(
+                node.get_text(" ", strip=True).lower()
+                for node in res.select(".statusbutton")
+            )
+            if any(keyword in status_text for keyword in unavailable_keywords):
+                continue
+
+            address_tag = res.select_one(".adresregel .straat")
+            city_tag = res.select_one(".adresregel .plaats")
+            price_tag = res.select_one(".prijs")
+            if not address_tag or not city_tag or not price_tag:
+                continue
+
+            address = " ".join(address_tag.get_text(" ", strip=True).split())
+            # "0 ong" is a placeholder instead of a real house number and is not trackable.
+            if re.search(r"\b0\s*[-]?\s*ong\b", address, flags=re.IGNORECASE):
+                continue
+            if not re.search(r"\d", address):
+                continue
+
+            price_text = price_tag.get_text(" ", strip=True)
+            price_digits = ''.join(char for char in price_text if char.isdigit())
+            if not price_digits:
+                continue
+
+            home = Home(agency="wooove")
+            home.address = address
+            home.city = city_tag.get_text(" ", strip=True)
+            home.url = parse.urljoin("https://hurenbijwooove.nl", str(res["href"]))
+            home.price = int(price_digits)
             self.homes.append(home)
 
     def parse_hoekstra(self, r: requests.models.Response):
