@@ -11,6 +11,8 @@ To see and modify your personal filters (like city and maximum price), say /filt
 
 You will receive a message when I find a new home that matches your filters! If you want me to stop, just say /stop.
 
+You can also visit hestia.bot to manage your filters and see new listings come in live!
+
 If you have any questions, please read the /faq!
 
 (zeg /nl als je mij liever in het Nederlands wilt)"""
