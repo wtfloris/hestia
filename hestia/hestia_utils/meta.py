@@ -10,6 +10,8 @@ def escape_markdownv2(text: str) -> str:
     text = text.replace('-', r'\-')
     text = text.replace('*', r'\*')
     text = text.replace('|', r'\|')
+    text = text.replace('(', r'\(')
+    text = text.replace(')', r'\)')
     return text
 
 logging.basicConfig(
