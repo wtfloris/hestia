@@ -261,6 +261,10 @@ label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--l
 .price-row label { flex: 1; }
 .price-input { display: flex; align-items: center; gap: 0.35rem; }
 .price-input input[type="number"] { width: auto; flex: 1; min-width: 0; }
+.unit-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.unit-input { display: flex; align-items: center; gap: 0.35rem; }
+.unit-input input[type="number"] { width: auto; flex: 1; min-width: 0; }
+.unit-suffix { color: var(--subtitle); font-size: 0.85rem; }
 .price-prefix, .price-suffix { color: var(--subtitle); font-size: 0.9rem; white-space: nowrap; }
 .price-row input[type="number"]::-webkit-outer-spin-button,
 .price-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -996,9 +1000,20 @@ footer {
     margin-top: 0.25rem;
     font-size: 0.85rem;
 }
+.home-card-meta-left {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+}
 .home-card-price {
     font-weight: 700;
     color: var(--primary);
+}
+.home-card-sqm {
+    color: var(--subtitle);
+    font-size: 0.8rem;
+    white-space: nowrap;
 }
 .home-card-agency {
     color: var(--legend);
