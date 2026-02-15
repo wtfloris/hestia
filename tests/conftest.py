@@ -44,6 +44,8 @@ def mock_response():
     """Factory fixture that creates mock requests.models.Response objects."""
     def _make(content, status_code=200):
         r = MagicMock(spec=requests.models.Response)
+        # Commonly used by parsers for content-type sniffing.
+        r.headers = {}
         if isinstance(content, dict) or isinstance(content, list):
             r.content = json.dumps(content).encode('utf-8')
         elif isinstance(content, str):

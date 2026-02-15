@@ -645,58 +645,177 @@ class HomeResults:
     with that data.
     """
     def parse_woonzeker(self, r: requests.models.Response):
-         scripts = BeautifulSoup(r.content, "html.parser").find_all("script")
-         data = str(scripts[3]) # The third script tag has what we need
-         needle = "rent:[" # We care about the value of the 'rent' attribute
-         start = data.find(needle) + len(needle) - 1
-         end = data.find(",configuration") # configuration is the next attribute
-         results = chompjs.parse_js_object(data[start:end])
+        # As of 2026-02, Woonzeker exposes a JSON endpoint:
+        #   /api/ms/listing/properties?...&filter[import_type]=RentResident
+        # Prefer this when the response is JSON.
+        ct = (r.headers.get("content-type") or "").lower()
+        if "application/json" in ct:
+            try:
+                payload = json.loads(r.content)
+            except (TypeError, ValueError):
+                return
 
-         # Now, we need to get all the possible variables
-         func_needle = 'window.__NUXT__=(function('
-         func_start = data.find(func_needle)
-         func_end = data.find(')', func_start)
-         func_args = data[func_start + len(func_needle):func_end].split(",")
-         param_needle = '}('
-         param_start = data.find(param_needle)
-         param_end = data.find('));', param_start)
-         params = next(csv.reader([data[param_start + len(param_needle):param_end]], skipinitialspace=True)) # Use csv reader to allow for commas in strings.
+            results = payload.get("data", [])
+            if not isinstance(results, list):
+                return
 
-         mapping = {}
-         for i in range(0, min(len(func_args), len(params))):
-             mapping[func_args[i]] = params[i]
+            for res in results:
+                try:
+                    status = res.get("status")
+                    if isinstance(status, dict):
+                        status_code = str(status.get("code") or status.get("label") or "")
+                    else:
+                        status_code = str(status or "")
+                    status_l = status_code.lower()
+                    if any(x in status_l for x in [
+                        "verhuurd",
+                        "onder optie",
+                        "withdrawn",
+                        "rentedwithreservation",
+                        "rented_out",
+                        "unavailable",
+                        "pending_offer",
+                        "occupied",
+                        "sold",
+                        "with_contingencies",
+                    ]):
+                        continue
 
-         def mapping_or_raw(s: str):
-             if s in mapping:
-                 return mapping[s]
-             else:
-                 return s
-         for res in results:
-             home = Home(agency="woonzeker")
+                    address = res.get("address") or {}
+                    street = str(address.get("street") or "").strip()
+                    city = str(address.get("location") or "").strip()
+                    house_number = str(address.get("house_number") or "").strip()
+                    ext = str(address.get("house_number_extension") or "").strip()
 
-             if (mapping_or_raw(res['mappedStatus']).lower() == "onder optie"):
-                 continue # This house is already gone
+                    # Filter out project/complex listings without a house number.
+                    if not street or not city or not house_number or not re.search(r"\d", house_number):
+                        continue
 
-             address = res['address']
-             slug = res['slug']
-             extract_regex = re.compile(r"(.*)-([0-9]+)(-([a-zA-Z0-9]+))?") # See discussion in #48 for why we need this
-             matches = extract_regex.match(slug)
-             if not matches:
-                 logging.warning("Unable to pattern match woonzeker slug: {}", slug)
-                 continue
-             ext = matches.group(4) 
-             if ext:
-                 if ext.lower() == address['houseNumberExtension'].lower() or address['houseNumberExtension'] not in mapping:
-                     ext = address['houseNumberExtension']
-                 elif address['houseNumberExtension'] in mapping:
-                     ext = mapping[address['houseNumberExtension']]
-                 home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])} {ext}".strip()
-             else:
-                 home.address = f"{mapping_or_raw(address['street'])} {mapping_or_raw(address['houseNumber'])}".strip()
-             home.city = mapping_or_raw(address['location'])
-             home.url = "https://woonzeker.com/aanbod/" + parse.quote(home.city + "/" + res['slug'])  # slug contains the proper url formatting and is always filled in
-             home.price = int(mapping_or_raw(res['handover']['price']))
-             self.homes.append(home)
+                    # Avoid double-appending extensions (often already included in house_number).
+                    hn = house_number
+                    if ext and not hn.lower().endswith(ext.lower()):
+                        if hn.endswith(("-", " ")):
+                            hn = (hn + ext).strip()
+                        else:
+                            hn = hn + ext
+
+                    slug = str(res.get("slug") or "").strip()
+                    if not slug:
+                        continue
+
+                    home = Home(agency="woonzeker")
+                    home.address = f"{street} {hn}".strip()
+                    home.city = city
+
+                    import_type = str(res.get("import_type") or "").lower()
+                    if "rent" in import_type:
+                        home.url = f"https://woonzeker.com/huur/woningen/{slug}"
+                    elif "buy" in import_type:
+                        home.url = f"https://woonzeker.com/koop/woningen/{slug}"
+                    else:
+                        # Default to rentals; the target row currently filters to RentResident.
+                        home.url = f"https://woonzeker.com/huur/woningen/{slug}"
+
+                    handover = res.get("handover") or {}
+                    price = handover.get("price", None)
+                    if price is None:
+                        price = res.get("price", None)
+                    if price is None:
+                        continue
+                    if isinstance(price, (int, float)):
+                        home.price = int(price)
+                    else:
+                        digits = re.sub(r"[^0-9]", "", str(price))
+                        if not digits:
+                            continue
+                        home.price = int(digits)
+
+                    # Optional sqm
+                    characteristic = res.get("characteristic") or {}
+                    sqm = characteristic.get("living_area") or characteristic.get("total_area") or characteristic.get("total_available_area")
+                    if sqm not in (None, "", 0, "0"):
+                        try:
+                            sqm_i = int(float(str(sqm).replace(",", ".")))
+                            if 0 < sqm_i < 2000:
+                                home.sqm = sqm_i
+                        except (TypeError, ValueError):
+                            pass
+
+                    if (home.address and home.city and home.url and home.price):
+                        self.homes.append(home)
+                except Exception:
+                    continue
+
+            return
+
+        # Fallback: legacy Nuxt 2-ish HTML parsing (kept for backward compatibility).
+        try:
+            soup = BeautifulSoup(r.content, "html.parser")
+            script_text = ""
+            for s in soup.find_all("script"):
+                if s.string and "rent:[" in s.string:
+                    script_text = s.string
+                    break
+            if not script_text:
+                return
+
+            needle = "rent:["  # We care about the value of the 'rent' attribute
+            start = script_text.find(needle) + len(needle) - 1
+            end = script_text.find(",configuration")  # configuration is the next attribute
+            if start <= 0 or end <= start:
+                return
+            results = chompjs.parse_js_object(script_text[start:end])
+
+            # Now, we need to get all the possible variables
+            func_needle = "window.__NUXT__=(function("
+            func_start = script_text.find(func_needle)
+            func_end = script_text.find(")", func_start)
+            func_args = script_text[func_start + len(func_needle):func_end].split(",")
+            param_needle = "}("
+            param_start = script_text.find(param_needle)
+            param_end = script_text.find("));", param_start)
+            params = next(csv.reader([script_text[param_start + len(param_needle):param_end]], skipinitialspace=True))
+
+            mapping = {}
+            for i in range(0, min(len(func_args), len(params))):
+                mapping[func_args[i]] = params[i]
+
+            def mapping_or_raw(s: str):
+                return mapping.get(s, s)
+
+            for res in results:
+                home = Home(agency="woonzeker")
+
+                if mapping_or_raw(res.get("mappedStatus", "")).lower() == "onder optie":
+                    continue  # This house is already gone
+
+                address = res.get("address", {})
+                slug = res.get("slug", "")
+                extract_regex = re.compile(r"(.*)-([0-9]+)(-([a-zA-Z0-9]+))?")
+                matches = extract_regex.match(slug)
+                if not matches:
+                    logging.warning(f"Unable to pattern match woonzeker slug: {slug}")
+                    continue
+
+                ext = matches.group(4)
+                if ext:
+                    hn_ext = address.get("houseNumberExtension", "")
+                    if hn_ext and (hn_ext not in mapping or ext.lower() == str(hn_ext).lower()):
+                        ext = hn_ext
+                    elif hn_ext in mapping:
+                        ext = mapping[hn_ext]
+                    home.address = f"{mapping_or_raw(address.get('street', ''))} {mapping_or_raw(address.get('houseNumber', ''))} {ext}".strip()
+                else:
+                    home.address = f"{mapping_or_raw(address.get('street', ''))} {mapping_or_raw(address.get('houseNumber', ''))}".strip()
+
+                home.city = mapping_or_raw(address.get("location", ""))
+                home.url = "https://woonzeker.com/aanbod/" + parse.quote(home.city + "/" + slug)
+                home.price = int(mapping_or_raw(res.get("handover", {}).get("price", -1)))
+
+                if (home.address and home.city and home.url and home.price and home.price > 0):
+                    self.homes.append(home)
+        except Exception:
+            return
 
 
     def parse_123wonen(self, r: requests.models.Response):
