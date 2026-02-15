@@ -378,39 +378,77 @@ class HomeResults:
             self.homes.append(home)
             
     def parse_pararius(self, r: requests.models.Response):
-        results = BeautifulSoup(r.content, "html.parser").find_all("section", class_="listing-search-item--for-rent")
+        soup = BeautifulSoup(r.content, "html.parser")
+        results = soup.select("section.listing-search-item--for-rent")
         
         for res in results:
             home = Home(agency="pararius")
-        
-            # Check if the listing contains all the required information
-            address_item = res.find("a", class_="listing-search-item__link--title")
-            city_item = res.find("div", class_="listing-search-item__sub-title")
-            url_item = res.find("a", class_="listing-search-item__link--title")
-            price_item = res.find("div", class_="listing-search-item__price")
-            if not address_item or not city_item or not url_item or not price_item:
-                address_item, city_item, url_item, price_item = None, None, None, None
+
+            # Filter unavailable statuses early when possible
+            label = res.select_one(".listing-search-item__label")
+            if label:
+                label_text = label.get_text(" ", strip=True).lower()
+                if any(
+                    bad in label_text
+                    for bad in [
+                        "verhuurd",
+                        "onder optie",
+                        "withdrawn",
+                        "rentedwithreservation",
+                        "rented with reservation",
+                    ]
+                ):
+                    continue
+
+            # Required fields
+            title_link = res.select_one("a.listing-search-item__link--title")
+            subtitle = res.select_one(".listing-search-item__sub-title")
+            price_main = res.select_one(".listing-search-item__price-main") or res.select_one(
+                ".listing-search-item__price"
+            )
+            if not title_link or not subtitle or not price_main:
                 continue
         
             # A lot of properties on Pararius don't include house numbers, so it's impossible to keep track of them because
             # right now homes are tracked by address, not by URL (which has its own downsides).
             # This is probably not 100% reliable either, but it's close enough.
-            address = str(address_item.contents[0]).strip()
-            if not re.search("[0-9]", address):
+            address_raw = title_link.get_text(" ", strip=True)
+            if not address_raw:
                 continue
-            if re.search("^[0-9]", address):  # Filter "1e Foobarstraat", etc.
+            if re.search(r"^[0-9]", address_raw):  # Filter "1e Foobarstraat 5", etc.
+                continue
+            if not re.search(r"[0-9]", address_raw):
                 continue
                 
-            home.address = ' '.join(address.split(' ')[1:])  # All items start with one of ["Appartement", "Huis", "Studio", "Kamer"]
-            city = str(city_item.contents[0]).strip()
-            home.city = ' '.join(city.split(' ')[2:]).split('(')[0].strip()  # Don't ask
-            home.url = "https://pararius.nl" + str(url_item["href"])
-            price = str(price_item.contents[0]).strip().replace('\xa0', '')
+            # Most Pararius titles are prefixed with a property type; strip when present.
+            parts = address_raw.split()
+            if parts and parts[0].lower() in {"appartement", "huis", "studio", "kamer", "woning", "woonhuis"}:
+                address = " ".join(parts[1:]).strip()
+            else:
+                address = address_raw.strip()
+            if not re.search(r"[0-9]", address):
+                continue
+            home.address = address
+
+            city_raw = subtitle.get_text(" ", strip=True)
+            # Typical format: "1234 AB Amsterdam (Centrum)".
+            city_raw = re.sub(r"^\d{4}\s*[A-Z]{2}\s+", "", city_raw).strip()
+            home.city = city_raw.split("(")[0].strip()
+
+            href = str(title_link.get("href", "")).strip()
+            if not href:
+                continue
+            home.url = ("https://www.pararius.nl" + href) if href.startswith("/") else href
+
+            price_text = price_main.get_text(" ", strip=True).replace("\xa0", " ")
             
             # If unable to cast to int, the price is not available so skip the listing
             try:
-                home.price = int(price[1:].split(' ')[0].replace('.', ''))
-            except:
+                m = re.search(r"(\d[\d\.,]*)", price_text)
+                if not m:
+                    continue
+                home.price = int(m.group(1).replace(".", "").replace(",", ""))
+            except Exception:
                 continue
             
             self.homes.append(home)
