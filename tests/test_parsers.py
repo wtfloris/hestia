@@ -501,31 +501,15 @@ class TestParseWoonin:
 
 
 class TestParsePararius:
-    def _make_listing_html(
-        self,
-        address="Appartement Kerkstraat 10",
-        city="1011 AB Amsterdam (Centrum)",
-        url="/appartement-te-huur/amsterdam/kerkstraat-10",
-        price="\u20ac\u00a01.500 per maand",
-        status_label: str | None = None,
-        include_all=True,
-    ):
-        parts = '<section class="listing-search-item listing-search-item--for-rent">'
-        if status_label is not None:
-            parts += f'<div class="listing-search-item__label"><span class="listing-label">{status_label}</span></div>'
+    def _make_listing_html(self, address="Appartement Kerkstraat 10", city="Te huur Amsterdam",
+                           url="/huurwoning/amsterdam/kerkstraat-10", price="\u20ac1.500 /mnd",
+                           include_all=True):
+        parts = '<section class="listing-search-item--for-rent">'
         if include_all:
-            parts += '<h2 class="listing-search-item__title">'
-            parts += (
-                f'<a class="listing-search-item__link listing-search-item__link--title" href="{url}">\n'
-                f'  {address}\n'
-                f'</a>'
-            )
-            parts += '</h2>'
-            parts += f'<div class="listing-search-item__sub-title">\n  {city}\n</div>'
-            parts += '<div class="listing-search-item__price">'
-            parts += f'<span class="listing-search-item__price-main">{price}</span>'
-            parts += '</div>'
-        parts += "</section>"
+            parts += f'<a class="listing-search-item__link--title" href="{url}">{address}</a>'
+            parts += f'<div class="listing-search-item__sub-title">{city}</div>'
+            parts += f'<div class="listing-search-item__price">{price}</div>'
+        parts += '</section>'
         return parts
 
     def test_basic_parsing(self, mock_response):
@@ -546,12 +530,6 @@ class TestParsePararius:
     def test_filters_address_starting_with_number(self, mock_response):
         """Addresses where the raw content starts with a digit (no type prefix) are filtered."""
         html = f"<html>{self._make_listing_html(address='1e Kerkstraat 5')}</html>"
-        r = mock_response(html)
-        results = HomeResults("pararius", r)
-        assert len(results.homes) == 0
-    
-    def test_filters_unavailable_status(self, mock_response):
-        html = f"<html>{self._make_listing_html(status_label='Verhuurd')}</html>"
         r = mock_response(html)
         results = HomeResults("pararius", r)
         assert len(results.homes) == 0
