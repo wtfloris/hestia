@@ -9,12 +9,13 @@ from bs4 import BeautifulSoup, NavigableString
 
 
 class Home:
-    def __init__(self, address: str = '', city: str = '', url: str = '', agency: str = '', price: int = -1):
+    def __init__(self, address: str = '', city: str = '', url: str = '', agency: str = '', price: int = -1, sqm: int = -1):
         self.address = address
         self.city = city
         self.url = url
         self.agency = agency
         self.price = price
+        self.sqm = sqm
         
     def __repr__(self) -> str:
         return str(self)
@@ -178,6 +179,16 @@ class HomeResults:
             # Use default python float to int rounding method
             home.price = int(float(res['netRent']))
 
+            # Hexia returns sqm as "areaDwelling" on some listings. Many listings omit it.
+            sqm = res.get("areaDwelling")
+            if sqm is not None:
+                try:
+                    sqm_i = int(float(sqm))
+                    if 0 < sqm_i < 2000:
+                        home.sqm = sqm_i
+                except (TypeError, ValueError):
+                    pass
+
             # Since the customers of this platform can have different subdomains, paths etc..
             # We have to map the corporation to a full path where the listing is accessible
             map = {
@@ -253,6 +264,14 @@ class HomeResults:
             home.city = res["city"]
             home.url = "https://vesteda.com" + res["url"]
             home.price = int(res["priceUnformatted"])
+            try:
+                sqm = res.get("size")
+                if sqm not in (None, "", 0, "0"):
+                    sqm_i = int(float(sqm))
+                    if 0 < sqm_i < 2000:
+                        home.sqm = sqm_i
+            except (TypeError, ValueError):
+                pass
             self.homes.append(home)
         
     def parse_vbt(self, r: requests.models.Response):
@@ -288,6 +307,14 @@ class HomeResults:
             home.city = res["url"][city_start:city_end].capitalize()
             home.url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
             home.price = int(res["price"][2:].replace('.', ''))
+            try:
+                sqm = res.get("size")
+                if sqm not in (None, "", 0, "0"):
+                    sqm_i = int(float(sqm))
+                    if 0 < sqm_i < 2000:
+                        home.sqm = sqm_i
+            except (TypeError, ValueError):
+                pass
             self.homes.append(home)
             
     def parse_woningnet_dak(self, r: requests.models.Response, regio: str):
@@ -305,6 +332,19 @@ class HomeResults:
             home.city = res["Adres"]["Woonplaats"]
             home.url = f"https://{regio}.mijndak.nl/HuisDetails?PublicatieId={res['Id']}"
             home.price = int(float(res["Eenheid"]["Brutohuur"]))
+            sqm = -1
+            try:
+                # Seen in live responses as strings like "51.00".
+                raw = res.get("Eenheid", {}).get("WoonVertrekkenTotOpp")
+                if raw in (None, "", "0", "0.0", "0.00", 0):
+                    raw = res.get("Eenheid", {}).get("TotaleOppervlakte")
+                if raw not in (None, "", "0", "0.0", "0.00", 0):
+                    sqm = int(float(raw))
+                    if sqm <= 0:
+                        sqm = -1
+            except Exception:
+                sqm = -1
+            home.sqm = sqm
             self.homes.append(home)
             
     def parse_bouwinvest(self, r: requests.models.Response):
@@ -398,6 +438,25 @@ class HomeResults:
             home.city = res["_source"]["address"]["city"]
             home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
             home.price = res["_source"]["price"]["rent_price"][0]
+
+            # Funda search results may include a usable sqm in `_source.floor_area`.
+            # Keep parsing defensive: treat unknown/ambiguous values as "unknown" (-1).
+            sqm = -1
+            try:
+                floor_area = res["_source"].get("floor_area")
+                if isinstance(floor_area, list) and floor_area:
+                    if isinstance(floor_area[0], (int, float)) and floor_area[0] > 0:
+                        sqm = int(floor_area[0])
+                if sqm == -1:
+                    far = res["_source"].get("floor_area_range")
+                    if isinstance(far, dict):
+                        gte = far.get("gte")
+                        lte = far.get("lte")
+                        if isinstance(gte, (int, float)) and isinstance(lte, (int, float)) and gte == lte and gte > 0:
+                            sqm = int(gte)
+            except Exception:
+                sqm = -1
+            home.sqm = sqm
             
             self.homes.append(home)
             
@@ -410,6 +469,14 @@ class HomeResults:
             home.city = res["city"]
             home.url = "https://www.rebogroep.nl/nl/aanbod/" + res["slug"]
             home.price = int(res["price"])
+            try:
+                sqm = res.get("surface_living")
+                if sqm not in (None, "", 0, "0"):
+                    sqm_i = int(float(sqm))
+                    if 0 < sqm_i < 2000:
+                        home.sqm = sqm_i
+            except (TypeError, ValueError):
+                pass
             self.homes.append(home)
 
     def parse_nmg(self, r: requests.models.Response):
@@ -443,6 +510,23 @@ class HomeResults:
                 rawprice = price_tag.text
                 end = rawprice.index(",") # Every price is terminated with a trailing ,
                 home.price = int(rawprice[2:end].replace(".", ""))
+            # Seen on aanbod.vastgoednederland.nl as: <span class="icon icon-meter"></span> 115 m²
+            try:
+                sqm = None
+                if meter_tag := res.select_one(".icon-meter"):
+                    li = meter_tag.find_parent("li")
+                    if li:
+                        m = re.search(r"(\d{1,4})\s*(?:m2|m²)", li.get_text(" ", strip=True), re.IGNORECASE)
+                        if m:
+                            sqm = int(m.group(1))
+                if sqm is None:
+                    m = re.search(r"(\d{1,4})\s*(?:m2|m²)", res.get_text(" ", strip=True), re.IGNORECASE)
+                    if m:
+                        sqm = int(m.group(1))
+                if sqm is not None and 0 < sqm < 2000:
+                    home.sqm = sqm
+            except Exception:
+                pass
             if (home.address and home.city and home.url and home.price):
                 self.homes.append(home)
 
@@ -507,6 +591,14 @@ class HomeResults:
                 home.city = res["plaats"]
                 home.price = int(float(res["kalehuur"].replace(',', '.')))
                 home.url = f"https://entree.nu/detail/{res['id']}"
+                try:
+                    sqm = res.get("totaleoppervlakte")
+                    if sqm not in (None, "", 0, "0", "0,0", "0,00", "0.0", "0.00"):
+                        sqm_i = int(float(str(sqm).replace(",", ".")))
+                        if 0 < sqm_i < 2000:
+                            home.sqm = sqm_i
+                except (TypeError, ValueError):
+                    pass
                 self.homes.append(home)
 
     """
@@ -581,6 +673,27 @@ class HomeResults:
                     home.address = f"{res['address']} {res['address_num']}"
                 home.city = res['city']
                 home.price = int(res['price'])
+                # The gmap/allobjects endpoint doesn't always include sqm. Parse it if provided.
+                try:
+                    raw = None
+                    for key in (
+                        "totaleoppervlakte",
+                        "woonoppervlakte",
+                        "living_area",
+                        "surface",
+                        "surface_living",
+                        "size",
+                        "sqm",
+                    ):
+                        if key in res and res.get(key) not in (None, "", 0, "0"):
+                            raw = res.get(key)
+                            break
+                    if raw is not None:
+                        sqm_i = int(float(str(raw).replace(",", ".")))
+                        if 0 < sqm_i < 2000:
+                            home.sqm = sqm_i
+                except (TypeError, ValueError):
+                    pass
                 self.homes.append(home)
 
     def parse_roofz(self, r: requests.models.Response):
@@ -693,6 +806,19 @@ class HomeResults:
                 home.price = int(raw_price.replace(".", ""))
             except ValueError:
                 continue
+            # Seen as: <span class="kikol kiko-square-footage"></span> 25 m²
+            try:
+                sqm = None
+                if sqm_tag := res.select_one(".kiko-square-footage"):
+                    parent = sqm_tag.parent
+                    if parent:
+                        m = re.search(r"(\d{1,4})\s*(?:m2|m²)", parent.get_text(" ", strip=True), re.IGNORECASE)
+                        if m:
+                            sqm = int(m.group(1))
+                if sqm is not None and 0 < sqm < 2000:
+                    home.sqm = sqm
+            except Exception:
+                pass
             self.homes.append(home)
 
     def parse_wooove(self, r: requests.models.Response):
@@ -831,6 +957,7 @@ class HomeResults:
             address_tag = res.select_one(".text-block-34")
             city_tag = res.select_one(".plaatsnaam-object")
             price_tag = res.select_one(".huurprijs-object")
+            sqm_tag = res.select_one(".oppervlak-object")
             if not address_tag or not city_tag or not price_tag:
                 continue
 
@@ -851,6 +978,16 @@ class HomeResults:
             home.city = city_tag.get_text(" ", strip=True)
             home.url = parse.urljoin("https://maxxhuren.nl", str(res["href"]))
             home.price = int(euros)
+            try:
+                if sqm_tag:
+                    sqm_text = sqm_tag.get_text(" ", strip=True)
+                    m = re.search(r"(\d{1,4})", sqm_text)
+                    if m:
+                        sqm = int(m.group(1))
+                        if 0 < sqm < 2000:
+                            home.sqm = sqm
+            except Exception:
+                pass
             self.homes.append(home)
 
     def parse_hoekstra(self, r: requests.models.Response):

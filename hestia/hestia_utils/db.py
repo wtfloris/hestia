@@ -98,10 +98,11 @@ def _write(query: str, params: list[str] = []) -> None:
     finally:
         if conn: conn.close()
 
-def add_home(url: str, address: str, city: str, price: int, agency: str, date_added: str) -> None:
-    _write("INSERT INTO hestia.homes (url, address, city, price, agency, date_added) VALUES (%s, %s, %s, %s, %s, %s)", [url, address, city, str(price), agency, date_added])
+def add_home(url: str, address: str, city: str, price: int, agency: str, date_added: str, sqm: int = -1) -> None:
+    _write("INSERT INTO hestia.homes (url, address, city, price, agency, date_added, sqm) VALUES (%s, %s, %s, %s, %s, %s, %s)", [url, address, city, str(price), agency, date_added, str(sqm)])
 def add_user(telegram_id: int) -> None:
-    _write("INSERT INTO hestia.subscribers VALUES (DEFAULT, '2099-01-01T00:00:00', DEFAULT, DEFAULT, DEFAULT, DEFAULT, true, %s, DEFAULT)", [str(telegram_id)])
+    # Use an explicit column list so this stays valid when new columns are added to hestia.subscribers.
+    _write("INSERT INTO hestia.subscribers (telegram_enabled, telegram_id) VALUES (true, %s)", [str(telegram_id)])
 def enable_user(telegram_id: int) -> None:
     _write("UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = %s", [str(telegram_id)])
 def disable_user(telegram_id: int) -> None:
@@ -125,13 +126,15 @@ def set_filter_cities(telegram_chat: Chat, cities: str) -> None:
     _write("UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", [str(cities).replace("'", '"'), str(telegram_chat.id)])
 def set_filter_agencies(telegram_chat: Chat, agencies: set[str]) -> None:
     _write("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", [str(list(agencies)).replace("'", '"'), str(telegram_chat.id)])
+def set_filter_minsqm(telegram_chat: Chat, min_sqm: int) -> None:
+    _write("UPDATE hestia.subscribers SET filter_min_sqm = %s WHERE telegram_id = %s", [str(min_sqm), str(telegram_chat.id)])
 
 def set_user_lang(telegram_chat: Chat, lang: Literal["en", "nl"]) -> None:
     _write("UPDATE hestia.subscribers SET lang = %s WHERE telegram_id = %s", [lang, str(telegram_chat.id)])
     LANG_CACHE[telegram_chat.id] = lang
 
 
-FILTER_COLUMNS = ["filter_min_price", "filter_max_price", "filter_cities", "filter_agencies"]
+FILTER_COLUMNS = ["filter_min_price", "filter_max_price", "filter_cities", "filter_agencies", "filter_min_sqm"]
 
 
 def _load_filter_defaults(cur) -> dict:
@@ -213,7 +216,8 @@ def link_account(telegram_id: int, code: str) -> Literal["success", "invalid_cod
                     SET filter_min_price = %s,
                         filter_max_price = %s,
                         filter_cities = %s,
-                        filter_agencies = %s
+                        filter_agencies = %s,
+                        filter_min_sqm = %s
                     WHERE telegram_id = %s
                     """,
                     [
@@ -221,6 +225,7 @@ def link_account(telegram_id: int, code: str) -> Literal["success", "invalid_cod
                         web_sub["filter_max_price"],
                         web_sub["filter_cities"],
                         web_sub["filter_agencies"],
+                        web_sub["filter_min_sqm"],
                         str(telegram_id),
                     ],
                 )

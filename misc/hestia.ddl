@@ -30,6 +30,7 @@ CREATE TABLE hestia.homes (
   address varchar NOT NULL,
   city varchar NOT NULL,
   price int4 DEFAULT '-1'::integer NOT NULL,
+  sqm int4 DEFAULT '-1'::integer NOT NULL,
   agency varchar NULL,
   date_added timestamp NOT NULL
 );
@@ -121,6 +122,7 @@ CREATE TABLE hestia.subscribers (
   telegram_id varchar NULL,
   filter_agencies json DEFAULT '["woningnet_amsterdam", "woningnet_huiswaarts", "woningnet_bovengroningen", "woningnet_eemvallei", "rebo", "woningnet_groningen", "woningnet_middenholland", "woningnet_woonkeus", "woningnet_woongaard", "krk", "alliantie", "woningnet_utrecht", "nmg", "bouwinvest", "vesteda", "vbt", "woningnet_almere", "woningnet_gooienvecht", "funda", "pararius", "woningnet_mijnwoonservice"]'::json NOT NULL,
   date_added timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  filter_min_sqm int4 DEFAULT 0 NOT NULL,
   lang varchar DEFAULT 'en'::character varying NOT NULL,
   email_address varchar NULL
 );

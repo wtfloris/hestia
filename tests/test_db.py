@@ -148,17 +148,27 @@ class TestGetUserLang:
 class TestWriteActions:
     @patch('hestia_utils.db._write')
     def test_add_home(self, mock_write):
-        db.add_home("http://example.com", "Kerkstraat 1", "Amsterdam", 1500, "funda", "2024-01-01")
+        db.add_home("http://example.com", "Kerkstraat 1", "Amsterdam", 1500, "funda", "2024-01-01", 75)
         mock_write.assert_called_once()
         args = mock_write.call_args[0]
         assert "INSERT INTO hestia.homes" in args[0]
         assert "http://example.com" in args[1]
+        assert "75" in args[1]
+
+    @patch('hestia_utils.db._write')
+    def test_add_home_default_sqm(self, mock_write):
+        db.add_home("http://example.com", "Kerkstraat 1", "Amsterdam", 1500, "funda", "2024-01-01")
+        mock_write.assert_called_once()
+        args = mock_write.call_args[0]
+        assert "-1" in args[1]
 
     @patch('hestia_utils.db._write')
     def test_add_user(self, mock_write):
         db.add_user(12345)
         mock_write.assert_called_once()
-        assert "INSERT INTO hestia.subscribers" in mock_write.call_args[0][0]
+        query = mock_write.call_args[0][0]
+        assert "INSERT INTO hestia.subscribers" in query
+        assert "(telegram_enabled, telegram_id)" in query
 
     @patch('hestia_utils.db._write')
     def test_enable_user(self, mock_write):

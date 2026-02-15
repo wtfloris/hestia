@@ -88,12 +88,17 @@ async def broadcast(homes: list[Home]) -> None:
     for home in homes:
         for sub in subs:
             # Apply filters
+            sqm_ok = (sub["filter_min_sqm"] == 0) or (home.sqm == -1) or (home.sqm >= sub["filter_min_sqm"])
             if (home.price >= sub["filter_min_price"] and home.price <= sub["filter_max_price"]) and \
                (home.city.lower() in sub["filter_cities"]) and \
-               (home.agency in sub["filter_agencies"]):
-            
+               (home.agency in sub["filter_agencies"]) and \
+               sqm_ok:
+
                 message = f"{meta.HOUSE_EMOJI} {home.address}, {home.city}\n"
-                message += f"{meta.EURO_EMOJI} €{home.price}/m\n\n"
+                message += f"{meta.EURO_EMOJI} €{home.price}/m\n"
+                if home.sqm > 0:
+                    message += f"{meta.SQM_EMOJI} {home.sqm} m\u00b2\n"
+                message += "\n"
                 message = meta.escape_markdownv2(message)
                 message += f"{meta.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
                 
@@ -137,7 +142,8 @@ async def scrape_site(target: dict) -> None:
                         home.city,
                         home.price,
                         home.agency,
-                        datetime.now().isoformat())
+                        datetime.now().isoformat(),
+                        home.sqm)
 
         await broadcast(new_homes)
     else:

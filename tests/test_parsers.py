@@ -27,7 +27,8 @@ class TestParseVesteda:
                 "status": 1, "onlySixtyFivePlus": False,
                 "street": "Kerkstraat", "houseNumber": "10", "houseNumberAddition": None,
                 "city": "Amsterdam", "url": "/huurwoning/amsterdam/kerkstraat-10",
-                "priceUnformatted": 1500
+                "priceUnformatted": 1500,
+                "size": 72
             }
         ]}}
         r = mock_response(data)
@@ -37,6 +38,7 @@ class TestParseVesteda:
         assert results[0].city == "Amsterdam"
         assert results[0].url == "https://vesteda.com/huurwoning/amsterdam/kerkstraat-10"
         assert results[0].price == 1500
+        assert results[0].sqm == 72
         assert results[0].agency == "vesteda"
 
     def test_with_house_number_addition(self, mock_response):
@@ -127,7 +129,8 @@ class TestParseAlliantie:
                 "isInSelection": True,
                 "address": "Dorpsstraat 5",
                 "url": "huren/amsterdam/dorpsstraat-5-abc123",
-                "price": "€ 1.200"
+                "price": "€ 1.200",
+                "size": 55
             }
         ]}
         r = mock_response(data)
@@ -137,6 +140,7 @@ class TestParseAlliantie:
         assert results[0].city == "Amsterdam"
         assert results[0].url == "https://ik-zoek.de-alliantie.nl/huren/amsterdam/dorpsstraat-5-abc123"
         assert results[0].price == 1200
+        assert results[0].sqm == 55
 
     def test_filters_not_in_selection(self, mock_response):
         data = {"data": [
@@ -240,7 +244,7 @@ class TestParseWoningnetDak:
                     "HuisnummerToevoeging": "",
                     "Woonplaats": "Zaandam"
                 },
-                "Eenheid": {"Brutohuur": "950.50"},
+                "Eenheid": {"Brutohuur": "950.50", "WoonVertrekkenTotOpp": "76.00"},
                 "Id": "pub123"
             }
         ]}}}
@@ -250,6 +254,7 @@ class TestParseWoningnetDak:
         assert results[0].address == "Dorpsweg 12"
         assert results[0].city == "Zaandam"
         assert results[0].price == 950
+        assert results[0].sqm == 76
         assert results[0].agency == "woningnet_dak"
         assert "dak.mijndak.nl" in results[0].url
 
@@ -308,6 +313,7 @@ class TestParseHexia:
                 "houseNumber": "15",
                 "houseNumberAddition": None,
                 "netRent": "1250.00",
+                "areaDwelling": 47,
                 "urlKey": "breestraat-15"
             }
         ]}
@@ -318,6 +324,7 @@ class TestParseHexia:
         assert results[0].city == "Leiden"
         assert results[0].price == 1250
         assert results[0].agency == "hexia_hollandrijnland"
+        assert results[0].sqm == 47
         assert "hureninhollandrijnland.nl" in results[0].url
 
     def test_with_house_number_addition(self, mock_response):
@@ -544,6 +551,7 @@ class TestParseFunda:
                         "house_number": "100",
                         "city": "Amsterdam"
                     },
+                    "floor_area": [75],
                     "price": {"rent_price": [2500]},
                     "object_detail_page_relative_url": "/huur/amsterdam/herengracht-100"
                 }
@@ -555,6 +563,7 @@ class TestParseFunda:
         assert results[0].address == "Herengracht 100"
         assert results[0].city == "Amsterdam"
         assert results[0].price == 2500
+        assert results[0].sqm == 75
         assert "funda.nl" in results[0].url
 
     def test_with_suffix(self, mock_response):
@@ -623,6 +632,21 @@ class TestParseFunda:
         results = HomeResults("funda", r)
         assert len(results.homes) == 0
 
+    def test_missing_floor_area_keeps_unknown(self, mock_response):
+        data = {"responses": [{"hits": {"hits": [
+            {
+                "_source": {
+                    "address": {"street_name": "Herengracht", "house_number": "100", "city": "Amsterdam"},
+                    "price": {"rent_price": [2500]},
+                    "object_detail_page_relative_url": "/huur/amsterdam/herengracht-100"
+                }
+            }
+        ]}}]}
+        r = mock_response(data)
+        results = HomeResults("funda", r)
+        assert len(results.homes) == 1
+        assert results[0].sqm == -1
+
 
 class TestParseRebo:
     def test_basic_parsing(self, mock_response):
@@ -631,7 +655,8 @@ class TestParseRebo:
                 "address": "Kerkweg 5",
                 "city": "Delft",
                 "slug": "kerkweg-5-delft",
-                "price": 1200
+                "price": 1200,
+                "surface_living": 66
             }
         ]}
         r = mock_response(data)
@@ -640,6 +665,7 @@ class TestParseRebo:
         assert results[0].address == "Kerkweg 5"
         assert results[0].city == "Delft"
         assert results[0].price == 1200
+        assert results[0].sqm == 66
         assert "rebogroep.nl" in results[0].url
 
     def test_empty_hits(self, mock_response):
@@ -673,6 +699,7 @@ class TestParseVbo:
             <span class="street">Marktplein 3</span>
             <span class="city">Gouda</span>
             <span class="price">€ 950,- p/m</span>
+            <ul><li><span class="icon icon-meter"></span> 55 m²</li></ul>
         </a></html>"""
         r = mock_response(html)
         results = HomeResults("vbo", r)
@@ -681,6 +708,7 @@ class TestParseVbo:
         assert results[0].city == "Gouda"
         assert results[0].price == 950
         assert results[0].url == "https://vbo.nl/woning/1"
+        assert results[0].sqm == 55
 
 
 class TestParseAtta:
@@ -763,6 +791,7 @@ class TestParseEntree:
                 "huisletter": "",
                 "plaats": "Amersfoort",
                 "kalehuur": "985,50",
+                "totaleoppervlakte": "59,22",
                 "id": "ent123"
             }
         ]}}
@@ -772,6 +801,7 @@ class TestParseEntree:
         assert results[0].address == "Kerkplein 5"
         assert results[0].city == "Amersfoort"
         assert results[0].price == 985
+        assert results[0].sqm == 59
         assert "entree.nu/detail/ent123" in results[0].url
 
     def test_with_huisletter(self, mock_response):
@@ -841,7 +871,8 @@ class TestParse123wonen:
                 "address_num": "10",
                 "address_num_extra": "",
                 "city": "Amsterdam",
-                "price": 1600
+                "price": 1600,
+                "woonoppervlakte": "55"
             }
         ]}
         r = mock_response(data)
@@ -850,6 +881,7 @@ class TestParse123wonen:
         assert results[0].address == "Kerkstraat 10"
         assert results[0].city == "Amsterdam"
         assert results[0].price == 1600
+        assert results[0].sqm == 55
         assert "123wonen.nl" in results[0].url
 
     def test_with_num_extra(self, mock_response):
@@ -1090,7 +1122,7 @@ class TestParseRoofz:
 
 class TestParseVanderLinden:
     def _make_listing_html(self, address="Kerkstraat 10", city="Leiden",
-                           price="€ 1.200 per maand", url="/woning/1",
+                           price="€ 1.200 per maand", url="/woning/1", sqm_text=None,
                            label=None, include_all=True):
         html = '<div class="woninginfo">'
         if label:
@@ -1099,18 +1131,21 @@ class TestParseVanderLinden:
             html += f'<strong>{address}</strong>'
             html += f'<div class="text-80 mb-0">{city}</div>'
             html += f'<div class="mt-2">{price}</div>'
+            if sqm_text is not None:
+                html += f'<div class="text-80 mt-3 position-relative"><span class="me-2"><span class="kikol kiko-square-footage"></span> {sqm_text}</span></div>'
             html += f'<a class="blocklink" href="{url}"></a>'
         html += '</div>'
         return f"<html>{html}</html>"
 
     def test_basic_parsing(self, mock_response):
-        html = self._make_listing_html()
+        html = self._make_listing_html(sqm_text="25 m²")
         r = mock_response(html)
         results = HomeResults("vanderlinden", r)
         assert len(results.homes) == 1
         assert results[0].address == "Kerkstraat 10"
         assert results[0].city == "Leiden"
         assert results[0].price == 1200
+        assert results[0].sqm == 25
         assert "vanderlinden.nl/woning/1" in results[0].url
 
     def test_filters_onder_optie(self, mock_response):
@@ -1463,6 +1498,7 @@ class TestParseMaxxhuren:
             <div class="text-block-34">Grote Markt  2</div>
             <div class="plaatsnaam-object">Groningen</div>
             <div class="huurprijs-object">€1.350,00 per maand</div>
+            <div class="oppervlak-object">40m²</div>
         </a>
         """
         r = mock_response(html)
@@ -1472,6 +1508,7 @@ class TestParseMaxxhuren:
         assert results[0].address == "Grote Markt 2"
         assert results[0].city == "Groningen"
         assert results[0].price == 1350
+        assert results[0].sqm == 40
         assert results[0].url == "https://maxxhuren.nl/objects/ads/view/id-23478/"
 
     def test_filters_unavailable_status(self, mock_response):

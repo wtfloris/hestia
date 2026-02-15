@@ -55,6 +55,7 @@ class TestAllStringsValid:
     def test_all_keys_return_nonempty_english(self, mock_lang):
         # Keys that need params to format properly
         param_keys = {"stop", "filter", "filter_minprice", "filter_maxprice",
+                      "filter_minsqm",
                       "filter_city_invalid", "filter_city_already_in",
                       "filter_city_added", "filter_city_not_in",
                       "filter_city_removed", "filter_invalid_number",

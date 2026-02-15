@@ -271,8 +271,8 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         cities_str = ""
         for c in sub["filter_cities"]:
             cities_str += f"{c.title()}, "
-        
-        message = strings.get("filter", update.effective_chat.id, [sub['filter_min_price'], sub['filter_max_price'], cities_str[:-2]])
+
+        message = strings.get("filter", update.effective_chat.id, [sub['filter_min_price'], sub['filter_max_price'], sub['filter_min_sqm'], cities_str[:-2]])
         
     # Set minprice filter
     elif len(cmd) == 3 and cmd[1] in ["minprice", "min"]:
@@ -292,10 +292,21 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         except ValueError:
             await context.bot.send_message(update.effective_chat.id, strings.get("filter_invalid_number", update.effective_chat.id, [cmd[2]]))
             return
-            
+
         db.set_filter_maxprice(update.effective_chat, maxprice)
         message = strings.get("filter_maxprice", update.effective_chat.id, [str(maxprice)])
-            
+
+    # Set minsqm filter
+    elif len(cmd) == 3 and cmd[1] in ["minsqm", "sqm"]:
+        try:
+            minsqm = int(cmd[2])
+        except ValueError:
+            await context.bot.send_message(update.effective_chat.id, strings.get("filter_invalid_number", update.effective_chat.id, [cmd[2]]))
+            return
+
+        db.set_filter_minsqm(update.effective_chat, minsqm)
+        message = strings.get("filter_minsqm", update.effective_chat.id, [str(minsqm)])
+
     # View city possibilities
     elif len(cmd) == 2 and cmd[1] == "city":
         all_filter_cities = [c["city"] for c in db.fetch_all("SELECT DISTINCT city FROM hestia.homes")]
