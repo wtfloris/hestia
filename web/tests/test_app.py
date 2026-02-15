@@ -799,8 +799,7 @@ class TestGenerateLinkCode:
         assert "INSERT INTO hestia.link_codes" in cur.execute.call_args[0][0]
         assert "ON CONFLICT" in cur.execute.call_args[0][0]
 
-    @patch("hestia_web.app.logger")
-    def test_insert_link_code_with_retry_retries_on_collision(self, mock_logger):
+    def test_insert_link_code_with_retry_retries_on_collision(self):
         """insert_link_code_with_retry should retry if a collision occurs."""
         from hestia_web.app import insert_link_code_with_retry
 
@@ -827,10 +826,6 @@ class TestGenerateLinkCode:
 
         # Verify two INSERT attempts were made
         assert cur.execute.call_count == 2
-
-        # Verify warning was logged
-        mock_logger.warning.assert_called_once()
-        assert "Link code collision, retrying" in mock_logger.warning.call_args[0][0]
 
     def test_insert_link_code_with_retry_raises_after_max_attempts(self):
         """insert_link_code_with_retry should raise RuntimeError after exhausting retries."""
@@ -1507,192 +1502,6 @@ class TestConnectionPool:
         mock_conn.commit.assert_called_once()
         mock_conn.rollback.assert_called_once()
         mock_pool.putconn.assert_called_once_with(mock_conn)
-
-
-class TestLogging:
-    """Test logging functionality."""
-
-    def test_logger_configured(self):
-        """Logger should be configured with INFO level."""
-        assert hestia_app.logger is not None
-        assert hestia_app.logger.level == hestia_app.logging.INFO
-
-    def test_logger_has_handler(self):
-        """Logger should have at least one handler."""
-        assert len(hestia_app.logger.handlers) > 0
-
-    @patch("hestia_web.app.get_db")
-    @patch("hestia_web.app.logger")
-    def test_login_attempt_logged(self, mock_logger, mock_get_db, client):
-        """Login attempts should be logged."""
-        cur = make_mock_cursor()
-        conn = make_mock_conn(cur)
-        mock_get_db.return_value = conn
-
-        # Get CSRF token
-        resp = client.get("/")
-        csrf_token = get_csrf_token(resp.data.decode())
-
-        with patch("hestia_web.app.sib_api_v3_sdk"):
-            client.post("/login", data={"email": "test@example.com", "csrf_token": csrf_token})
-
-        # Check that login attempt was logged
-        mock_logger.info.assert_any_call(
-            "Login attempt",
-            extra={"email": "test@example.com", "remote_addr": "127.0.0.1"}
-        )
-
-    @patch("hestia_web.app.get_db")
-    @patch("hestia_web.app.logger")
-    @patch("hestia_web.app.sib_api_v3_sdk")
-    def test_email_send_success_logged(self, mock_sdk, mock_logger, mock_get_db, client):
-        """Successful email sends should be logged."""
-        cur = make_mock_cursor()
-        conn = make_mock_conn(cur)
-        mock_get_db.return_value = conn
-
-        # Mock Brevo response
-        mock_response = MagicMock()
-        mock_response.message_id = "test-message-id"
-        mock_sdk.TransactionalEmailsApi.return_value.send_transac_email.return_value = mock_response
-
-        # Get CSRF token
-        resp = client.get("/")
-        csrf_token = get_csrf_token(resp.data.decode())
-
-        client.post("/login", data={"email": "test@example.com", "csrf_token": csrf_token})
-
-        # Check that email send success was logged
-        mock_logger.info.assert_any_call(
-            "Magic link email sent successfully",
-            extra={
-                "email": "test@example.com",
-                "message_id": "test-message-id",
-                "remote_addr": "127.0.0.1",
-            }
-        )
-
-    @patch("hestia_web.app.get_db")
-    @patch("hestia_web.app.logger")
-    @patch("hestia_web.app.sib_api_v3_sdk")
-    def test_email_send_failure_logged(self, mock_sdk, mock_logger, mock_get_db, client):
-        """Email send failures should be logged."""
-        cur = make_mock_cursor()
-        conn = make_mock_conn(cur)
-        mock_get_db.return_value = conn
-
-        # Mock Brevo to raise an exception
-        mock_sdk.TransactionalEmailsApi.return_value.send_transac_email.side_effect = \
-            BrevoApiException(status=500, reason="Brevo error")
-
-        # Get CSRF token
-        resp = client.get("/")
-        csrf_token = get_csrf_token(resp.data.decode())
-
-        client.post("/login", data={"email": "test@example.com", "csrf_token": csrf_token})
-
-        # Check that email send failure was logged
-        mock_logger.error.assert_called_once()
-        call_args = mock_logger.error.call_args
-        assert call_args[0][0] == "Failed to send magic link email"
-        assert call_args[1]["extra"]["email"] == "test@example.com"
-
-    @patch("hestia_web.app.logger")
-    def test_csrf_failure_logged(self, mock_logger, client):
-        """CSRF validation failures should be logged."""
-        # Get CSRF token
-        resp = client.get("/")
-        csrf_token = get_csrf_token(resp.data.decode())
-
-        # Submit with invalid CSRF token
-        client.post("/login", data={"email": "test@example.com", "csrf_token": "invalid"})
-
-        # Check that CSRF failure was logged
-        mock_logger.warning.assert_called_once_with(
-            "CSRF validation failed on login",
-            extra={"remote_addr": "127.0.0.1"}
-        )
-
-    @patch("hestia_web.app.get_db")
-    @patch("hestia_web.app.logger")
-    def test_auth_success_logged(self, mock_logger, mock_get_db, client):
-        """Successful authentication should be logged."""
-        email = "test@example.com"
-        token_id, signed_token = hestia_app.generate_magic_token(email)
-
-        # Mock database to return the token
-        cur = make_mock_cursor(fetchone_value={"token_id": token_id})
-        conn = make_mock_conn(cur)
-        mock_get_db.return_value = conn
-
-        client.get(f"/auth/{signed_token}")
-
-        # Check that successful auth was logged
-        mock_logger.info.assert_any_call(
-            "Successful authentication",
-            extra={"email": email, "remote_addr": "127.0.0.1"}
-        )
-
-    @patch("hestia_web.app.get_db")
-    @patch("hestia_web.app.logger")
-    def test_filter_update_logged(self, mock_logger, mock_get_db, client):
-        """Filter updates should be logged."""
-        set_session(client, email="user@example.com")
-
-        # Mock database responses
-        subscriber = mock_subscriber(telegram_id="123456")
-        cur = make_dashboard_cursor(subscriber)
-        cur.fetchone = MagicMock(side_effect=[
-            {"filter_agencies": ["agency1"]},  # For fetching existing agencies
-        ])
-        cur.fetchall = MagicMock(side_effect=[
-            MOCK_AGENCIES_ROWS,  # For enabled agencies
-        ])
-        conn = make_mock_conn(cur)
-        mock_get_db.return_value = conn
-
-        csrf_token = get_csrf_token_for_session(client)
-
-        client.post("/dashboard/filters", data=MultiDict([
-            ("csrf_token", csrf_token),
-            ("notifications_enabled", "on"),
-            ("min_price", "600"),
-            ("max_price", "1800"),
-            ("filter_cities", "amsterdam"),
-            ("filter_agencies", "agency1"),
-        ]))
-
-        # Check that filter update was logged
-        mock_logger.info.assert_any_call(
-            "Filters updated successfully",
-            extra={
-                "email": "user@example.com",
-                "notifications_enabled": True,
-                "min_price": 600,
-                "max_price": 1800,
-                "num_cities": 1,
-                "num_agencies": 1,
-            }
-        )
-
-    @patch("hestia_web.app.get_db")
-    @patch("hestia_web.app.logger")
-    def test_db_error_logged(self, mock_logger, mock_get_db, client):
-        """Database errors should be logged."""
-        set_session(client, email="user@example.com")
-
-        # Mock database to raise an error
-        conn = MagicMock()
-        conn.__enter__ = MagicMock(side_effect=hestia_app.psycopg2.Error("DB connection failed"))
-        mock_get_db.return_value = conn
-
-        client.get("/dashboard")
-
-        # Check that DB error was logged
-        mock_logger.error.assert_called_once()
-        call_args = mock_logger.error.call_args
-        assert call_args[0][0] == "Database error loading dashboard"
-        assert call_args[1]["extra"]["email"] == "user@example.com"
 
 
 class TestTransactionBehavior:

@@ -31,4 +31,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 CMD ["gunicorn", "--bind", "0.0.0.0:5050", "--workers", "2", "--threads", "4", \
      "--worker-class", "gthread", "--timeout", "60", \
-     "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "hestia_web:app"]
+     "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "hestia_web.app:app"]
