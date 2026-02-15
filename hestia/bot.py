@@ -113,10 +113,10 @@ async def announce(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) 
     if not privileged(update.effective_chat, update.message.text, "announce", check_only=False): return
         
     if db.get_dev_mode():
-        subs = db.fetch_all("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
+        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true AND user_level > 1")
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Dev mode is enabled, message not broadcasted to all subscribers")
     else:
-        subs = db.fetch_all("SELECT * FROM subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
+        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE subscription_expiry IS NOT NULL AND telegram_enabled = true")
 
     # Remove /announce
     msg = update.message.text[10:]
@@ -324,7 +324,7 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Modify agency filter
     elif len(cmd) == 2 and cmd[1] in ["agency", "agencies", "website", "websites"]:
         included, reply_keyboard = [], []
-        enabled_agencies = db.fetch_one("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])["filter_agencies"]
+        enabled_agencies = db.fetch_one("SELECT filter_agencies FROM hestia.subscribers WHERE telegram_id = %s", [str(update.effective_chat.id)])["filter_agencies"]
         for row in db.fetch_all("SELECT agency, user_info FROM hestia.targets WHERE enabled = true"):
             if row["agency"] not in included:
                 included.append(row["agency"])
@@ -426,7 +426,7 @@ async def callback_query_handler(update: telegram.Update, _) -> None:
         included, reply_keyboard = [], []
 
         # Update list of enabled agencies for the user
-        enabled_agencies: set[str] = set(db.fetch_one("SELECT filter_agencies FROM subscribers WHERE telegram_id = %s", [str(query.message.chat.id)])["filter_agencies"])
+        enabled_agencies: set[str] = set(db.fetch_one("SELECT filter_agencies FROM hestia.subscribers WHERE telegram_id = %s", [str(query.message.chat.id)])["filter_agencies"])
         if action == "d":
             try:
                 enabled_agencies.remove(agency)

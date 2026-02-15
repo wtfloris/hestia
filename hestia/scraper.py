@@ -37,7 +37,7 @@ async def main() -> None:
             logging.warning("Dev mode is enabled, not broadcasting thanks messages")
         else:
             subs = db.fetch_all("""
-                SELECT * FROM subscribers 
+                SELECT * FROM hestia.subscribers 
                 WHERE telegram_enabled = true 
                 AND date_added BETWEEN NOW() - INTERVAL '4 weeks' AND NOW() - INTERVAL '3 weeks'
             """)
@@ -77,12 +77,12 @@ async def broadcast(homes: list[Home]) -> None:
     subs = set()
     
     if db.get_dev_mode():
-        subs = db.fetch_all("SELECT * FROM subscribers WHERE telegram_enabled = true AND user_level > 1")
+        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true AND user_level > 1")
     else:
-        subs = db.fetch_all("SELECT * FROM subscribers WHERE telegram_enabled = true")
+        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true")
         
     # Create dict of agencies and their pretty names
-    agencies = db.fetch_all("SELECT agency, user_info FROM targets")
+    agencies = db.fetch_all("SELECT agency, user_info FROM hestia.targets")
     agencies = dict([(a["agency"], a["user_info"]["agency"]) for a in agencies])
     
     for home in homes:
