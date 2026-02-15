@@ -673,27 +673,6 @@ class HomeResults:
                     home.address = f"{res['address']} {res['address_num']}"
                 home.city = res['city']
                 home.price = int(res['price'])
-                # The gmap/allobjects endpoint doesn't always include sqm. Parse it if provided.
-                try:
-                    raw = None
-                    for key in (
-                        "totaleoppervlakte",
-                        "woonoppervlakte",
-                        "living_area",
-                        "surface",
-                        "surface_living",
-                        "size",
-                        "sqm",
-                    ):
-                        if key in res and res.get(key) not in (None, "", 0, "0"):
-                            raw = res.get(key)
-                            break
-                    if raw is not None:
-                        sqm_i = int(float(str(raw).replace(",", ".")))
-                        if 0 < sqm_i < 2000:
-                            home.sqm = sqm_i
-                except (TypeError, ValueError):
-                    pass
                 self.homes.append(home)
 
     def parse_roofz(self, r: requests.models.Response):

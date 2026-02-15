@@ -871,8 +871,7 @@ class TestParse123wonen:
                 "address_num": "10",
                 "address_num_extra": "",
                 "city": "Amsterdam",
-                "price": 1600,
-                "woonoppervlakte": "55"
+                "price": 1600
             }
         ]}
         r = mock_response(data)
@@ -881,7 +880,6 @@ class TestParse123wonen:
         assert results[0].address == "Kerkstraat 10"
         assert results[0].city == "Amsterdam"
         assert results[0].price == 1600
-        assert results[0].sqm == 55
         assert "123wonen.nl" in results[0].url
 
     def test_with_num_extra(self, mock_response):
