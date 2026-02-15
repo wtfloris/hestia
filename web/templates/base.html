@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hestia – {{ title }}</title>
+    <link rel="apple-touch-icon" sizes="57x57" href="/static/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/static/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/static/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/static/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/static/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/static/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/static/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/static/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="/static/ms-icon-144x144.png">
+    <script src="/static/base.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/lucide@0.563.0/dist/umd/lucide.min.js"
+            integrity="sha384-aRB6X3zBuyu5EQF6GZFp0RCYdOwxYAOdFk4nViPfqSXYxc+MrZlqbM+nUYRwDQn1"
+            crossorigin="anonymous"></script>
+</head>
+<body class="{% if contact_only %}contact-only{% endif %}">
+    {% block content %}{% endblock %}
+    <div class="toolbar-buttons">
+        <button type="button" class="lang-toggle" aria-label="Switch language" title="Switch language">
+            <span class="lang-label"></span>
+        </button>
+        <button type="button" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+            <span class="theme-icon"></span>
+        </button>
+    </div>
+    <footer>
+        <div class="footer-icons">
+            <span class="footer-icon" data-modal="contact" title="Contact"><i data-lucide="help-circle" style="width:18px;height:18px"></i></span>
+            {% if not contact_only %}
+            <span class="footer-icon" data-modal="cost" title="Running costs" data-i18n-title="cost_modal_title"><i data-lucide="euro" style="width:18px;height:18px"></i></span>
+            <span class="footer-icon" data-modal="stats" title="Statistics" data-i18n-title="stats_modal_title"><i data-lucide="bar-chart-3" style="width:18px;height:18px"></i></span>
+            {% endif %}
+        </div>
+    </footer>
+    <div class="modal-overlay" id="contact-modal">
+        <div class="modal">
+            <button class="modal-close" data-close-modal="contact">&times;</button>
+            <p style="font-size:0.75rem;margin:0 0 0.75rem;opacity:0.4" data-i18n="experimental_warning">Hestia is still a work in progress — you may experience some instability here and there!</p>
+            <h3 style="margin:0.5rem 0 0.25rem">Contact</h3>
+            {% if contact_only %}
+            <p style="font-size:0.9rem;margin-bottom:0.75rem" data-i18n="contact_email_login_required">E-mail: visible after logging in</p>
+            {% else %}
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_email">E-mail:</span> <a href="mailto:hestia@flori.sh">hestia@flori.sh</a></p>
+            {% endif %}
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_telegram">Telegram (the guy who made this):</span> <a href="https://t.me/wtfloris" target="_blank">@wtfloris</a></p>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_github">GitHub (source code):</span> <a href="https://github.com/wtfloris/hestia">github.com/wtfloris/hestia</a></p>
+            <hr style="border:0;border-top:1px solid var(--hr);margin:1.5rem 0">
+            <h3 style="margin:0.5rem 0 0.25rem">FAQ</h3>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_what">What is Hestia?</strong><br><span data-i18n="faq_a_what">Hestia is a home-finding service that monitors websites and notifies you about new matches within your filters.</span></p>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_free">Hestia is free?</strong><br><span data-i18n="faq_a_free">Yes. I built Hestia for myself and once we found a home, I thought it would be nice to share it with others!</span></p>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_speed">How quick is Hestia?</strong><br><span data-i18n="faq_a_speed">Notifications should arrive within 10 minutes.</span></p>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_filters">Can you add a filter for amount of rooms, square meters, or postal code?</strong><br><span data-i18n-html="faq_a_filters">In short: no, because it makes Hestia less reliable. Please see <a href="https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778" target="_blank" rel="noopener noreferrer">this comment</a> for the full explanation, and feel free to discuss if you disagree!</span></p>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_buy">Does this work if I want to buy a home?</strong><br><span data-i18n="faq_a_buy">Not yet, but who knows what I might build when I am looking to buy something myself!</span></p>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_pararius">I saw this listing on Pararius and I did not get a message from Hestia. Why?</strong><br><span data-i18n="faq_a_pararius">Pararius does not list a house number for all homes, so Hestia cannot check if it has already seen the listing on another website. To avoid duplicates, those listings are skipped.</span></p>
+            <p style="font-size:0.9rem;margin-bottom:0.5rem"><strong data-i18n="faq_q_thanks">Can I thank you for building and sharing Hestia for free?</strong><br><span data-i18n="faq_a_thanks">Yes! Click the euro icon below the settings panel. Thanks!</span></p>
+            <p style="font-size:0.85rem;margin-top:0.75rem;color:var(--subtitle)">
+                <span data-i18n="contact_avatar_credit">Hestia artwork courtesy of Elisa Tulli</span>
+                <a href="https://instagram.com/elisa_tulli" target="_blank" rel="noopener noreferrer">@elisa_tulli</a>
+            </p>
+        </div>
+    </div>
+    {% if not contact_only %}
+    <div class="modal-overlay" id="cost-modal">
+        <div class="modal">
+            <button class="modal-close" data-close-modal="cost">&times;</button>
+            <h2 data-i18n="cost_modal_title">Running costs</h2>
+            <table>
+                <tr><td data-i18n="cost_hosting">Hosting (main + backup)</td><td>&euro;20/mo</td></tr>
+                <tr><td data-i18n="cost_email">Email delivery (SendGrid)</td><td>&euro;20/mo</td></tr>
+                <tr><td data-i18n="cost_domain">Domain name (hestia.bot)</td><td>&euro;5/mo</td></tr>
+                <tr><td data-i18n="cost_claude">Claude Pro (yes, the entire web portal is vibe-coded)</td><td>&euro;18/mo</td></tr>
+                <tr><td data-i18n="cost_coffee">Caffeinated beverages (to support a 6-hour coding bender on a random Friday night because I also have a full-time job)</td><td>&euro;5/mo</td></tr>
+                <tr class="total"><td data-i18n="cost_total">Total</td><td>&euro;68/mo</td></tr>
+            </table>
+            <p class="donate-text">
+                <span data-i18n-html="cost_donate_text">Hestia is a passion project and will always be free. Similar services will cost you at least &euro;20/month.<br>If you'd like to help keep Hestia running, consider</span> <a id="donate-link" href="#" target="_blank" data-i18n="cost_donate_link">making a donation with this open Tikkie</a>!
+            </p>
+        </div>
+    </div>
+    <div class="modal-overlay" id="stats-modal">
+        <div class="modal">
+            <button class="modal-close" data-close-modal="stats">&times;</button>
+            <h2 data-i18n="stats_modal_title">Statistics</h2>
+            <div id="stats-content">
+                <p style="text-align:center;color:var(--subtitle)" data-i18n="stats_loading">Loading…</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</body>
+</html>

@@ -1,3 +1,4 @@
+.devenv
 .vscode
 AGENTS.md
 misc/maintenance.py
@@ -11,6 +12,8 @@ hestia.log
 data/*
 secrets.py
 playground.*
+
+web/local_testing
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

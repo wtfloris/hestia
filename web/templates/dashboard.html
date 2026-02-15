@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block content %}
+<script nonce="{{ g.csp_nonce }}">
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    window.scrollTo(0, 0);
+</script>
+<div class="wide-layout" data-is-new-user="{{ 'true' if is_new_user else 'false' }}">
+<div class="header" style="display:flex;align-items:flex-start;gap:0.75rem">
+    <div style="min-width:0;flex:1">
+        <div class="dashboard-title-row">
+            <h1 data-i18n="dashboard_title">Your Hestia homes</h1>
+        </div>
+        <p class="subtitle" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span data-i18n="logged_in_as">Logged in as</span> <span class="logout-email" data-logout-url="/logout" data-i18n-confirm="logout_confirm"><strong>{{ email }}</strong></span></p>
+    </div>
+    <img src="/avatar" alt="Hestia" style="width:72px;height:72px;border-radius:50%;object-fit:cover;cursor:pointer;flex-shrink:0" data-modal="contact">
+</div>
+
+<div class="dashboard-grid">
+    <section class="dashboard-filters">
+        <details class="filters-collapsible" id="filters-collapsible">
+            <summary class="filters-summary">
+                <span data-i18n="settings_title">Filters</span>
+                <span class="filters-summary-status">
+                    <span class="spinner" id="settings-save-spinner" style="display:none"></span>
+                    <span class="save-check" id="settings-save-check" style="display:none">&#10003;</span>
+                </span>
+            </summary>
+            <div class="settings-panel">
+                <form method="post" action="/dashboard/filters" id="settings-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="settings-status" id="settings-status" aria-live="polite" aria-atomic="true">
+                        <div class="settings-status-error" id="settings-status-error" data-i18n="saving_error"></div>
+                    </div>
+                    <div class="settings-grid">
+                        <fieldset>
+                            <legend data-i18n="notifications_legend">Notifications</legend>
+                            <div class="notification-row">
+                                <label class="toggle-item" id="browser-notif-toggle">
+                                    <input type="checkbox" id="browser-notif-checkbox">
+                                    <span class="toggle-slider"></span>
+                                    <span data-i18n="browser_notif_label">This browser</span>
+                                </label>
+                                <button type="button" class="info-btn info-right info-left" id="browser-notif-ios-info" style="display:none" data-info-key="browser_notif_ios_info"><span>i</span><span class="info-bubble"></span></button>
+                                <a class="notif-denied-hint" id="browser-notif-denied" style="display:none" target="_blank" rel="noopener noreferrer" data-i18n="browser_notif_denied">Notifications blocked by browser</a>
+                            </div>
+                            <div class="notification-row">
+                                <label class="toggle-item{% if not telegram_linked %} disabled{% endif %}">
+                                    <input type="checkbox" name="notifications_enabled" {% if subscriber.telegram_enabled and telegram_linked %}checked{% endif %}{% if not telegram_linked %} disabled{% endif %}>
+                                    <span class="toggle-slider"></span>
+                                    <span data-i18n="telegram_label">Telegram</span>
+                                </label>
+                                {% if not telegram_linked %}
+                                <button type="button" class="btn-pill btn-open-telegram-modal" data-i18n="link_telegram_btn">Connect</button>
+                                {% endif %}
+                            </div>
+                        </fieldset>
+                        <fieldset>
+                            <legend><span data-i18n="price_range_legend">Price range</span> <button type="button" class="info-btn" data-info-key="price_range_info" data-info="Hestia will send you homes within this range."><span>i</span><span class="info-bubble"></span></button></legend>
+                            <div class="price-row">
+                                <label>
+                                    <span data-i18n="price_min_label">Minimum</span>
+                                    <div class="price-input">
+                                        <span class="price-prefix" aria-hidden="true">€</span>
+                                        <input type="number" name="min_price" value="{{ subscriber.filter_min_price or '' }}" placeholder="0" min="0" max="99999" step="1" inputmode="numeric">
+                                        <span class="price-suffix" data-i18n="price_suffix">/mo</span>
+                                    </div>
+                                </label>
+                                <label>
+                                    <span data-i18n="price_max_label">Maximum</span>
+                                    <div class="price-input">
+                                        <span class="price-prefix" aria-hidden="true">€</span>
+                                        <input type="number" name="max_price" value="{{ subscriber.filter_max_price or '' }}" placeholder="99999" min="0" max="99999" step="1" inputmode="numeric">
+                                        <span class="price-suffix" data-i18n="price_suffix">/mo</span>
+                                    </div>
+                                </label>
+                            </div>
+                            <p class="price-warning" style="display:none;color:var(--danger);font-size:0.85rem;margin:0.35rem 0 0" data-i18n="price_warning">Minimum is higher than maximum</p>
+                        </fieldset>
+                        <fieldset>
+                            <legend><span data-i18n="agencies_legend">Agencies</span> <button type="button" class="info-btn" data-info-key="agencies_info" data-info="Hestia will only send you homes from these agencies.&lt;br&gt;&lt;br&gt;Agency missing? It's possible that an integration with an agency website is broken. The agency will be temporarily unavailable until a fix can be deployed."><span>i</span><span class="info-bubble"></span></button></legend>
+                            <input type="text" class="toggle-search" placeholder="Search agencies…" data-i18n-placeholder="agencies_search" data-list="agency-list" autocomplete="off" spellcheck="false">
+                            <div class="toggle-list" id="agency-list">
+                            {% for agency in available_agencies %}
+                                <label class="toggle-item">
+                                    <input type="checkbox" name="filter_agencies" value="{{ agency.id }}" {% if subscriber.filter_agencies and agency.id in subscriber.filter_agencies %}checked{% endif %}>
+                                    <span class="toggle-slider"></span>
+                                    <span>{{ agency.name }}</span>
+                                </label>
+                            {% endfor %}
+                            </div>
+                        </fieldset>
+                        <fieldset>
+                            <legend><span data-i18n="cities_legend">Cities</span> <button type="button" class="info-btn" data-info-key="cities_info" data-info="Hestia will only send you homes within these cities.&lt;br&gt;&lt;br&gt;City missing? These are all cities Hestia has seen so far online. Newly seen cities will be added automatically."><span>i</span><span class="info-bubble"></span></button></legend>
+
+                            <!-- Selected cities as chips -->
+                            <div class="city-chips" id="city-chips">
+                                {% for city in subscriber.filter_cities %}
+                                <div class="chip" data-value="{{ city }}">
+                                    <span class="chip-label">{{ city|title }}</span>
+                                    <button type="button" class="chip-remove" aria-label="Remove {{ city }}">×</button>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Add city input with dropdown -->
+                            <div class="add-item-container">
+                                <input type="text" class="add-item-input" id="add-city-input" placeholder="Add city..." data-i18n-placeholder="add_city_placeholder" autocomplete="off" spellcheck="false">
+                                <div class="add-item-dropdown" id="city-dropdown" style="display: none;"></div>
+                            </div>
+
+                            <!-- Hidden inputs for form submission -->
+                            <div id="city-hidden-inputs">
+                                {% for city in subscriber.filter_cities %}
+                                <input type="hidden" name="filter_cities" value="{{ city }}">
+                                {% endfor %}
+                            </div>
+
+                            <!-- Available cities data for autocomplete -->
+                            <script nonce="{{ g.csp_nonce }}" id="available-cities-data" type="application/json">
+                                {{ available_cities|tojson }}
+                            </script>
+                        </fieldset>
+                    </div>
+                    <div class="settings-status settings-status-bottom" id="settings-status-bottom" aria-live="polite" aria-atomic="true">
+                        <div class="settings-status-error" id="settings-status-error-bottom" data-i18n="saving_error"></div>
+                    </div>
+                    <div class="settings-footer-icons" id="settings-footer-icons">
+                        <div class="settings-toolbar-slot" id="settings-toolbar-slot"></div>
+                        <div class="settings-footer-slot" id="settings-footer-slot"></div>
+                    </div>
+                </form>
+            </div>
+        </details>
+    </section>
+    <section class="dashboard-results">
+        <div id="homes-live-status" class="homes-live-status">
+            <span class="homes-live-icon">
+                <i data-lucide="search" class="live-icon-search"></i>
+                <i data-lucide="home" class="live-icon-home"></i>
+            </span>
+            <span class="homes-live-text" data-i18n="homes_live_updating">Searching for new homes&hellip;</span>
+        </div>
+        <div id="homes-live-error" class="homes-live-error" style="display:none">
+            <i data-lucide="wifi-off" style="width:14px;height:14px"></i>
+            <span data-i18n="homes_live_lost">Connection lost. Click to refresh.</span>
+        </div>
+        <div id="homes-list" class="homes-list"></div>
+
+        <div id="homes-empty" class="homes-empty" style="display:none">
+            <div class="homes-empty-icon"><i data-lucide="home" style="width:48px;height:48px"></i></div>
+            <p data-i18n="homes_empty">No homes match your current filters. Try adjusting your settings.</p>
+        </div>
+
+        <p id="homes-limit-msg" class="homes-limit-msg" style="display:none" data-i18n="homes_limit_reached">There may be more results, but Hestia can only look back this far.</p>
+        <p id="homes-end-msg" class="homes-limit-msg" style="display:none" data-i18n="homes_end_reached">You’ve seen everything!</p>
+    </section>
+</div>
+
+{% if not telegram_linked %}
+<div class="modal-overlay" id="telegram-modal">
+    <div class="modal">
+        <button class="modal-close" data-close-modal="telegram">&times;</button>
+        <h2 data-i18n="link_telegram_modal_title">Link Telegram</h2>
+        <p style="font-size:0.9rem;margin-bottom:0.75rem" data-i18n="link_telegram_modal_text">Connect your Telegram account to receive notifications.</p>
+        <div class="link-code-box" id="telegram-code-box">
+            <div id="telegram-code-active">
+                <div style="text-align:center;margin-bottom:0.75rem">
+                    <a id="telegram-open-btn" class="btn" href="#" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:0.4rem" data-i18n="link_open_telegram">Open Telegram</a>
+                </div>
+                <p style="font-size:0.8rem;color:var(--subtitle);margin-bottom:0.25rem" data-i18n="link_manual_alt">Or send this manually:</p>
+                <p style="font-size:0.85rem;margin-bottom:0"><code id="telegram-link-command" style="cursor:pointer;user-select:none" title="Click to copy" data-i18n-title="link_copy_title">/link ...</code> <span data-i18n="link_to">to</span> <a href="https://t.me/hestia_homes_bot" target="_blank">@hestia_homes_bot</a></p>
+                <p id="telegram-copy-message" style="display:none;color:var(--primary);font-size:0.85rem;font-weight:600;margin-top:0.5rem" data-i18n="link_copied">Copied to clipboard!</p>
+            </div>
+            <div id="telegram-code-expired" style="display:none;text-align:center">
+                <p style="color:var(--danger);font-weight:bold;margin-bottom:0.75rem" data-i18n="link_code_expired">Code expired</p>
+                <button type="button" class="btn-pill btn-regenerate-code" data-i18n="link_code_regenerate">Generate new code</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+<script src="/static/dashboard.js"></script>
+</div>
+{% endblock %}
