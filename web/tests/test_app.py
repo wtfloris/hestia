@@ -367,12 +367,19 @@ class TestSession:
             assert "HttpOnly" in cookie_header
 
     def test_session_cookie_is_secure(self, client):
-        """Verify that set_session_cookie sets the Secure flag (HTTPS only)."""
+        """Verify that set_session_cookie sets Secure only for HTTPS."""
         from flask import Flask
         test_app = Flask(__name__)
         test_app.config["SECRET_KEY"] = "test"
-        with test_app.test_request_context():
-            from flask import make_response as mr, redirect as rd
+        from flask import make_response as mr, redirect as rd
+
+        with test_app.test_request_context(base_url="http://example.com"):
+            resp = mr(rd("/"))
+            hestia_app.set_session_cookie(resp, "user@example.com")
+            cookie_header = resp.headers.get("Set-Cookie", "")
+            assert "Secure" not in cookie_header
+
+        with test_app.test_request_context(base_url="https://example.com"):
             resp = mr(rd("/"))
             hestia_app.set_session_cookie(resp, "user@example.com")
             cookie_header = resp.headers.get("Set-Cookie", "")
@@ -531,6 +538,7 @@ MOCK_HOMES_ROWS = [
         "address": "123 Main St",
         "city": "Amsterdam",
         "price": 1200,
+        "sqm": 75,
         "agency": "agency1",
         "date_added": "2025-01-15T10:30:00",
     },
@@ -539,6 +547,7 @@ MOCK_HOMES_ROWS = [
         "address": "456 Oak Ave",
         "city": "Rotterdam",
         "price": 900,
+        "sqm": -1,
         "agency": "agency2",
         "date_added": "2025-01-14T09:00:00",
     },
@@ -547,6 +556,7 @@ MOCK_HOMES_ROWS = [
 MOCK_SUBSCRIBER_FOR_HOMES = {
     "filter_min_price": 500,
     "filter_max_price": 2000,
+    "filter_min_sqm": 0,
     "filter_cities": ["amsterdam", "rotterdam"],
     "filter_agencies": ["agency1", "agency2"],
 }
@@ -582,6 +592,34 @@ class TestApiHomes:
         assert data["page"] == 1
         assert data["per_page"] == 20
         assert len(data["homes"]) == 2
+
+    @patch("hestia_web.app.get_db")
+    def test_api_homes_min_sqm_includes_unknown_sqm(self, mock_get_db, client):
+        """min sqm should not exclude homes with unknown sqm (-1)."""
+        set_session(client)
+        cur = MagicMock()
+        cur.__enter__ = MagicMock(return_value=cur)
+        cur.__exit__ = MagicMock(return_value=False)
+        cur.fetchone.side_effect = [
+            {
+                **MOCK_SUBSCRIBER_FOR_HOMES,
+                "filter_min_sqm": 50,
+            },
+            {"cnt": 2},
+        ]
+        cur.fetchall.return_value = MOCK_HOMES_ROWS
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+
+        resp = client.get("/api/homes")
+        assert resp.status_code == 200
+
+        # Ensure the SQL condition includes "(h.sqm = -1 OR h.sqm >= %s)" with param 50.
+        exec_calls = [c for c in cur.execute.call_args_list if "FROM hestia.homes" in str(c)]
+        assert len(exec_calls) >= 2  # count + select
+        count_sql, count_params = exec_calls[0][0][0], exec_calls[0][0][1]
+        assert "h.sqm = -1 OR h.sqm >= %s" in count_sql
+        assert 50 in count_params
 
     @patch("hestia_web.app.get_db")
     def test_api_homes_pagination(self, mock_get_db, client):
@@ -882,7 +920,7 @@ class TestMergeLogic:
         assert len(update_calls) == 1
         update_args = update_calls[0][0][1]
         assert update_args[0] == "99999"  # telegram_id
-        assert update_args[6] == 1  # email_only row id
+        assert update_args[7] == 1  # email_only row id
 
         # Verify DELETE was called on telegram row (id=2)
         delete_calls = [c for c in cur.execute.call_args_list if "DELETE" in str(c)]
@@ -970,9 +1008,10 @@ class TestFilterUpdate:
         assert args[0] is True  # notifications_enabled
         assert args[1] == 500  # min_price
         assert args[2] == 1500  # max_price
-        assert args[3].adapted == ["amsterdam", "rotterdam"]  # filter_cities (Json wrapper)
-        assert args[4].adapted == ["agency1"]  # filter_agencies (Json wrapper)
-        assert args[5] == "user@example.com"  # email
+        assert args[3] == 0  # min_sqm
+        assert args[4].adapted == ["amsterdam", "rotterdam"]  # filter_cities (Json wrapper)
+        assert args[5].adapted == ["agency1"]  # filter_agencies (Json wrapper)
+        assert args[6] == "user@example.com"  # email
 
     @patch("hestia_web.app.get_db")
     def test_update_filters_preserves_hidden_agencies(self, mock_get_db, client):
@@ -1003,8 +1042,8 @@ class TestFilterUpdate:
         update_calls = [c for c in cur.execute.call_args_list if "UPDATE" in str(c)]
         args = update_calls[0][0][1]
         # Should contain the submitted agency1 + the hidden disabled_agency
-        assert "agency1" in args[4].adapted
-        assert "disabled_agency" in args[4].adapted
+        assert "agency1" in args[5].adapted
+        assert "disabled_agency" in args[5].adapted
 
     @patch("hestia_web.app.get_db")
     def test_update_filters_empty_values(self, mock_get_db, client):
@@ -1032,8 +1071,9 @@ class TestFilterUpdate:
         assert args[0] is False  # notifications_enabled (checkbox not in form = unchecked)
         assert args[1] is None  # min_price empty
         assert args[2] is None  # max_price empty
-        assert args[3].adapted == []  # filter_cities empty (Json wrapper)
-        assert args[4].adapted == []  # filter_agencies empty (Json wrapper)
+        assert args[3] == 0  # min_sqm empty -> 0
+        assert args[4].adapted == []  # filter_cities empty (Json wrapper)
+        assert args[5].adapted == []  # filter_agencies empty (Json wrapper)
 
     @patch("hestia_web.app.get_db")
     def test_update_filters_non_numeric_price_defaults_to_none(self, mock_get_db, client):

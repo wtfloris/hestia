@@ -220,12 +220,15 @@ def verify_magic_token(token: str) -> tuple[str, str] | None:
 def set_session_cookie(response, email: str):
     """Set a signed session cookie containing the user's email."""
     value = serializer.dumps(email, salt="email-session")
+    # In dev we often run over plain HTTP; don't mark cookies secure in that case,
+    # otherwise the browser won't persist the session after /auth.
+    cookie_secure = bool(getattr(request, "is_secure", False))
     response.set_cookie(
         SESSION_COOKIE_NAME,
         value,
         max_age=SESSION_MAX_AGE,
         httponly=True,
-        secure=True,
+        secure=cookie_secure,
         samesite="Lax",
     )
     return response
@@ -791,6 +794,7 @@ def link_telegram_check():
                                telegram_enabled = %s,
                                filter_min_price = %s,
                                filter_max_price = %s,
+                               filter_min_sqm = %s,
                                filter_cities = %s,
                                filter_agencies = %s
                            WHERE id = %s""",
@@ -799,6 +803,7 @@ def link_telegram_check():
                             telegram_row["telegram_enabled"],
                             telegram_row["filter_min_price"],
                             telegram_row["filter_max_price"],
+                            telegram_row.get("filter_min_sqm", 0),
                             psycopg2.extras.Json(telegram_row["filter_cities"]),
                             psycopg2.extras.Json(telegram_row["filter_agencies"]),
                             email_only_row["id"],
@@ -849,6 +854,7 @@ def update_filters():
     notifications_enabled = "notifications_enabled" in request.form
     min_price = request.form.get("min_price", "").strip() or None
     max_price = request.form.get("max_price", "").strip() or None
+    min_sqm = request.form.get("min_sqm", "").strip() or None
 
     filter_cities = psycopg2.extras.Json([c.lower() for c in request.form.getlist("filter_cities")])
     submitted_agencies = request.form.getlist("filter_agencies")
@@ -861,11 +867,20 @@ def update_filters():
         max_price = int(max_price) if max_price is not None else None
     except (ValueError, TypeError):
         max_price = None
+    try:
+        min_sqm = int(min_sqm) if min_sqm is not None else None
+    except (ValueError, TypeError):
+        min_sqm = None
 
     if min_price is not None:
         min_price = max(0, min(min_price, 99999))
     if max_price is not None:
         max_price = max(0, min(max_price, 99999))
+    if min_sqm is not None:
+        min_sqm = max(0, min(min_sqm, 2000))
+    else:
+        # DB column is NOT NULL; treat missing/invalid as "no sqm filter".
+        min_sqm = 0
 
     try:
         with get_db() as conn:
@@ -900,11 +915,12 @@ def update_filters():
                     SET telegram_enabled = %s,
                         filter_min_price = %s,
                         filter_max_price = %s,
+                        filter_min_sqm = %s,
                         filter_cities = %s,
                         filter_agencies = %s
                     WHERE email_address = %s
                     """,
-                    (notifications_enabled, min_price, max_price, filter_cities, filter_agencies, request.email),
+                    (notifications_enabled, min_price, max_price, min_sqm, filter_cities, filter_agencies, request.email),
                 )
 
     except psycopg2.Error as e:
@@ -941,7 +957,7 @@ def api_homes():
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    "SELECT filter_min_price, filter_max_price, filter_cities, filter_agencies FROM hestia.subscribers WHERE email_address = %s",
+                    "SELECT filter_min_price, filter_max_price, filter_min_sqm, filter_cities, filter_agencies FROM hestia.subscribers WHERE email_address = %s",
                     (request.email,),
                 )
                 sub = cur.fetchone()
@@ -950,6 +966,7 @@ def api_homes():
 
                 min_price = sub["filter_min_price"]
                 max_price = sub["filter_max_price"]
+                min_sqm = sub.get("filter_min_sqm", 0) or 0
                 cities = sub["filter_cities"] or []
                 agencies = sub["filter_agencies"] or []
 
@@ -967,6 +984,11 @@ def api_homes():
                     conditions.append("h.agency = ANY(%s)")
                     params.append(agencies)
 
+                if min_sqm > 0:
+                    # Don't exclude listings with unknown sqm (-1); users may still want to see them.
+                    conditions.append("(h.sqm = -1 OR h.sqm >= %s)")
+                    params.append(min_sqm)
+
                 where = " AND ".join(conditions)
 
                 cur.execute(
@@ -982,6 +1004,7 @@ def api_homes():
                         h.address,
                         h.city,
                         h.price,
+                        h.sqm,
                         COALESCE(t.user_info->>'agency', h.agency) AS agency,
                         h.date_added
                     FROM hestia.homes h

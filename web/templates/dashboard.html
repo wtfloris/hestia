@@ -77,6 +77,18 @@
                             <p class="price-warning" style="display:none;color:var(--danger);font-size:0.85rem;margin:0.35rem 0 0" data-i18n="price_warning">Minimum is higher than maximum</p>
                         </fieldset>
                         <fieldset>
+                            <legend><span data-i18n="sqm_legend">Square meters</span> <button type="button" class="info-btn" data-info-key="sqm_info" data-info="Only show homes with at least this many square meters (when available). Homes with unknown size will still be shown so you don't miss results."><span>i</span><span class="info-bubble"></span></button></legend>
+                            <div class="unit-row">
+                                <label>
+                                    <span data-i18n="sqm_min_label">Minimum</span>
+                                    <div class="unit-input">
+                                        <input type="number" name="min_sqm" value="{{ subscriber.filter_min_sqm or 0 }}" placeholder="0" min="0" max="2000" step="1" inputmode="numeric">
+                                        <span class="unit-suffix" data-i18n="sqm_suffix">m2</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </fieldset>
+                        <fieldset>
                             <legend><span data-i18n="agencies_legend">Agencies</span> <button type="button" class="info-btn" data-info-key="agencies_info" data-info="Hestia will only send you homes from these agencies.&lt;br&gt;&lt;br&gt;Agency missing? It's possible that an integration with an agency website is broken. The agency will be temporarily unavailable until a fix can be deployed."><span>i</span><span class="info-bubble"></span></button></legend>
                             <input type="text" class="toggle-search" placeholder="Search agencies…" data-i18n-placeholder="agencies_search" data-list="agency-list" autocomplete="off" spellcheck="false">
                             <div class="toggle-list" id="agency-list">

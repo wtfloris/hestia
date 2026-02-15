@@ -620,9 +620,10 @@ function syncFiltersForViewport() {
     function buildHomesSignature(formData) {
         var min = formData.get('min_price') || '';
         var max = formData.get('max_price') || '';
+        var minsqm = formData.get('min_sqm') || '';
         var cities = formData.getAll('filter_cities').slice().sort().join(',');
         var agencies = formData.getAll('filter_agencies').slice().sort().join(',');
-        return [min, max, cities, agencies].join('|');
+        return [min, max, minsqm, cities, agencies].join('|');
     }
 
     // Initialize signature so the first save doesn't trigger a refresh
@@ -639,6 +640,7 @@ function syncFiltersForViewport() {
         var formData = new FormData(form);
         if (!formData.get('min_price')) formData.set('min_price', '0');
         if (!formData.get('max_price')) formData.set('max_price', '99999');
+        if (!formData.get('min_sqm')) formData.set('min_sqm', '0');
         var newSignature = buildHomesSignature(formData);
         var refreshHomes = lastHomesSignature !== null && newSignature !== lastHomesSignature;
         fetch('/dashboard/filters', {
@@ -752,6 +754,8 @@ function syncFiltersForViewport() {
     var maxInput = form.querySelector('input[name="max_price"]');
     if (minInput) minInput.addEventListener('input', debouncedSave);
     if (maxInput) maxInput.addEventListener('input', debouncedSave);
+    var minSqmInput = form.querySelector('input[name="min_sqm"]');
+    if (minSqmInput) minSqmInput.addEventListener('input', debouncedSave);
 
     if (errorTop) errorTop.addEventListener('click', performSave);
     if (errorBottom) errorBottom.addEventListener('click', performSave);
@@ -907,10 +911,22 @@ function renderHomeCard(home) {
     var meta = document.createElement('div');
     meta.className = 'home-card-meta';
 
+    var metaLeft = document.createElement('span');
+    metaLeft.className = 'home-card-meta-left';
+
     var price = document.createElement('span');
     price.className = 'home-card-price';
     price.textContent = home.price >= 0 ? '\u20AC' + home.price : '';
-    meta.appendChild(price);
+    metaLeft.appendChild(price);
+
+    if (typeof home.sqm === 'number' && home.sqm > 0) {
+        var sqm = document.createElement('span');
+        sqm.className = 'home-card-sqm';
+        sqm.textContent = home.sqm + ' m2';
+        metaLeft.appendChild(sqm);
+    }
+
+    meta.appendChild(metaLeft);
 
     if (home.agency) {
         var agency = document.createElement('span');
