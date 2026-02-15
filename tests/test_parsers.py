@@ -219,6 +219,63 @@ class TestParseKrk:
         results = HomeResults("krk", r)
         assert len(results.homes) == 0
 
+
+class TestParseWoonzeker:
+    def test_basic_parsing_json_api(self, mock_response):
+        data = {
+            "data": [
+                {
+                    "slug": "van-kinsbergenstraat-109-b",
+                    "import_type": "RentResident",
+                    "status": {"label": "Beschikbaar", "code": "available"},
+                    "address": {
+                        "street": "Van Kinsbergenstraat",
+                        "location": "Den Haag",
+                        "house_number": "109B",
+                        "house_number_extension": "B",
+                    },
+                    "handover": {"price": 1097, "price_formatted": "€ 1.097"},
+                    "characteristic": {"living_area": 50},
+                }
+            ]
+        }
+        r = mock_response(data)
+        r.headers = {"content-type": "application/json"}
+
+        results = HomeResults("woonzeker", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "woonzeker"
+        assert results[0].address == "Van Kinsbergenstraat 109B"
+        assert results[0].city == "Den Haag"
+        assert results[0].price == 1097
+        assert results[0].sqm == 50
+        assert results[0].url == "https://woonzeker.com/huur/woningen/van-kinsbergenstraat-109-b"
+
+    def test_filters_unavailable_and_missing_house_number(self, mock_response):
+        data = {
+            "data": [
+                {
+                    "slug": "x",
+                    "import_type": "RentResident",
+                    "status": {"code": "unavailable"},
+                    "address": {"street": "Straat", "location": "Den Haag", "house_number": "1"},
+                    "handover": {"price": 1000},
+                },
+                {
+                    "slug": "y",
+                    "import_type": "RentResident",
+                    "status": {"code": "available"},
+                    "address": {"street": "Project", "location": "Den Haag", "house_number": ""},
+                    "handover": {"price": 1000},
+                },
+            ]
+        }
+        r = mock_response(data)
+        r.headers = {"content-type": "application/json"}
+
+        results = HomeResults("woonzeker", r)
+        assert len(results.homes) == 0
+
     def test_filters_unavailable(self, mock_response):
         data = {"objects": [
             {
