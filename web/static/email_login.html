@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:#161020;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#161020;">
+        <tr>
+            <td align="center" style="padding:40px 16px;">
+                <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background-color:#241c30;border:1px solid #3a3048;border-radius:12px;overflow:hidden;">
+                    <!-- Avatar + heading -->
+                    <tr>
+                        <td align="center" style="padding:40px 40px 0 40px;">
+                            <img src="{{ base_url }}/avatar" alt="Hestia" width="80" height="80" style="width:80px;height:80px;border-radius:50%;display:block;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="padding:20px 40px 0 40px;">
+                            <h1 style="margin:0;font-size:22px;font-weight:700;color:#ede4d6;">Sign in to Hestia</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="padding:8px 40px 0 40px;">
+                            <p style="margin:0;font-size:15px;color:#a8998a;line-height:1.5;">Click the button below to log in. This link is single-use and expires in 15 minutes.</p>
+                        </td>
+                    </tr>
+                    <!-- Button -->
+                    <tr>
+                        <td align="center" style="padding:28px 40px 0 40px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="background-color:#d08840;border-radius:6px;">
+                                        <a href="{{ link }}" target="_blank" style="display:inline-block;padding:14px 40px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:6px;">Log in to Hestia &#8594;</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Divider -->
+                    <tr>
+                        <td style="padding:28px 40px 0 40px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="border-top:1px solid #3a3048;font-size:0;line-height:0;">&nbsp;</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Fallback link -->
+                    <tr>
+                        <td style="padding:20px 40px 0 40px;">
+                            <p style="margin:0;font-size:13px;color:#a8998a;line-height:1.5;">If the button doesn't work, copy and paste this link into your browser:</p>
+                            <p style="margin:8px 0 0 0;font-size:13px;line-height:1.5;word-break:break-all;"><a href="{{ link }}" style="color:#e8a84c;text-decoration:underline;">{{ link }}</a></p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="padding:28px 40px 32px 40px;">
+                            <p style="margin:0;font-size:12px;color:#6a5a48;line-height:1.5;">You received this email because someone requested a login link for this address. If that wasn't you, you can safely ignore it.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -49,3 +49,19 @@ services:
     restart: unless-stopped 
     volumes:
       - hestia-database-volume-dev:/var/lib/postgresql/data
+
+  hestia-web:
+    container_name: hestia-web-dev
+    image: wtfloris/hestia-web:dev
+    networks:
+      - hestia-network-dev
+    ports:
+      - "19191:5050"
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - BREVO_API_KEY=${BREVO_API_KEY}
+      - FROM_EMAIL=${FROM_EMAIL}
+      - BASE_URL=${BASE_URL}
+      - LOG_FORMAT=${LOG_FORMAT:-plain}

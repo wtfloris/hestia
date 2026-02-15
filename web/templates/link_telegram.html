@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="narrow-layout">
+<div class="header" style="position:relative">
+    <img src="/avatar" alt="Hestia" style="position:absolute;top:0;right:0;width:72px;height:72px;border-radius:50%;object-fit:cover;cursor:pointer" data-modal="contact">
+    <h1 data-i18n="link_telegram_title">Link your Telegram account</h1>
+    <p class="subtitle"><span data-i18n="logged_in_as">Logged in as</span> <span class="logout-email" data-logout-url="/logout" data-i18n-confirm="logout_confirm"><strong>{{ email }}</strong></span></p>
+</div>
+<div class="card">
+    <p data-i18n="link_telegram_text">Connect your Telegram account in order to modify your filters.</p>
+    <div class="link-code-box" style="position:relative">
+        <span class="telegram-status spinner" style="position:absolute;top:calc(0.75rem + 5px);right:calc(0.75rem + 5px)"></span>
+        <p><span data-i18n="link_code_label">Your code:</span> <strong>{{ link_code }}</strong></p>
+        <p><span data-i18n="link_send">Send</span> <code>/link {{ link_code }}</code> <span data-i18n="link_to">to</span> <a href="https://t.me/hestia_homes_bot" target="_blank">@hestia_homes_bot</a> <span data-i18n="link_connect">to connect your account.</span></p>
+    </div>
+    <p style="margin-top:1rem;margin-bottom:0;font-size:0.85rem;color:var(--subtitle)" data-i18n="link_not_using">Not using Hestia yet? Just click the link above to start!</p>
+    <script src="/static/link_telegram.js"></script>
+</div>
+</div>
+{% endblock %}
