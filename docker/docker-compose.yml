@@ -35,6 +35,12 @@ services:
 
   hestia-database:
     container_name: hestia-database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     image: postgres:15
     networks: 
       - hestia-network

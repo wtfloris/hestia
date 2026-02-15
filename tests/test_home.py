@@ -9,14 +9,16 @@ class TestHomeConstruction:
         assert home.url == ''
         assert home.agency == ''
         assert home.price == -1
+        assert home.sqm == -1
 
     def test_all_fields(self):
-        home = Home(address="Kerkstraat 1", city="Amsterdam", url="https://example.com", agency="funda", price=1500)
+        home = Home(address="Kerkstraat 1", city="Amsterdam", url="https://example.com", agency="funda", price=1500, sqm=75)
         assert home.address == "Kerkstraat 1"
         assert home.city == "Amsterdam"
         assert home.url == "https://example.com"
         assert home.agency == "funda"
         assert home.price == 1500
+        assert home.sqm == 75
 
 
 class TestHomeEquality:

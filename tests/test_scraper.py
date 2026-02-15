@@ -178,7 +178,7 @@ class TestBroadcast:
         mock_db.get_dev_mode.return_value = False
         mock_db.fetch_all.side_effect = [
             [{"telegram_id": 111, "filter_min_price": 1000, "filter_max_price": 1500,
-              "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"]}],
+              "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"], "filter_min_sqm": 0}],
             [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
         ]
         mock_meta.BOT.send_message = AsyncMock()
@@ -199,7 +199,7 @@ class TestBroadcast:
         mock_db.get_dev_mode.return_value = False
         mock_db.fetch_all.side_effect = [
             [{"telegram_id": 111, "filter_min_price": 0, "filter_max_price": 9999,
-              "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"]}],
+              "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"], "filter_min_sqm": 0}],
             [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
         ]
         mock_meta.BOT.send_message = AsyncMock()
@@ -221,7 +221,7 @@ class TestBroadcast:
         mock_db.get_dev_mode.return_value = False
         mock_db.fetch_all.side_effect = [
             [{"telegram_id": 111, "filter_min_price": 0, "filter_max_price": 9999,
-              "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"]}],
+              "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"], "filter_min_sqm": 0}],
             [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
         ]
         mock_meta.BOT.send_message = AsyncMock(side_effect=Forbidden("Forbidden: bot was blocked by the user"))
@@ -231,3 +231,26 @@ class TestBroadcast:
         await broadcast([home])
 
         mock_db.disable_user.assert_called_once_with(111)
+
+    @pytest.mark.asyncio
+    @patch('scraper.meta')
+    @patch('scraper.db')
+    async def test_applies_sqm_filter(self, mock_db, mock_meta):
+        from scraper import broadcast
+
+        mock_db.get_dev_mode.return_value = False
+        mock_db.fetch_all.side_effect = [
+            [{"telegram_id": 111, "filter_min_price": 0, "filter_max_price": 9999,
+              "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"], "filter_min_sqm": 40}],
+            [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
+        ]
+        mock_meta.BOT.send_message = AsyncMock()
+
+        home_big = Home(address="Straat 1", city="Amsterdam", url="http://a.com", agency="rebo", price=1200, sqm=60)
+        home_small = Home(address="Straat 2", city="Amsterdam", url="http://b.com", agency="rebo", price=1200, sqm=30)
+        home_unknown = Home(address="Straat 3", city="Amsterdam", url="http://c.com", agency="rebo", price=1200, sqm=-1)
+
+        await broadcast([home_big, home_small, home_unknown])
+
+        # home_big (60 >= 40) and home_unknown (-1, passes) should be sent; home_small (30 < 40) filtered
+        assert mock_meta.BOT.send_message.call_count == 2

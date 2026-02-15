@@ -47,11 +47,13 @@ Je kunt eventueel [een biertje voor me kopen]({{}}) als Hestia je heeft geholpen
         "en": """*Currently, your filters are:*
 Min. price: {}
 Max. price: {}
+Min. size: {} m\u00b2
 Cities: {}
 
 *To change your filters, you can say:*
 `/filter minprice 1200`
 `/filter maxprice 1800`
+`/filter minsqm 40`
 `/filter city add Amsterdam`
 `/filter city remove Den Haag`
 I will only send you homes in cities that you've included in your filter. Say  `/filter city`  to see the list of possible cities.
@@ -60,11 +62,13 @@ Additionally, you can disable updates from certain agencies/websites. Say  `/fil
         "nl": """*Op dit moment zijn jouw filters:*
 Min. prijs: {}
 Max. prijs: {}
+Min. oppervlakte: {} m\u00b2
 Steden: {}
 
 *Om je filters aan te passen, zeg je bijvoorbeeld:*
 `/filter minprice 1200`
 `/filter maxprice 1800`
+`/filter minsqm 40`
 `/filter city add Amsterdam`
 `/filter city remove Den Haag`
 Ik stuur alleen meldingen voor woningen in steden die je in je filter hebt opgenomen. Zeg  `/filter city`  om de lijst met mogelijke steden te zien.
@@ -78,6 +82,10 @@ Daarnaast kun je updates van bepaalde makelaars/websites uitschakelen. Zeg  `/fi
     "filter_maxprice": {
         "en": "Your maximum price is now {}",
         "nl": "Je maximumprijs is nu {}"
+    },
+    "filter_minsqm": {
+        "en": "Your minimum size is now {} m\u00b2",
+        "nl": "Je minimale oppervlakte is nu {} m\u00b2"
     },
     "filter_agency": {
         "en": """Select the agencies you want to receive homes from

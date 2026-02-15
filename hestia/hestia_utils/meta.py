@@ -28,6 +28,7 @@ EURO_EMOJI = "\U0001F4B6"
 LOVE_EMOJI = "\U0001F970"
 CHECK_EMOJI = "\U00002705"
 CROSS_EMOJI = "\U0000274C"
+SQM_EMOJI = "\U0001F4D0"
 
 # The Dockerfile replaces this with the git commit id
 APP_VERSION = ''
