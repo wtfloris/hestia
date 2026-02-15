@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="narrow-layout">
+<div class="card">
+    <div style="display:flex;align-items:flex-start;gap:0.75rem">
+        <div style="min-width:0;flex:1">
+            <h1 data-i18n="welcome_title">Welcome to Hestia</h1>
+            <p class="subtitle" data-i18n="welcome_subtitle">Enter your email to receive a login link</p>
+        </div>
+        <img src="/avatar" alt="Hestia" style="width:78px;height:78px;border-radius:50%;object-fit:cover;cursor:pointer;flex-shrink:0" data-modal="contact">
+    </div>
+    {% if message %}<div class="message">{{ message }}</div>{% endif %}
+    <form method="post" action="/login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="input-arrow-wrap">
+            <input type="email" name="email" id="email" placeholder="hello@hestia.bot" required>
+            <button type="submit" class="btn-arrow" aria-label="Continue" data-i18n-title="continue_aria">&#x2192;</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}
