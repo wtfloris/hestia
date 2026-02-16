@@ -30,7 +30,7 @@ def _build_error_fingerprint(component: str, target: dict, exc: BaseException) -
 def _build_daily_error_digest() -> str:
     rows = db.get_recent_error_rollups(hours=24, limit=20)
     if not rows:
-        return "\n\nNo scraper errors in the past 24 hours"
+        return ""
 
     message = "\n\nError digest (past 24h):"
     for row in rows:
@@ -43,6 +43,17 @@ def _build_daily_error_digest() -> str:
         if short_message:
             message += f"\n  {short_message[:160]}"
 
+    return message
+
+
+def _build_zero_results_digest() -> str:
+    rows = db.get_enabled_targets_without_recent_homes(days=7)
+    if not rows:
+        return ""
+
+    message = "\n\nEnabled targets with 0 listings in the past 7 days:"
+    for row in rows:
+        message += f"\n- {row['agency']} ({row['id']})"
     return message
 
 
@@ -66,8 +77,8 @@ async def _record_target_error(target: dict, exc: BaseException) -> None:
 
 async def main() -> None:
     
-    # Once a day at 7pm UTC, check some stuff and send an alert if necessary
-    if datetime.now().hour == 19 and datetime.now().minute < 4:
+    # Once a day at exactly 19:00 UTC, check some stuff and send an alert if necessary
+    if datetime.now().hour == 19 and datetime.now().minute == 0:
         message = ""
         if db.get_dev_mode():
             message += "\n\nDev mode is enabled"
@@ -81,6 +92,7 @@ async def main() -> None:
             message += "\n\nDonation link expiring soon, use /setdonate"
 
         message += _build_daily_error_digest()
+        message += _build_zero_results_digest()
         db.cleanup_error_rollups(retention_days=30)
             
         if message:

@@ -186,6 +186,26 @@ def cleanup_error_rollups(retention_days: int = 30) -> None:
         [retention_days],
     )
 
+
+def get_enabled_targets_without_recent_homes(days: int = 7) -> list[RealDictRow]:
+    return fetch_all(
+        """
+        SELECT
+            t.id,
+            t.agency,
+            COUNT(h.url) AS homes_count
+        FROM hestia.targets t
+        LEFT JOIN hestia.homes h
+            ON h.agency = t.agency
+           AND h.date_added >= now() - (%s::int * interval '1 day')
+        WHERE t.enabled = true
+        GROUP BY t.id, t.agency
+        HAVING COUNT(h.url) = 0
+        ORDER BY t.id
+        """,
+        [days],
+    )
+
 def set_filter_minprice(telegram_chat: Chat, min_price: int) -> None:
     _write("UPDATE hestia.subscribers SET filter_min_price = %s WHERE telegram_id = %s", [str(min_price), str(telegram_chat.id)])
 def set_filter_maxprice(telegram_chat: Chat, max_price: int) -> None:
