@@ -1,5 +1,7 @@
 import json
 import logging
+import hashlib
+import traceback
 import requests
 from time import sleep
 from asyncio import run
@@ -10,6 +12,56 @@ import hestia_utils.db as db
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
 from hestia_utils.parser import Home, HomeResults
+
+
+def _build_error_fingerprint(component: str, target: dict, exc: BaseException) -> str:
+    raw = "|".join(
+        [
+            component,
+            str(target.get("id", -1)),
+            str(target.get("agency", "unknown")),
+            exc.__class__.__name__,
+            str(exc),
+        ]
+    )
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _build_daily_error_digest() -> str:
+    rows = db.get_recent_error_rollups(hours=24, limit=20)
+    if not rows:
+        return "\n\nNo scraper errors in the past 24 hours"
+
+    message = "\n\nError digest (past 24h):"
+    for row in rows:
+        message += (
+            f"\n- {row['total_count']}x {row['error_class']}"
+            f" [{row['agency']}:{row['target_id']}]"
+            f" ({row['component']})"
+        )
+        short_message = str(row["message"]).replace("\n", " ").strip()
+        if short_message:
+            message += f"\n  {short_message[:160]}"
+
+    return message
+
+
+async def _record_target_error(target: dict, exc: BaseException) -> None:
+    try:
+        db.upsert_error_rollup(
+            fingerprint=_build_error_fingerprint("scrape_site", target, exc),
+            component="scrape_site",
+            agency=str(target.get("agency", "unknown")),
+            target_id=int(target.get("id", 0)),
+            error_class=exc.__class__.__name__,
+            message=str(exc)[:400],
+            sample="".join(traceback.format_exception_only(type(exc), exc)).strip()[:1000],
+            context={"method": target.get("method"), "queryurl": target.get("queryurl")},
+        )
+    except BaseException as db_error:
+        fallback_error = f"Failed to persist error rollup for target {target.get('id')}: {repr(db_error)}"
+        logging.error(fallback_error)
+        await meta.BOT.send_message(text=fallback_error, chat_id=secrets.OWN_CHAT_ID)
 
 
 async def main() -> None:
@@ -27,6 +79,9 @@ async def main() -> None:
         last_updated = db.get_donation_link_updated()
         if datetime.now() - last_updated >= timedelta(days=13):
             message += "\n\nDonation link expiring soon, use /setdonate"
+
+        message += _build_daily_error_digest()
+        db.cleanup_error_rollups(retention_days=30)
             
         if message:
             await meta.BOT.send_message(text=message[2:], chat_id=secrets.OWN_CHAT_ID)
@@ -65,8 +120,7 @@ Good luck in your search\!"""
             except BaseException as e:
                 error = f"[{target['agency']} ({target['id']})] {repr(e)}"
                 logging.error(error)
-                if "Connection reset by peer" not in error:
-                    await meta.BOT.send_message(text=error, chat_id=secrets.OWN_CHAT_ID)
+                await _record_target_error(target, e)
         scrape_duration = datetime.now() - scrape_start_ts
         logging.warning(f"Scrape took {scrape_duration.total_seconds()} seconds")
     else:

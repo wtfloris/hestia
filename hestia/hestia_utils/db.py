@@ -1,5 +1,6 @@
 import psycopg2
 import logging
+import json
 from telegram import Chat
 from typing import Literal
 from datetime import datetime
@@ -117,6 +118,73 @@ def disable_dev_mode() -> None:
     _write("UPDATE hestia.meta SET devmode_enabled = false WHERE id = 'default'")
 def update_donation_link(link: str) -> None:
     _write("UPDATE hestia.meta SET donation_link = %s, donation_link_updated = now() WHERE id = 'default'", [link])
+
+
+def upsert_error_rollup(
+    fingerprint: str,
+    component: str,
+    agency: str,
+    target_id: int,
+    error_class: str,
+    message: str,
+    sample: str,
+    context: dict | None = None,
+) -> None:
+    _write(
+        """
+        INSERT INTO hestia.error_rollups
+            (day, fingerprint, component, agency, target_id, error_class, message, sample, context, count, first_seen, last_seen)
+        VALUES
+            (CURRENT_DATE, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, 1, now(), now())
+        ON CONFLICT (day, fingerprint)
+        DO UPDATE SET
+            count = hestia.error_rollups.count + 1,
+            last_seen = now(),
+            message = EXCLUDED.message,
+            sample = EXCLUDED.sample,
+            context = EXCLUDED.context
+        """,
+        [
+            fingerprint,
+            component,
+            agency,
+            target_id,
+            error_class,
+            message,
+            sample,
+            json.dumps(context or {}),
+        ],
+    )
+
+
+def get_recent_error_rollups(hours: int = 24, limit: int = 20) -> list[RealDictRow]:
+    return fetch_all(
+        """
+        SELECT
+            fingerprint,
+            component,
+            agency,
+            target_id,
+            error_class,
+            MAX(message) AS message,
+            SUM(count) AS total_count,
+            MIN(first_seen) AS first_seen,
+            MAX(last_seen) AS last_seen
+        FROM hestia.error_rollups
+        WHERE last_seen >= now() - (%s::int * interval '1 hour')
+        GROUP BY fingerprint, component, agency, target_id, error_class
+        ORDER BY total_count DESC, MAX(last_seen) DESC
+        LIMIT %s
+        """,
+        [hours, limit],
+    )
+
+
+def cleanup_error_rollups(retention_days: int = 30) -> None:
+    _write(
+        "DELETE FROM hestia.error_rollups WHERE day < CURRENT_DATE - %s::int",
+        [retention_days],
+    )
 
 def set_filter_minprice(telegram_chat: Chat, min_price: int) -> None:
     _write("UPDATE hestia.subscribers SET filter_min_price = %s WHERE telegram_id = %s", [str(min_price), str(telegram_chat.id)])
