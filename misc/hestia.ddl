@@ -145,3 +145,27 @@ CREATE TABLE hestia.targets (
   headers json DEFAULT '{}'::json NOT NULL,
   enabled bool DEFAULT false NOT NULL
 );
+
+
+-- hestia.error_rollups definition
+
+-- Drop table
+
+-- DROP TABLE hestia.error_rollups;
+
+CREATE TABLE hestia.error_rollups (
+  day date NOT NULL,
+  fingerprint varchar(64) NOT NULL,
+  component varchar NOT NULL,
+  agency varchar NOT NULL,
+  target_id int4 DEFAULT 0 NOT NULL,
+  error_class varchar NOT NULL,
+  message text NOT NULL,
+  sample text NULL,
+  context jsonb DEFAULT '{}'::jsonb NOT NULL,
+  count int4 DEFAULT 1 NOT NULL,
+  first_seen timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  last_seen timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  CONSTRAINT error_rollups_pkey PRIMARY KEY (day, fingerprint)
+);
+CREATE INDEX error_rollups_last_seen_idx ON hestia.error_rollups USING btree (last_seen);
