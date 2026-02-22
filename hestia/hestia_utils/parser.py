@@ -232,14 +232,44 @@ class HomeResults:
     def parse_woonin(self, r: requests.models.Response):
         results = json.loads(r.content)['objects']
         for res in results:
-            # Woonin includes houses which are already rented, we only want the empty houses!
-            if res["type"] == "huur" and not res.get("verhuurd", False):
-                home = Home(agency="woonin")
-                home.address = res["straat"]
-                home.city = res["plaats"]
-                home.url = f"https://ik-zoek.woonin.nl{res['url']}"  # Given URL links directly to listing
-                home.price = int(res["vraagPrijs"][2:].replace(".", ""))  # Remove dot and skip currency+space prefix
-                self.homes.append(home)
+            if res.get("type") != "huur":
+                continue
+
+            # Exclude unavailable/rented listings.
+            unavailable_tokens = ("verhuurd", "onder optie", "withdrawn", "rentedwithreservation", "unavailable")
+            status_fields = " ".join(
+                str(res.get(field, "")).lower()
+                for field in ("className", "status", "statusLabel", "verhuurStatus")
+            )
+            if res.get("verhuurd", False) or any(token in status_fields for token in unavailable_tokens):
+                continue
+
+            street = str(res.get("straat", "")).strip()
+            house_number = str(res.get("huisnummer", "")).strip()
+            if not street:
+                continue
+
+            # Woonin now returns house number in a separate field for many listings.
+            if house_number and not re.search(r"\d", street):
+                address = f"{street} {house_number}".strip()
+            else:
+                address = street
+
+            # Project listings do not have a house number and should be skipped.
+            if not re.search(r"\d", address):
+                continue
+
+            price_raw = str(res.get("vraagPrijs", ""))
+            digits = re.sub(r"[^\d]", "", price_raw)
+            if not digits:
+                continue
+
+            home = Home(agency="woonin")
+            home.address = address
+            home.city = str(res.get("plaats", "")).strip()
+            home.url = f"https://ik-zoek.woonin.nl{res['url']}"  # Given URL links directly to listing
+            home.price = int(digits)
+            self.homes.append(home)
     
     def parse_vesteda(self, r: requests.models.Response):
         results = json.loads(r.content)["results"]["objects"]
