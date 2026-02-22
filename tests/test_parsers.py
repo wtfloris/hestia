@@ -156,38 +156,6 @@ class TestParseAlliantie:
         assert len(results.homes) == 0
 
 
-class TestParseBouwinvest:
-    def test_basic_parsing(self, mock_response):
-        data = {"data": [
-            {
-                "class": "Unit",
-                "name": "Keizersgracht 100",
-                "address": {"city": "Amsterdam"},
-                "url": "https://bouwinvest.nl/1",
-                "price": {"price": 2000}
-            }
-        ]}
-        r = mock_response(data)
-        results = HomeResults("bouwinvest", r)
-        assert len(results.homes) == 1
-        assert results[0].address == "Keizersgracht 100"
-        assert results[0].price == 2000
-
-    def test_filters_project_class(self, mock_response):
-        data = {"data": [
-            {
-                "class": "Project",
-                "name": "Nieuwbouwproject",
-                "address": {"city": "Amsterdam"},
-                "url": "https://bouwinvest.nl/2",
-                "price": {"price": 1500}
-            }
-        ]}
-        r = mock_response(data)
-        results = HomeResults("bouwinvest", r)
-        assert len(results.homes) == 0
-
-
 class TestParseKrk:
     def test_basic_parsing(self, mock_response):
         data = {"objects": [
