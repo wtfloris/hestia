@@ -95,8 +95,6 @@ class HomeResults:
         self.homes: list[Home] = []
         if source == "vesteda":
             self.parse_vesteda(raw)
-        elif source == "bouwinvest":
-            self.parse_bouwinvest(raw)
         elif source == "alliantie":
             self.parse_alliantie(raw)
         elif source == "vbt":
@@ -347,21 +345,6 @@ class HomeResults:
             home.sqm = sqm
             self.homes.append(home)
             
-    def parse_bouwinvest(self, r: requests.models.Response):
-        results = json.loads(r.content)["data"]
-    
-        for res in results:
-            # Filter non-property results
-            if res["class"] == "Project":
-                continue
-    
-            home = Home(agency="bouwinvest")
-            home.address = res["name"]
-            home.city = res["address"]["city"]
-            home.url = res["url"]
-            home.price = int(res["price"]["price"])
-            self.homes.append(home)
-    
     def parse_krk(self, r: requests.models.Response):
         results = json.loads(r.content)["objects"]
     
