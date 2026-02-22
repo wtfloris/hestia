@@ -484,7 +484,8 @@ class TestParseWoonin:
             {
                 "type": "huur",
                 "verhuurd": False,
-                "straat": "Prinsengracht 100",
+                "straat": "Prinsengracht",
+                "huisnummer": "100",
                 "plaats": "Amsterdam",
                 "url": "/woning/prinsengracht-100",
                 "vraagPrijs": "€ 1.800"
@@ -518,6 +519,31 @@ class TestParseWoonin:
                 "verhuurd": False,
                 "straat": "Straat 1", "plaats": "Amsterdam",
                 "url": "/1", "vraagPrijs": "€ 1.000"
+            }
+        ]}
+        r = mock_response(data)
+        results = HomeResults("woonin", r)
+        assert len(results.homes) == 0
+
+    def test_filters_unavailable_and_requires_house_number(self, mock_response):
+        data = {"objects": [
+            {
+                "type": "huur",
+                "verhuurd": False,
+                "className": "unavailable",
+                "straat": "Straat",
+                "huisnummer": "1",
+                "plaats": "Amsterdam",
+                "url": "/1",
+                "vraagPrijs": "€ 1.000"
+            },
+            {
+                "type": "huur",
+                "verhuurd": False,
+                "straat": "Projectnaam",
+                "plaats": "Amsterdam",
+                "url": "/2",
+                "vraagPrijs": "€ 1.000"
             }
         ]}
         r = mock_response(data)
