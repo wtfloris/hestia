@@ -143,6 +143,8 @@ class HomeResults:
             self.parse_maxxhuren(raw)
         elif source == "hoekstra":
             self.parse_hoekstra(raw)
+        elif source == "easyleasewonen":
+            self.parse_easylease(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -1078,6 +1080,18 @@ class HomeResults:
             home.url = parse.urljoin("https://ikwilhuren.nu", str(link_tag["href"]))
             home.price = int(price_digits)
             self.homes.append(home)
+
+    def parse_easylease(self, r: requests.models.Response):
+        results = json.loads(r.content)
+        for res in results["values"]:
+            if res["data"]["label"] == "Nieuw":
+                home = Home(agency="easylease")
+                home.address = res["data"]["locality"]["street"] + " " + res["data"]["locality"]["number"] + res["data"]["locality"]["addition"]
+                home.city = res["data"]["locality"]["city"]
+                home.url = "https://www.easyleasewonen.nl/woning/" + res["page_item_url"]
+                home.price = int(res["data"]["price"])
+                home.sqm = int(res["data"]["surface"])
+                self.homes.append(home)
 
     def parse_maxxhuren(self, r: requests.models.Response):
         soup = BeautifulSoup(r.content, "html.parser")
