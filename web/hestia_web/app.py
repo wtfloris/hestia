@@ -1175,7 +1175,7 @@ def api_homes():
         cities = sub["filter_cities"] or []
         agencies = sub["filter_agencies"] or []
 
-        if not cities and not agencies:
+        if not cities or not agencies:
             return jsonify({"homes": [], "total": 0, "page": page, "per_page": per_page})
 
         with get_db() as conn:
@@ -1183,13 +1183,11 @@ def api_homes():
                 conditions = ["h.price >= %s", "h.price <= %s", "h.date_added >= %s"]
                 params = [min_price, max_price, datetime.now(timezone.utc) - timedelta(weeks=4)]
 
-                if cities:
-                    conditions.append("LOWER(h.city) = ANY(%s)")
-                    params.append([c.lower() for c in cities])
+                conditions.append("LOWER(h.city) = ANY(%s)")
+                params.append([c.lower() for c in cities])
 
-                if agencies:
-                    conditions.append("h.agency = ANY(%s)")
-                    params.append(agencies)
+                conditions.append("h.agency = ANY(%s)")
+                params.append(agencies)
 
                 if min_sqm > 0:
                     # Don't exclude listings with unknown sqm (-1); users may still want to see them.
