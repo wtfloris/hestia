@@ -124,9 +124,13 @@ CREATE TABLE hestia.subscribers (
   date_added timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
   filter_min_sqm int4 DEFAULT 0 NOT NULL,
   lang varchar DEFAULT 'en'::character varying NOT NULL,
-  email_address varchar NULL
+  email_address varchar NULL,
+  device_id varchar(36) NULL,
+  apns_token text NULL,
+  CONSTRAINT subscribers_device_id_key UNIQUE (device_id)
 );
 CREATE INDEX idx_subscribers_email_address ON hestia.subscribers USING btree (email_address);
+CREATE INDEX idx_subscribers_device_id ON hestia.subscribers USING btree (device_id);
 
 
 -- hestia.targets definition

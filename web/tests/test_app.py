@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from sib_api_v3_sdk.rest import ApiException as BrevoApiException
 from werkzeug.datastructures import MultiDict
+from datetime import datetime, timezone
 
 # Set env vars BEFORE importing app
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test")
@@ -554,6 +555,8 @@ MOCK_HOMES_ROWS = [
 ]
 
 MOCK_SUBSCRIBER_FOR_HOMES = {
+    "id": 1,
+    "device_id": "11111111-1111-1111-1111-111111111111",
     "filter_min_price": 500,
     "filter_max_price": 2000,
     "filter_min_sqm": 0,
@@ -561,27 +564,200 @@ MOCK_SUBSCRIBER_FOR_HOMES = {
     "filter_agencies": ["agency1", "agency2"],
 }
 
+VALID_DEVICE_ID = "11111111-1111-1111-1111-111111111111"
+
+
+def _json_unwrap(value):
+    return getattr(value, "adapted", value)
+
+
+class _FakeIOSDB:
+    def __init__(self):
+        self.next_subscriber_id = 1
+        self.subscribers_by_device = {}
+        self.homes = [
+            {
+                "url": "https://example.com/home1",
+                "address": "123 Main St",
+                "city": "Amsterdam",
+                "price": 1200,
+                "sqm": 75,
+                "agency": "rebo",
+                "date_added": datetime(2026, 2, 20, 10, 0, tzinfo=timezone.utc),
+            }
+        ]
+        self.targets = [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
+
+    def __call__(self, autocommit=False):  # matches get_db signature
+        return _FakeIOSConnection(self)
+
+    def find_subscriber_by_id(self, subscriber_id):
+        for row in self.subscribers_by_device.values():
+            if row["id"] == subscriber_id:
+                return row
+        return None
+
+
+class _FakeIOSConnection:
+    def __init__(self, state):
+        self.state = state
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def cursor(self, cursor_factory=None):
+        return _FakeIOSCursor(self.state)
+
+
+class _FakeIOSCursor:
+    def __init__(self, state):
+        self.state = state
+        self._one = None
+        self._all = []
+        self.rowcount = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def execute(self, query, params=None):
+        q = " ".join(query.split()).lower()
+        params = params or []
+        self._one = None
+        self._all = []
+
+        if "select * from hestia.subscribers where device_id = %s" in q:
+            device_id = params[0]
+            self._one = self.state.subscribers_by_device.get(device_id)
+            return
+
+        if "insert into hestia.subscribers (device_id, apns_token)" in q and "on conflict (device_id) do nothing" in q:
+            device_id, apns_token = params
+            if device_id in self.state.subscribers_by_device:
+                self._one = None
+                return
+            row = {
+                "id": self.state.next_subscriber_id,
+                "device_id": device_id,
+                "apns_token": apns_token,
+                "telegram_enabled": False,
+                "filter_min_price": 500,
+                "filter_max_price": 2000,
+                "filter_min_sqm": 0,
+                "filter_cities": ["amsterdam"],
+                "filter_agencies": ["rebo"],
+            }
+            self.state.next_subscriber_id += 1
+            self.state.subscribers_by_device[device_id] = row
+            self._one = {"id": row["id"]}
+            return
+
+        if "update hestia.subscribers set telegram_enabled = %s" in q and "where id = %s" in q:
+            subscriber = self.state.find_subscriber_by_id(params[-1])
+            if subscriber is None:
+                self.rowcount = 0
+                return
+            subscriber["telegram_enabled"] = params[0]
+            subscriber["filter_min_price"] = params[1]
+            subscriber["filter_max_price"] = params[2]
+            subscriber["filter_min_sqm"] = params[3]
+            subscriber["filter_cities"] = _json_unwrap(params[4])
+            subscriber["filter_agencies"] = _json_unwrap(params[5])
+            self.rowcount = 1
+            return
+
+        if "update hestia.subscribers set apns_token = %s where id = %s" in q:
+            subscriber = self.state.find_subscriber_by_id(params[1])
+            if subscriber is None:
+                self.rowcount = 0
+                return
+            subscriber["apns_token"] = params[0]
+            self.rowcount = 1
+            return
+
+        if "select distinct city from hestia.homes" in q:
+            seen = set()
+            rows = []
+            for home in self.state.homes:
+                city = home["city"]
+                if city not in seen:
+                    seen.add(city)
+                    rows.append({"city": city})
+            self._all = rows
+            return
+
+        if "select distinct on (agency) agency, user_info from hestia.targets where enabled = true" in q:
+            self._all = self.state.targets
+            return
+
+        if "select count(*) as cnt from hestia.homes h where" in q:
+            self._one = {"cnt": len(self.state.homes)}
+            return
+
+        if "select h.url, h.address, h.city, h.price, h.sqm," in q and "from hestia.homes h" in q:
+            self._all = [dict(h) for h in self.state.homes]
+            return
+
+        raise AssertionError(f"Unsupported SQL in fake iOS DB: {query}")
+
+    def fetchone(self):
+        return self._one
+
+    def fetchall(self):
+        return self._all
+
 
 class TestApiHomes:
-    def test_api_homes_requires_auth(self, client):
+    def test_api_homes_requires_device_id(self, client):
         resp = client.get("/api/homes")
-        assert resp.status_code == 302
+        assert resp.status_code == 401
 
     @patch("hestia_web.app.get_db")
-    def test_api_homes_returns_homes(self, mock_get_db, client):
-        set_session(client)
+    def test_api_homes_allows_session_auth_without_device_header(self, mock_get_db, client):
+        set_session(client, email="user@example.com")
+
         cur = MagicMock()
         cur.__enter__ = MagicMock(return_value=cur)
         cur.__exit__ = MagicMock(return_value=False)
         cur.fetchone.side_effect = [
-            MOCK_SUBSCRIBER_FOR_HOMES,  # subscriber lookup
-            {"cnt": 2},  # count query
+            {
+                "id": 42,
+                "email_address": "user@example.com",
+                "filter_min_price": 500,
+                "filter_max_price": 2000,
+                "filter_min_sqm": 0,
+                "filter_cities": ["amsterdam"],
+                "filter_agencies": ["rebo"],
+            },
+            {"cnt": 2},
         ]
         cur.fetchall.return_value = MOCK_HOMES_ROWS
         conn = make_mock_conn(cur)
         mock_get_db.return_value = conn
 
         resp = client.get("/api/homes")
+        assert resp.status_code == 200
+        assert resp.get_json()["total"] == 2
+
+    @patch("hestia_web.app.get_db")
+    def test_api_homes_returns_homes(self, mock_get_db, client):
+        cur = MagicMock()
+        cur.__enter__ = MagicMock(return_value=cur)
+        cur.__exit__ = MagicMock(return_value=False)
+        cur.fetchone.side_effect = [
+            MOCK_SUBSCRIBER_FOR_HOMES,  # device lookup
+            {"cnt": 2},  # count query
+        ]
+        cur.fetchall.return_value = MOCK_HOMES_ROWS
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+
+        resp = client.get("/api/homes", headers={"X-Device-Id": VALID_DEVICE_ID})
         assert resp.status_code == 200
         data = resp.get_json()
         assert "homes" in data
@@ -596,7 +772,6 @@ class TestApiHomes:
     @patch("hestia_web.app.get_db")
     def test_api_homes_min_sqm_includes_unknown_sqm(self, mock_get_db, client):
         """min sqm should not exclude homes with unknown sqm (-1)."""
-        set_session(client)
         cur = MagicMock()
         cur.__enter__ = MagicMock(return_value=cur)
         cur.__exit__ = MagicMock(return_value=False)
@@ -611,7 +786,7 @@ class TestApiHomes:
         conn = make_mock_conn(cur)
         mock_get_db.return_value = conn
 
-        resp = client.get("/api/homes")
+        resp = client.get("/api/homes", headers={"X-Device-Id": VALID_DEVICE_ID})
         assert resp.status_code == 200
 
         # Ensure the SQL condition includes "(h.sqm = -1 OR h.sqm >= %s)" with param 50.
@@ -623,7 +798,6 @@ class TestApiHomes:
 
     @patch("hestia_web.app.get_db")
     def test_api_homes_pagination(self, mock_get_db, client):
-        set_session(client)
         cur = MagicMock()
         cur.__enter__ = MagicMock(return_value=cur)
         cur.__exit__ = MagicMock(return_value=False)
@@ -635,15 +809,14 @@ class TestApiHomes:
         conn = make_mock_conn(cur)
         mock_get_db.return_value = conn
 
-        resp = client.get("/api/homes?page=2&per_page=10")
+        resp = client.get("/api/homes?page=2&per_page=10", headers={"X-Device-Id": VALID_DEVICE_ID})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["page"] == 2
         assert data["per_page"] == 10
 
     @patch("hestia_web.app.get_db")
-    def test_api_homes_no_subscriber(self, mock_get_db, client):
-        set_session(client)
+    def test_api_homes_unknown_device_id(self, mock_get_db, client):
         cur = MagicMock()
         cur.__enter__ = MagicMock(return_value=cur)
         cur.__exit__ = MagicMock(return_value=False)
@@ -651,20 +824,19 @@ class TestApiHomes:
         conn = make_mock_conn(cur)
         mock_get_db.return_value = conn
 
-        resp = client.get("/api/homes")
-        assert resp.status_code == 200
+        resp = client.get("/api/homes", headers={"X-Device-Id": VALID_DEVICE_ID})
+        assert resp.status_code == 401
         data = resp.get_json()
-        assert data["homes"] == []
-        assert data["total"] == 0
+        assert data["error"] == "Unknown device_id"
 
     @patch("hestia_web.app.get_db")
     def test_api_homes_empty_filters(self, mock_get_db, client):
         """When user has no cities and no agencies, return empty."""
-        set_session(client)
         cur = MagicMock()
         cur.__enter__ = MagicMock(return_value=cur)
         cur.__exit__ = MagicMock(return_value=False)
         cur.fetchone.return_value = {
+            "id": 1,
             "filter_min_price": 500,
             "filter_max_price": 2000,
             "filter_cities": [],
@@ -673,12 +845,672 @@ class TestApiHomes:
         conn = make_mock_conn(cur)
         mock_get_db.return_value = conn
 
-        resp = client.get("/api/homes")
+        resp = client.get("/api/homes", headers={"X-Device-Id": VALID_DEVICE_ID})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["homes"] == []
         assert data["total"] == 0
 
+    def test_api_homes_malformed_device_id(self, client):
+        resp = client.get("/api/homes", headers={"X-Device-Id": "not-a-uuid"})
+        assert resp.status_code == 400
+        assert resp.get_json()["error"] == "Malformed X-Device-Id header"
+
+
+class _FakeUrlopenResponse:
+    def __init__(self, content_type, body=b""):
+        self.headers = {"Content-Type": content_type}
+        self._body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self, _n=-1):
+        return self._body
+
+
+class TestApiPreviewImageAuthParity:
+    @patch("hestia_web.app._preview_cache_set")
+    @patch("hestia_web.app._preview_cache_get", return_value=None)
+    @patch("hestia_web.app._safe_urlopen")
+    @patch("hestia_web.app.get_db")
+    def test_preview_image_allows_device_auth(self, mock_get_db, mock_urlopen, _mock_cache_get, _mock_cache_set, client):
+        cur = make_mock_cursor(
+            fetchone_value={
+                "id": 9,
+                "device_id": VALID_DEVICE_ID,
+            }
+        )
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+        mock_urlopen.return_value = _FakeUrlopenResponse("image/jpeg")
+
+        resp = client.get(
+            "/api/preview-image?url=https://example.com/photo.jpg",
+            headers={"X-Device-Id": VALID_DEVICE_ID},
+        )
+
+        assert resp.status_code == 200
+        assert resp.is_json
+        assert resp.get_json() == {"image_url": "https://example.com/photo.jpg"}
+
+    @patch("hestia_web.app._preview_cache_set")
+    @patch("hestia_web.app._preview_cache_get", return_value=None)
+    @patch("hestia_web.app._safe_urlopen")
+    @patch("hestia_web.app.get_db")
+    def test_preview_image_raw_allows_device_auth(self, mock_get_db, mock_urlopen, _mock_cache_get, _mock_cache_set, client):
+        cur = make_mock_cursor(
+            fetchone_value={
+                "id": 9,
+                "device_id": VALID_DEVICE_ID,
+            }
+        )
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+        mock_urlopen.return_value = _FakeUrlopenResponse("image/png", body=b"\x89PNG\r\n")
+
+        resp = client.get(
+            "/api/preview-image-raw?url=https://example.com/photo.png",
+            headers={"X-Device-Id": VALID_DEVICE_ID},
+        )
+
+        assert resp.status_code == 200
+        assert resp.data == b"\x89PNG\r\n"
+        assert resp.headers.get("Content-Type", "").startswith("image/png")
+
+    def test_preview_image_missing_auth_is_401_json_not_redirect(self, client):
+        resp = client.get("/api/preview-image?url=https://example.com/photo.jpg", follow_redirects=False)
+        assert resp.status_code == 401
+        assert resp.is_json
+        assert resp.get_json() == {"image_url": ""}
+        assert "Location" not in resp.headers
+
+    def test_preview_image_raw_missing_auth_is_401_not_redirect(self, client):
+        resp = client.get("/api/preview-image-raw?url=https://example.com/photo.jpg", follow_redirects=False)
+        assert resp.status_code == 401
+        assert resp.data == b""
+        assert "Location" not in resp.headers
+
+    def test_preview_image_malformed_device_id_is_401(self, client):
+        resp = client.get(
+            "/api/preview-image?url=https://example.com/photo.jpg",
+            headers={"X-Device-Id": "not-a-uuid"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 401
+        assert resp.is_json
+        assert resp.get_json() == {"image_url": ""}
+        assert "Location" not in resp.headers
+
+    def test_preview_image_raw_malformed_device_id_is_401(self, client):
+        resp = client.get(
+            "/api/preview-image-raw?url=https://example.com/photo.jpg",
+            headers={"X-Device-Id": "not-a-uuid"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 401
+        assert resp.data == b""
+        assert "Location" not in resp.headers
+
+
+class TestApiStatisticsAndDonationAuth:
+    @patch("hestia_web.app.get_db")
+    def test_api_statistics_with_valid_cookie_returns_200_json(self, mock_get_db, client):
+        set_session(client, email="user@example.com")
+
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 11,
+                "email_address": "user@example.com",
+            }
+        )
+        stats_cur = MagicMock()
+        stats_cur.__enter__ = MagicMock(return_value=stats_cur)
+        stats_cur.__exit__ = MagicMock(return_value=False)
+        stats_cur.fetchone.side_effect = [
+            {"cnt": 123},
+            {"cnt": 4},
+            {"cnt": 55},
+            {"cnt": 9},
+        ]
+        stats_cur.fetchall.side_effect = [
+            [{"city": "Amsterdam", "count": 10}],
+            [{"agency": "rebo", "count": 8}],
+        ]
+
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, stats_cur]
+        mock_get_db.return_value = conn
+
+        resp = client.get("/api/statistics", follow_redirects=False)
+        assert resp.status_code == 200
+        assert resp.is_json
+        data = resp.get_json()
+        assert data["total_homes"] == 123
+        assert data["homes_today"] == 4
+        assert data["total_subscribers"] == 55
+        assert data["subscribers_this_month"] == 9
+        assert "top_cities" in data
+        assert "top_agencies" in data
+
+    @patch("hestia_web.app.get_db")
+    def test_api_statistics_with_valid_device_id_returns_200_json(self, mock_get_db, client):
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 22,
+                "device_id": VALID_DEVICE_ID,
+            }
+        )
+        stats_cur = MagicMock()
+        stats_cur.__enter__ = MagicMock(return_value=stats_cur)
+        stats_cur.__exit__ = MagicMock(return_value=False)
+        stats_cur.fetchone.side_effect = [
+            {"cnt": 42},
+            {"cnt": 2},
+            {"cnt": 100},
+            {"cnt": 7},
+        ]
+        stats_cur.fetchall.side_effect = [
+            [{"city": "Utrecht", "count": 3}],
+            [{"agency": "agency1", "count": 2}],
+        ]
+
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, stats_cur]
+        mock_get_db.return_value = conn
+
+        resp = client.get("/api/statistics", headers={"X-Device-Id": VALID_DEVICE_ID}, follow_redirects=False)
+        assert resp.status_code == 200
+        assert resp.is_json
+        assert resp.get_json()["total_homes"] == 42
+
+    def test_api_statistics_without_auth_returns_401_json(self, client):
+        resp = client.get("/api/statistics", follow_redirects=False)
+        assert resp.status_code == 401
+        assert resp.is_json
+        assert resp.get_json() == {"error": "unauthorized"}
+        assert "Location" not in resp.headers
+
+    def test_api_statistics_with_invalid_device_id_returns_401_json(self, client):
+        resp = client.get("/api/statistics", headers={"X-Device-Id": "not-a-uuid"}, follow_redirects=False)
+        assert resp.status_code == 401
+        assert resp.is_json
+        assert resp.get_json() == {"error": "unauthorized"}
+        assert "Location" not in resp.headers
+
+    @patch("hestia_web.app.get_db")
+    def test_api_donation_link_with_valid_cookie_returns_200_json(self, mock_get_db, client):
+        set_session(client, email="user@example.com")
+
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 33,
+                "email_address": "user@example.com",
+            }
+        )
+        donation_cur = make_mock_cursor(fetchone_value={"donation_link": "https://buymeacoffee.com/hestia"})
+
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, donation_cur]
+        mock_get_db.return_value = conn
+
+        resp = client.get("/api/donation-link", follow_redirects=False)
+        assert resp.status_code == 200
+        assert resp.is_json
+        assert resp.get_json() == {"url": "https://buymeacoffee.com/hestia"}
+
+    @patch("hestia_web.app.get_db")
+    def test_api_donation_link_with_valid_device_id_returns_200_json(self, mock_get_db, client):
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 44,
+                "device_id": VALID_DEVICE_ID,
+            }
+        )
+        donation_cur = make_mock_cursor(fetchone_value={"donation_link": "https://example.com/donate"})
+
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, donation_cur]
+        mock_get_db.return_value = conn
+
+        resp = client.get("/api/donation-link", headers={"X-Device-Id": VALID_DEVICE_ID}, follow_redirects=False)
+        assert resp.status_code == 200
+        assert resp.is_json
+        assert resp.get_json() == {"url": "https://example.com/donate"}
+
+    def test_api_donation_link_without_auth_returns_401_json(self, client):
+        resp = client.get("/api/donation-link", follow_redirects=False)
+        assert resp.status_code == 401
+        assert resp.is_json
+        assert resp.get_json() == {"error": "unauthorized"}
+        assert "Location" not in resp.headers
+
+    def test_api_donation_link_with_invalid_device_id_returns_401_json(self, client):
+        resp = client.get("/api/donation-link", headers={"X-Device-Id": "not-a-uuid"}, follow_redirects=False)
+        assert resp.status_code == 401
+        assert resp.is_json
+        assert resp.get_json() == {"error": "unauthorized"}
+        assert "Location" not in resp.headers
+
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", "/api/homes"),
+        ("GET", "/api/filters"),
+        ("POST", "/api/filters"),
+        ("POST", "/api/device-token"),
+    ],
+)
+def test_ios_routes_missing_device_id_header(client, method, path):
+    resp = client.open(path=path, method=method)
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "Missing X-Device-Id header"
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", "/api/homes"),
+        ("GET", "/api/filters"),
+        ("POST", "/api/filters"),
+        ("POST", "/api/device-token"),
+    ],
+)
+def test_ios_routes_malformed_device_id_header(client, method, path):
+    resp = client.open(path=path, method=method, headers={"X-Device-Id": "bad-device-id"})
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "Malformed X-Device-Id header"
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", "/api/homes"),
+        ("GET", "/api/filters"),
+        ("POST", "/api/filters"),
+        ("POST", "/api/device-token"),
+    ],
+)
+@patch("hestia_web.app.get_db")
+def test_ios_routes_unknown_device_id(mock_get_db, client, method, path):
+    cur = make_mock_cursor(fetchone_value=None)
+    conn = make_mock_conn(cur)
+    mock_get_db.return_value = conn
+
+    resp = client.open(path=path, method=method, headers={"X-Device-Id": VALID_DEVICE_ID})
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "Unknown device_id"
+
+
+# =====================================================================
+# IOS DEVICE API TESTS
+# =====================================================================
+
+class TestApiRegisterDevice:
+    def test_register_device_invalid_json(self, client):
+        resp = client.post(
+            "/api/register-device",
+            data="{not-json",
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()["error"] == "Invalid JSON body"
+
+    def test_register_device_malformed_device_id(self, client):
+        resp = client.post("/api/register-device", json={"device_id": "not-a-uuid"})
+        assert resp.status_code == 400
+        assert resp.get_json()["error"] == "Malformed device_id"
+
+    @patch("hestia_web.app.get_db")
+    def test_register_device_creates_new(self, mock_get_db, client):
+        cur = make_mock_cursor(fetchone_value={"id": 7})
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+
+        resp = client.post(
+            "/api/register-device",
+            json={"device_id": VALID_DEVICE_ID, "apns_token": "apns-token"},
+        )
+        assert resp.status_code == 200
+        assert resp.get_json() == {"status": "ok"}
+
+    @patch("hestia_web.app.get_db")
+    def test_register_device_returns_exists(self, mock_get_db, client):
+        cur = make_mock_cursor(fetchone_value=None)
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+
+        resp = client.post("/api/register-device", json={"device_id": VALID_DEVICE_ID})
+        assert resp.status_code == 200
+        assert resp.get_json() == {"status": "exists"}
+
+    @patch("hestia_web.app.get_db")
+    def test_register_device_rate_limited(self, mock_get_db, client):
+        cur = make_mock_cursor(fetchone_value={"id": 7})
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+
+        for _ in range(10):
+            resp = client.post("/api/register-device", json={"device_id": str(hestia_app.uuid.uuid4())})
+            assert resp.status_code == 200
+        limited = client.post("/api/register-device", json={"device_id": str(hestia_app.uuid.uuid4())})
+        assert limited.status_code == 429
+
+
+class TestApiFiltersDevice:
+    @patch("hestia_web.app.get_db")
+    def test_api_filters_get_returns_exact_schema(self, mock_get_db, client):
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 1,
+                "device_id": VALID_DEVICE_ID,
+                "email_address": None,
+                "telegram_id": None,
+                "telegram_enabled": True,
+                "filter_min_price": 700,
+                "filter_max_price": 1800,
+                "filter_min_sqm": 45,
+                "filter_cities": ["amsterdam"],
+                "filter_agencies": ["agency1"],
+            }
+        )
+        data_cur = MagicMock()
+        data_cur.__enter__ = MagicMock(return_value=data_cur)
+        data_cur.__exit__ = MagicMock(return_value=False)
+        data_cur.fetchall.side_effect = [
+            [{"city": "AMSTERDAM"}, {"city": "Utrecht"}],
+            [
+                {"agency": "agency1", "user_info": {"agency": "Agency One"}},
+                {"agency": "agency2", "user_info": {"agency": "Agency Two"}},
+            ],
+        ]
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, data_cur]
+        mock_get_db.return_value = conn
+
+        resp = client.get("/api/filters", headers={"X-Device-Id": VALID_DEVICE_ID})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert set(data.keys()) == {
+            "filters",
+            "available_cities",
+            "available_agencies",
+            "email",
+            "telegram_linked",
+            "notifications_enabled",
+        }
+        assert data["filters"] == {
+            "min_price": 700,
+            "max_price": 1800,
+            "min_sqm": 45,
+            "cities": ["amsterdam"],
+            "agencies": ["agency1"],
+        }
+        assert data["available_agencies"] == [
+            {"name": "agency1", "enabled": True},
+            {"name": "agency2", "enabled": False},
+        ]
+        assert data["email"] is None
+        assert data["telegram_linked"] is False
+        assert data["notifications_enabled"] is True
+        assert "available_cities" in data
+
+    @patch("hestia_web.app.get_db")
+    def test_api_filters_post_saves_filters(self, mock_get_db, client):
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 5,
+                "device_id": VALID_DEVICE_ID,
+                "email_address": None,
+                "telegram_enabled": False,
+                "filter_min_price": 500,
+                "filter_max_price": 1500,
+                "filter_min_sqm": 0,
+                "filter_cities": ["amsterdam"],
+                "filter_agencies": ["agency1"],
+            }
+        )
+        write_cur = make_mock_cursor()
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, write_cur]
+        mock_get_db.return_value = conn
+
+        payload = {
+            "min_price": 1000,
+            "max_price": 2200,
+            "min_sqm": 60,
+            "cities": ["Amsterdam", " Utrecht "],
+            "agencies": ["agency1", "agency2"],
+            "notifications_enabled": True,
+        }
+        resp = client.post("/api/filters", json=payload, headers={"X-Device-Id": VALID_DEVICE_ID})
+        assert resp.status_code == 200
+        assert resp.get_json() == {"status": "ok"}
+        assert write_cur.execute.call_count == 1
+        params = write_cur.execute.call_args[0][1]
+        assert params[0] is True
+        assert params[1] == 1000
+        assert params[2] == 2200
+        assert params[3] == 60
+        assert params[4].adapted == ["amsterdam", "utrecht"]
+        assert params[5].adapted == ["agency1", "agency2"]
+        assert params[-1] == 5
+
+    @patch("hestia_web.app.get_db")
+    def test_api_filters_post_rejects_bad_payload(self, mock_get_db, client):
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 3,
+                "device_id": VALID_DEVICE_ID,
+                "telegram_enabled": False,
+                "filter_min_price": 500,
+                "filter_max_price": 1500,
+                "filter_min_sqm": 0,
+                "filter_cities": ["amsterdam"],
+                "filter_agencies": ["agency1"],
+            }
+        )
+        conn = make_mock_conn(auth_cur)
+        mock_get_db.return_value = conn
+
+        resp = client.post(
+            "/api/filters",
+            json={
+                "min_price": 2100,
+                "max_price": 2000,
+                "min_sqm": 20,
+                "cities": ["amsterdam"],
+                "agencies": ["agency1"],
+            },
+            headers={"X-Device-Id": VALID_DEVICE_ID},
+        )
+        assert resp.status_code == 400
+        assert "greater than" in resp.get_json()["error"]
+
+        resp2 = client.post(
+            "/api/filters",
+            json={
+                "min_price": 1200,
+                "max_price": 2000,
+                "min_sqm": -1,
+                "cities": ["amsterdam"],
+                "agencies": ["agency1"],
+            },
+            headers={"X-Device-Id": VALID_DEVICE_ID},
+        )
+        assert resp2.status_code == 400
+        assert "min_sqm" in resp2.get_json()["error"]
+
+    def test_api_filters_unauthenticated_returns_json_401(self, client):
+        resp = client.get("/api/filters")
+        assert resp.status_code == 401
+        assert resp.is_json
+        assert "Location" not in resp.headers
+
+    @patch("hestia_web.app.get_db")
+    def test_api_filters_session_auth_takes_precedence_over_device_header(self, mock_get_db, client):
+        set_session(client, email="user@example.com")
+
+        auth_cur = MagicMock()
+        auth_cur.__enter__ = MagicMock(return_value=auth_cur)
+        auth_cur.__exit__ = MagicMock(return_value=False)
+        auth_cur.fetchone.return_value = {
+            "id": 15,
+            "email_address": "user@example.com",
+            "telegram_id": "12345",
+            "telegram_enabled": True,
+            "filter_min_price": 600,
+            "filter_max_price": 1600,
+            "filter_min_sqm": 10,
+            "filter_cities": ["amsterdam"],
+            "filter_agencies": ["agency1"],
+        }
+        data_cur = MagicMock()
+        data_cur.__enter__ = MagicMock(return_value=data_cur)
+        data_cur.__exit__ = MagicMock(return_value=False)
+        data_cur.fetchall.side_effect = [
+            [{"city": "Amsterdam"}],
+            [{"agency": "agency1", "user_info": {"agency": "Agency One"}}],
+        ]
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, data_cur]
+        mock_get_db.return_value = conn
+
+        resp = client.get("/api/filters", headers={"X-Device-Id": "not-a-uuid"})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["email"] == "user@example.com"
+        assert data["telegram_linked"] is True
+
+
+class TestApiDeviceToken:
+    @patch("hestia_web.app.get_db")
+    def test_api_device_token_updates(self, mock_get_db, client):
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 9,
+                "device_id": VALID_DEVICE_ID,
+            }
+        )
+        write_cur = make_mock_cursor()
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, write_cur]
+        mock_get_db.return_value = conn
+
+        resp = client.post(
+            "/api/device-token",
+            json={"apns_token": "abc123"},
+            headers={"X-Device-Id": VALID_DEVICE_ID},
+        )
+        assert resp.status_code == 200
+        assert resp.get_json() == {"status": "ok"}
+        params = write_cur.execute.call_args[0][1]
+        assert params == ("abc123", 9)
+
+    @patch("hestia_web.app.get_db")
+    def test_api_device_token_missing_token(self, mock_get_db, client):
+        auth_cur = make_mock_cursor(
+            fetchone_value={
+                "id": 9,
+                "device_id": VALID_DEVICE_ID,
+            }
+        )
+        conn = make_mock_conn(auth_cur)
+        mock_get_db.return_value = conn
+
+        resp = client.post(
+            "/api/device-token",
+            json={},
+            headers={"X-Device-Id": VALID_DEVICE_ID},
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()["error"] == "Missing apns_token"
+
+
+class TestIOSIntegrationMatrix:
+    def test_ios_matrix_flow(self, client):
+        hestia_app.IOS_METRICS.clear()
+        fake_db = _FakeIOSDB()
+
+        with patch("hestia_web.app.get_db", new=fake_db):
+            register_resp = client.post(
+                "/api/register-device",
+                json={"device_id": VALID_DEVICE_ID, "apns_token": "first-token"},
+            )
+            assert register_resp.status_code == 200
+            assert register_resp.get_json() == {"status": "ok"}
+
+            homes_resp = client.get("/api/homes", headers={"X-Device-Id": VALID_DEVICE_ID})
+            assert homes_resp.status_code == 200
+            homes = homes_resp.get_json()
+            assert homes["total"] == 1
+            assert len(homes["homes"]) == 1
+
+            save_resp = client.post(
+                "/api/filters",
+                json={
+                    "min_price": 900,
+                    "max_price": 2100,
+                    "min_sqm": 50,
+                    "cities": ["Amsterdam"],
+                    "agencies": ["rebo"],
+                    "notifications_enabled": True,
+                },
+                headers={"X-Device-Id": VALID_DEVICE_ID},
+            )
+            assert save_resp.status_code == 200
+            assert save_resp.get_json() == {"status": "ok"}
+
+            load_resp = client.get("/api/filters", headers={"X-Device-Id": VALID_DEVICE_ID})
+            assert load_resp.status_code == 200
+            loaded = load_resp.get_json()
+            assert loaded["filters"]["min_price"] == 900
+            assert loaded["filters"]["max_price"] == 2100
+            assert loaded["filters"]["min_sqm"] == 50
+            assert loaded["filters"]["cities"] == ["amsterdam"]
+            assert loaded["filters"]["agencies"] == ["rebo"]
+            assert loaded["notifications_enabled"] is True
+
+            token_resp = client.post(
+                "/api/device-token",
+                json={"apns_token": "new-token"},
+                headers={"X-Device-Id": VALID_DEVICE_ID},
+            )
+            assert token_resp.status_code == 200
+            assert token_resp.get_json() == {"status": "ok"}
+            assert fake_db.subscribers_by_device[VALID_DEVICE_ID]["apns_token"] == "new-token"
+
+            malformed_resp = client.get("/api/homes", headers={"X-Device-Id": "invalid"})
+            assert malformed_resp.status_code == 400
+
+            unknown_resp = client.get(
+                "/api/homes",
+                headers={"X-Device-Id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"},
+            )
+            assert unknown_resp.status_code == 401
+
+        assert hestia_app.IOS_METRICS["register-device:ok"] >= 1
+        assert hestia_app.IOS_METRICS["filter-save:ok"] >= 1
+        assert hestia_app.IOS_METRICS["device-token:ok"] >= 1
 
 # =====================================================================
 # LINK TELEGRAM TESTS

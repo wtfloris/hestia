@@ -57,6 +57,39 @@ services:
       - hestia-network-dev
     ports:
       - "19191:5050"
+    volumes:
+      - ../web/local_testing:/app/local_testing:ro
+    command:
+      - gunicorn
+      - --bind
+      - 0.0.0.0:5050
+      - --workers
+      - "2"
+      - --threads
+      - "4"
+      - --worker-class
+      - gthread
+      - --timeout
+      - "60"
+      - --access-logfile
+      - "-"
+      - --error-logfile
+      - "-"
+      - --log-level
+      - info
+      - --certfile
+      - /app/local_testing/cert.pem
+      - --keyfile
+      - /app/local_testing/key.pem
+      - hestia_web.app:app
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import ssl, urllib.request; c=ssl._create_unverified_context(); urllib.request.urlopen('https://localhost:5050/health', context=c).read()"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     restart: unless-stopped
     environment:
       - DATABASE_URL=${DATABASE_URL}

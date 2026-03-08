@@ -183,6 +183,12 @@ class TestWriteActions:
         assert "telegram_enabled = false" in mock_write.call_args[0][0]
 
     @patch('hestia_utils.db._write')
+    def test_clear_apns_token(self, mock_write):
+        db.clear_apns_token(123)
+        mock_write.assert_called_once()
+        assert "apns_token = NULL" in mock_write.call_args[0][0]
+
+    @patch('hestia_utils.db._write')
     def test_halt_scraper(self, mock_write):
         db.halt_scraper()
         mock_write.assert_called_once()

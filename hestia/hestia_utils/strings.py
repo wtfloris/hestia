@@ -162,7 +162,7 @@ Succes met je zoektocht\!"""
 *Can you add website \.\.\.?*
     Probably, please check [this issue](https://github.com/wtfloris/hestia/issues/53) on GitHub to see if it's already on the list\.
 
-*Can you add a filter for: amount of rooms/square m2/postal code, etc\.?*
+*Can you add a filter for: amount of rooms/postal code, etc\.?*
     In short: no, because it makes Hestia less reliable\. Please see [this comment](https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778) for the full explanation \(and feel free to discuss if you don\'t agree\)\!
 
 *Does this work if I want to buy a home?*
@@ -192,7 +192,7 @@ Succes met je zoektocht\!"""
 *Kun je website \.\.\. toevoegen?*
     Waarschijnlijk wel, kijk op GitHub bij [dit issue](https://github.com/wtfloris/hestia/issues/53) om te zien of de website al op de lijst staat\.
 
-*Kun je een filter toevoegen voor: aantal kamers/vierkante meters/postcode, etc\.?*
+*Kun je een filter toevoegen voor: aantal kamers/postcode, etc\.?*
     Kort gezegd: nee, omdat dit Hestia minder stabiel maakt\. Zie [deze opmerking](https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778) voor de volledige uitleg \(en voel je vrij om te discussiëren als je het er niet mee eens bent\)\!
 
 *Werkt dit ook als ik een huis wil kopen?*

@@ -177,7 +177,7 @@ class TestBroadcast:
 
         mock_db.get_dev_mode.return_value = False
         mock_db.fetch_all.side_effect = [
-            [{"telegram_id": 111, "filter_min_price": 1000, "filter_max_price": 1500,
+            [{"telegram_id": 111, "telegram_enabled": True, "apns_token": None, "filter_min_price": 1000, "filter_max_price": 1500,
               "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"], "filter_min_sqm": 0}],
             [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
         ]
@@ -198,7 +198,7 @@ class TestBroadcast:
 
         mock_db.get_dev_mode.return_value = False
         mock_db.fetch_all.side_effect = [
-            [{"telegram_id": 111, "filter_min_price": 0, "filter_max_price": 9999,
+            [{"telegram_id": 111, "telegram_enabled": True, "apns_token": None, "filter_min_price": 0, "filter_max_price": 9999,
               "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"], "filter_min_sqm": 0}],
             [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
         ]
@@ -220,7 +220,7 @@ class TestBroadcast:
 
         mock_db.get_dev_mode.return_value = False
         mock_db.fetch_all.side_effect = [
-            [{"telegram_id": 111, "filter_min_price": 0, "filter_max_price": 9999,
+            [{"telegram_id": 111, "telegram_enabled": True, "apns_token": None, "filter_min_price": 0, "filter_max_price": 9999,
               "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"], "filter_min_sqm": 0}],
             [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
         ]
@@ -240,7 +240,7 @@ class TestBroadcast:
 
         mock_db.get_dev_mode.return_value = False
         mock_db.fetch_all.side_effect = [
-            [{"telegram_id": 111, "filter_min_price": 0, "filter_max_price": 9999,
+            [{"telegram_id": 111, "telegram_enabled": True, "apns_token": None, "filter_min_price": 0, "filter_max_price": 9999,
               "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"], "filter_min_sqm": 40}],
             [{"agency": "rebo", "user_info": {"agency": "Rebo"}}]
         ]
@@ -254,3 +254,149 @@ class TestBroadcast:
 
         # home_big (60 >= 40) and home_unknown (-1, passes) should be sent; home_small (30 < 40) filtered
         assert mock_meta.BOT.send_message.call_count == 2
+
+    @pytest.mark.asyncio
+    @patch("scraper.apns.build_home_notification_payload")
+    @patch("scraper.apns.APNsClient")
+    @patch("scraper.meta")
+    @patch("scraper.db")
+    async def test_sends_apns_for_matching_subscriber(
+        self, mock_db, mock_meta, mock_apns_client_cls, mock_payload_builder
+    ):
+        from scraper import broadcast, SCRAPER_METRICS
+        SCRAPER_METRICS.clear()
+
+        mock_db.get_dev_mode.return_value = False
+        mock_db.fetch_all.side_effect = [
+            [
+                {
+                    "id": 1,
+                    "device_id": "11111111-1111-1111-1111-111111111111",
+                    "telegram_enabled": False,
+                    "telegram_id": None,
+                    "apns_token": "apns-token-1",
+                    "filter_min_price": 0,
+                    "filter_max_price": 9999,
+                    "filter_cities": ["amsterdam"],
+                    "filter_agencies": ["rebo"],
+                    "filter_min_sqm": 0,
+                }
+            ],
+            [{"agency": "rebo", "user_info": {"agency": "Rebo"}}],
+        ]
+        mock_meta.BOT.send_message = AsyncMock()
+
+        client = MagicMock()
+        client.enabled = True
+        client.send.return_value = MagicMock(ok=True, should_retry=False, permanent_invalid=False, reason="", status_code=200)
+        mock_apns_client_cls.return_value = client
+        mock_payload_builder.return_value = {"aps": {"alert": {"title": "x", "body": "y"}}}
+
+        home = Home(address="Straat 1", city="Amsterdam", url="http://a.com", agency="rebo", price=1200)
+        await broadcast([home])
+
+        mock_meta.BOT.send_message.assert_not_called()
+        client.send.assert_called_once()
+        mock_db.clear_apns_token.assert_not_called()
+        assert SCRAPER_METRICS["apns:success"] == 1
+        assert SCRAPER_METRICS["apns:failure"] == 0
+
+    @pytest.mark.asyncio
+    @patch("scraper.sleep")
+    @patch("scraper.apns.build_home_notification_payload")
+    @patch("scraper.apns.APNsClient")
+    @patch("scraper.meta")
+    @patch("scraper.db")
+    async def test_apns_retries_transient_errors(
+        self, mock_db, mock_meta, mock_apns_client_cls, mock_payload_builder, mock_sleep
+    ):
+        from scraper import broadcast, SCRAPER_METRICS
+        SCRAPER_METRICS.clear()
+
+        mock_db.get_dev_mode.return_value = False
+        mock_db.fetch_all.side_effect = [
+            [
+                {
+                    "id": 2,
+                    "device_id": "22222222-2222-2222-2222-222222222222",
+                    "telegram_enabled": False,
+                    "telegram_id": None,
+                    "apns_token": "apns-token-2",
+                    "filter_min_price": 0,
+                    "filter_max_price": 9999,
+                    "filter_cities": ["amsterdam"],
+                    "filter_agencies": ["rebo"],
+                    "filter_min_sqm": 0,
+                }
+            ],
+            [{"agency": "rebo", "user_info": {"agency": "Rebo"}}],
+        ]
+        mock_meta.BOT.send_message = AsyncMock()
+
+        client = MagicMock()
+        client.enabled = True
+        retry_result = MagicMock(ok=False, should_retry=True, permanent_invalid=False, reason="TooManyRequests", status_code=429)
+        success_result = MagicMock(ok=True, should_retry=False, permanent_invalid=False, reason="", status_code=200)
+        client.send.side_effect = [retry_result, success_result]
+        mock_apns_client_cls.return_value = client
+        mock_payload_builder.return_value = {"aps": {"alert": {"title": "x", "body": "y"}}}
+
+        home = Home(address="Straat 1", city="Amsterdam", url="http://a.com", agency="rebo", price=1200)
+        await broadcast([home])
+
+        assert client.send.call_count == 2
+        mock_sleep.assert_called_once()
+        mock_db.clear_apns_token.assert_not_called()
+        assert SCRAPER_METRICS["apns:success"] == 1
+        assert SCRAPER_METRICS["apns:failure"] == 0
+
+    @pytest.mark.asyncio
+    @patch("scraper.apns.build_home_notification_payload")
+    @patch("scraper.apns.APNsClient")
+    @patch("scraper.meta")
+    @patch("scraper.db")
+    async def test_apns_invalid_token_is_cleared(
+        self, mock_db, mock_meta, mock_apns_client_cls, mock_payload_builder
+    ):
+        from scraper import broadcast, SCRAPER_METRICS
+        SCRAPER_METRICS.clear()
+
+        mock_db.get_dev_mode.return_value = False
+        mock_db.fetch_all.side_effect = [
+            [
+                {
+                    "id": 3,
+                    "device_id": "33333333-3333-3333-3333-333333333333",
+                    "telegram_enabled": False,
+                    "telegram_id": None,
+                    "apns_token": "invalid-token",
+                    "filter_min_price": 0,
+                    "filter_max_price": 9999,
+                    "filter_cities": ["amsterdam"],
+                    "filter_agencies": ["rebo"],
+                    "filter_min_sqm": 0,
+                }
+            ],
+            [{"agency": "rebo", "user_info": {"agency": "Rebo"}}],
+        ]
+        mock_meta.BOT.send_message = AsyncMock()
+
+        client = MagicMock()
+        client.enabled = True
+        invalid_result = MagicMock(
+            ok=False,
+            should_retry=False,
+            permanent_invalid=True,
+            reason="Unregistered",
+            status_code=410,
+        )
+        client.send.return_value = invalid_result
+        mock_apns_client_cls.return_value = client
+        mock_payload_builder.return_value = {"aps": {"alert": {"title": "x", "body": "y"}}}
+
+        home = Home(address="Straat 1", city="Amsterdam", url="http://a.com", agency="rebo", price=1200)
+        await broadcast([home])
+
+        mock_db.clear_apns_token.assert_called_once_with(3)
+        assert SCRAPER_METRICS["apns:success"] == 0
+        assert SCRAPER_METRICS["apns:failure"] == 1
