@@ -5,7 +5,9 @@ import re
 import functools
 import uuid
 import atexit
+import http.client
 import logging
+import ssl
 import sys
 import ipaddress
 import socket
@@ -13,6 +15,8 @@ import time
 from collections import Counter
 from threading import Lock
 from html.parser import HTMLParser
+import urllib.error
+import urllib.request
 from urllib.parse import urlparse, urljoin
 from urllib.request import Request, urlopen
 from datetime import datetime, timedelta, timezone
@@ -1586,8 +1590,70 @@ def _looks_like_image_url(url):
     return False
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Prevent urllib from auto-following redirects so each hop is validated."""
+
+    def http_error_302(self, req, fp, code, msg, headers):
+        raise urllib.error.HTTPError(req.full_url, code, msg, headers, fp)
+
+    http_error_301 = http_error_303 = http_error_307 = http_error_308 = http_error_302
+
+
+class _IPValidatingHTTPConnection(http.client.HTTPConnection):
+    """HTTP connection that pins DNS resolution and rejects non-public IPs."""
+
+    def connect(self):
+        resolved = socket.gethostbyname(self.host)
+        ip = ipaddress.ip_address(resolved)
+        if not ip.is_global:
+            raise ValueError(f"Resolved to non-public IP: {resolved}")
+        self.sock = socket.create_connection(
+            (resolved, self.port), self.timeout, self.source_address
+        )
+
+
+class _IPValidatingHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPS connection that pins DNS resolution and rejects non-public IPs."""
+
+    def connect(self):
+        resolved = socket.gethostbyname(self.host)
+        ip = ipaddress.ip_address(resolved)
+        if not ip.is_global:
+            raise ValueError(f"Resolved to non-public IP: {resolved}")
+        self.sock = socket.create_connection(
+            (resolved, self.port), self.timeout, self.source_address
+        )
+        if self._context is None:
+            self._context = ssl.create_default_context()
+        self.sock = self._context.wrap_socket(
+            self.sock, server_hostname=self.host
+        )
+
+
+class _IPValidatingHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_IPValidatingHTTPConnection, req)
+
+
+class _IPValidatingHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_IPValidatingHTTPSConnection, req)
+
+
+_ssrf_safe_opener = urllib.request.build_opener(
+    _NoRedirectHandler,
+    _IPValidatingHTTPHandler,
+    _IPValidatingHTTPSHandler,
+)
+
+
 def _safe_urlopen(url, headers, method="GET", timeout=5, max_redirects=3):
-    """Open a URL with redirect validation and public-host enforcement."""
+    """Open a URL with redirect validation and public-host enforcement.
+
+    Redirects are followed manually so each hop is validated against
+    _is_public_host.  DNS resolution is pinned at connect time via
+    _IPValidatingHTTP(S)Connection to prevent DNS-rebinding attacks.
+    """
     current = url
     for _ in range(max_redirects + 1):
         parsed = urlparse(current)
@@ -1597,9 +1663,9 @@ def _safe_urlopen(url, headers, method="GET", timeout=5, max_redirects=3):
             raise ValueError("non-public host")
         req = Request(current, method=method, headers=headers)
         try:
-            return urlopen(req, timeout=timeout)
-        except Exception as e:
-            if hasattr(e, "code") and e.code in {301, 302, 303, 307, 308}:
+            return _ssrf_safe_opener.open(req, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            if e.code in {301, 302, 303, 307, 308}:
                 location = e.headers.get("Location")
                 if not location:
                     raise
