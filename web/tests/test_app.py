@@ -657,12 +657,13 @@ class _FakeIOSCursor:
             self._one = {"id": row["id"]}
             return
 
-        if "update hestia.subscribers set telegram_enabled = %s" in q and "where id = %s" in q:
+        if "update hestia.subscribers set apns_token = case when %s then apns_token else null end" in q and "where id = %s" in q:
             subscriber = self.state.find_subscriber_by_id(params[-1])
             if subscriber is None:
                 self.rowcount = 0
                 return
-            subscriber["telegram_enabled"] = params[0]
+            if not params[0]:
+                subscriber["apns_token"] = None
             subscriber["filter_min_price"] = params[1]
             subscriber["filter_max_price"] = params[2]
             subscriber["filter_min_sqm"] = params[3]
@@ -1218,6 +1219,7 @@ class TestApiFiltersDevice:
                 "email_address": None,
                 "telegram_id": None,
                 "telegram_enabled": True,
+                "apns_token": "mock-apns-token",
                 "filter_min_price": 700,
                 "filter_max_price": 1800,
                 "filter_min_sqm": 45,
