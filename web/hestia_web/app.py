@@ -1379,7 +1379,7 @@ def api_filters():
                 "available_agencies": available_agencies,
                 "email": sub.get("email_address"),
                 "telegram_linked": bool(sub.get("telegram_id")),
-                "notifications_enabled": bool(sub.get("telegram_enabled")),
+                "notifications_enabled": bool(sub.get("apns_token")),
             }
         )
 
@@ -1429,18 +1429,13 @@ def api_filters():
 
     normalized_cities = [city.strip().lower() for city in filter_cities if city.strip()]
     normalized_agencies = [agency.strip() for agency in filter_agencies if agency.strip()]
-    current_notifications_enabled = bool(request.subscriber.get("telegram_enabled"))
-    notifications_value = (
-        notifications_enabled if notifications_enabled is not None else current_notifications_enabled
-    )
-
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
                     UPDATE hestia.subscribers
-                    SET telegram_enabled = %s,
+                    SET apns_token = CASE WHEN %s THEN apns_token ELSE NULL END,
                         filter_min_price = %s,
                         filter_max_price = %s,
                         filter_min_sqm = %s,
@@ -1449,7 +1444,7 @@ def api_filters():
                     WHERE id = %s
                     """,
                     (
-                        notifications_value,
+                        notifications_enabled is not False,
                         min_price,
                         max_price,
                         min_sqm,
