@@ -108,6 +108,8 @@ def enable_user(telegram_id: int) -> None:
     _write("UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = %s", [str(telegram_id)])
 def disable_user(telegram_id: int) -> None:
     _write("UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = %s", [str(telegram_id)])
+def clear_apns_token(subscriber_id: int) -> None:
+    _write("UPDATE hestia.subscribers SET apns_token = NULL WHERE id = %s", [str(subscriber_id)])
 def halt_scraper() -> None:
     _write("UPDATE hestia.meta SET scraper_halted = true WHERE id = 'default'")
 def resume_scraper() -> None:

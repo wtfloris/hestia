@@ -5,12 +5,18 @@ import re
 import functools
 import uuid
 import atexit
+import http.client
 import logging
+import ssl
 import sys
 import ipaddress
 import socket
 import time
+from collections import Counter
+from threading import Lock
 from html.parser import HTMLParser
+import urllib.error
+import urllib.request
 from urllib.parse import urlparse, urljoin
 from urllib.request import Request, urlopen
 from datetime import datetime, timedelta, timezone
@@ -57,6 +63,7 @@ RECENT_LOGIN_REQUESTS = {}
 RECENT_LOGIN_MAX_ENTRIES = 10000
 SESSION_MAX_AGE = 365 * 24 * 60 * 60  # 1 year
 SESSION_COOKIE_NAME = "hestia_session"
+DEVICE_ID_HEADER = "X-Device-Id"
 
 serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
 
@@ -93,6 +100,27 @@ logger.addHandler(handler)
 
 # Prevent propagation to root logger to avoid duplicate logs
 logger.propagate = False
+
+# Lightweight in-process counters for iOS API observability.
+IOS_METRICS = Counter()
+IOS_METRICS_LOCK = Lock()
+
+
+def _increment_ios_metric(metric_name: str, outcome: str = "ok") -> int:
+    key = f"{metric_name}:{outcome}"
+    with IOS_METRICS_LOCK:
+        IOS_METRICS[key] += 1
+        value = IOS_METRICS[key]
+    logger.info(
+        "iOS metric incremented",
+        extra={
+            "event": "ios_metric",
+            "metric": metric_name,
+            "outcome": outcome,
+            "value": value,
+        },
+    )
+    return value
 
 # ---------------------------------------------------------------------------
 # Rate limiter
@@ -258,6 +286,226 @@ def login_required(f):
         request.email = email
         return f(*args, **kwargs)
     return decorated
+
+
+def resolve_subscriber_by_device_id():
+    """Resolve and cache subscriber from X-Device-Id request header."""
+    raw_device_id = (request.headers.get(DEVICE_ID_HEADER) or "").strip()
+    if not raw_device_id:
+        logger.info(
+            "Device auth failed: missing header",
+            extra={"event": "device_auth", "outcome": "missing_header"},
+        )
+        return jsonify({"error": f"Missing {DEVICE_ID_HEADER} header"}), 401
+
+    try:
+        normalized_device_id = str(uuid.UUID(raw_device_id))
+    except (ValueError, TypeError, AttributeError):
+        logger.info(
+            "Device auth failed: malformed header",
+            extra={"event": "device_auth", "outcome": "malformed_header", "raw_device_id": raw_device_id},
+        )
+        return jsonify({"error": f"Malformed {DEVICE_ID_HEADER} header"}), 400
+
+    try:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT * FROM hestia.subscribers WHERE device_id = %s",
+                    (normalized_device_id,),
+                )
+                subscriber = cur.fetchone()
+    except psycopg2.Error as e:
+        logger.error(
+            "Database error resolving device subscriber",
+            extra={
+                "device_id": normalized_device_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+            exc_info=True,
+        )
+        return jsonify({"error": "Database error"}), 500
+
+    if subscriber is None:
+        logger.info(
+            "Device auth failed: unknown device",
+            extra={"event": "device_auth", "outcome": "unknown_device", "device_id": normalized_device_id},
+        )
+        return jsonify({"error": "Unknown device_id"}), 401
+
+    request.device_id = normalized_device_id
+    request.subscriber = subscriber
+    request.subscriber_id = subscriber["id"]
+    logger.info(
+        "Device auth succeeded",
+        extra={
+            "event": "device_auth",
+            "outcome": "ok",
+            "device_id": normalized_device_id,
+            "subscriber_id": subscriber["id"],
+        },
+    )
+    return None
+
+
+def device_auth_required(f):
+    """Decorator that enforces X-Device-Id subscriber authentication."""
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        auth_error = resolve_subscriber_by_device_id()
+        if auth_error is not None:
+            return auth_error
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _load_available_cities_and_agencies(cur):
+    """Load available filter options shared by dashboard and API endpoints."""
+    cur.execute("SELECT DISTINCT city FROM hestia.homes")
+    raw_cities = [row["city"] for row in cur.fetchall() if row["city"]]
+    city_map = {}
+    for city in raw_cities:
+        key = city.lower()
+        if key not in city_map:
+            city_map[key] = city
+            continue
+        existing = city_map[key]
+        if existing.isupper() and not city.isupper():
+            city_map[key] = city
+    available_cities = sorted(
+        [city_map[key].title() if city_map[key].isupper() else city_map[key] for key in city_map]
+    )
+
+    cur.execute(
+        """
+        SELECT DISTINCT ON (agency) agency, user_info
+        FROM hestia.targets
+        WHERE enabled = true
+        ORDER BY agency
+        """
+    )
+    available_agencies = sorted(
+        [
+            {
+                "id": row["agency"],
+                "name": row["user_info"].get("agency", row["agency"])
+                if isinstance(row["user_info"], dict)
+                else row["agency"],
+            }
+            for row in cur.fetchall()
+        ],
+        key=lambda a: a["name"],
+    )
+    return available_cities, available_agencies
+
+
+def resolve_api_subscriber():
+    """Resolve subscriber for API routes using session first, then X-Device-Id."""
+    email = get_current_email()
+    if email:
+        try:
+            with get_db() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (email,))
+                    cur.execute(
+                        "SELECT * FROM hestia.subscribers WHERE email_address = %s ORDER BY id",
+                        (email,),
+                    )
+                    subscriber = cur.fetchone()
+                    if subscriber is None:
+                        cur.execute(
+                            "INSERT INTO hestia.subscribers (email_address) VALUES (%s)",
+                            (email,),
+                        )
+                        cur.execute(
+                            "SELECT * FROM hestia.subscribers WHERE email_address = %s ORDER BY id",
+                            (email,),
+                        )
+                        subscriber = cur.fetchone()
+        except psycopg2.Error as e:
+            logger.error(
+                "Database error resolving session subscriber",
+                extra={"email": email, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return jsonify({"error": "Database error"}), 500
+
+        request.email = email
+        request.subscriber = subscriber
+        request.subscriber_id = subscriber["id"]
+        request.auth_method = "session"
+        request.device_id = None
+        return None
+
+    auth_error = resolve_subscriber_by_device_id()
+    if auth_error is not None:
+        return auth_error
+    request.auth_method = "device"
+    return None
+
+
+def api_subscriber_required(f):
+    """Decorator for API routes that accept session or device auth."""
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        auth_error = resolve_api_subscriber()
+        if auth_error is not None:
+            return auth_error
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _auth_error_status_code(auth_error) -> int | None:
+    """Extract HTTP status code from Flask view return values."""
+    if isinstance(auth_error, tuple) and len(auth_error) >= 2 and isinstance(auth_error[1], int):
+        return auth_error[1]
+    return getattr(auth_error, "status_code", None)
+
+
+def preview_api_subscriber_required(raw: bool = False):
+    """Decorator for preview API routes that must never redirect to HTML."""
+    def outer(f):
+        @functools.wraps(f)
+        def decorated(*args, **kwargs):
+            auth_error = resolve_api_subscriber()
+            if auth_error is not None:
+                # Normalize auth failures for preview APIs so clients always get
+                # a machine-readable 401 instead of route-specific error payloads.
+                if _auth_error_status_code(auth_error) in {400, 401}:
+                    if raw:
+                        return ("", 401)
+                    return jsonify({"image_url": ""}), 401
+                return auth_error
+            return f(*args, **kwargs)
+        return decorated
+    return outer
+
+
+def api_client_auth_required(f):
+    """Decorator for app-facing JSON APIs that should return uniform 401 errors."""
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        auth_error = resolve_api_subscriber()
+        if auth_error is not None:
+            if _auth_error_status_code(auth_error) in {400, 401}:
+                return jsonify({"error": "unauthorized"}), 401
+            return auth_error
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _normalize_device_id(value) -> str | None:
+    """Normalize a UUID value to canonical string form."""
+    if not isinstance(value, str):
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    try:
+        return str(uuid.UUID(raw))
+    except (ValueError, TypeError, AttributeError):
+        return None
 
 
 def generate_csrf_token() -> str:
@@ -622,42 +870,8 @@ def dashboard():
                     )
                     subscriber = cur.fetchone()
 
-                # Fetch available cities and agencies for filter options
-                cur.execute("SELECT DISTINCT city FROM hestia.homes")
-                raw_cities = [row["city"] for row in cur.fetchall() if row["city"]]
-                city_map = {}
-                for city in raw_cities:
-                    key = city.lower()
-                    if key not in city_map:
-                        city_map[key] = city
-                        continue
-                    existing = city_map[key]
-                    if existing.isupper() and not city.isupper():
-                        city_map[key] = city
-                available_cities = sorted(
-                    [city_map[key].title() if city_map[key].isupper() else city_map[key] for key in city_map]
-                )
-
-                cur.execute(
-                    """
-                    SELECT DISTINCT ON (agency) agency, user_info
-                    FROM hestia.targets
-                    WHERE enabled = true
-                    ORDER BY agency
-                    """
-                )
-                available_agencies = sorted(
-                    [
-                        {
-                            "id": row["agency"],
-                            "name": row["user_info"].get("agency", row["agency"])
-                                if isinstance(row["user_info"], dict)
-                                else row["agency"],
-                        }
-                        for row in cur.fetchall()
-                    ],
-                    key=lambda a: a["name"],
-                )
+                # Fetch available cities and agencies for filter options.
+                available_cities, available_agencies = _load_available_cities_and_agencies(cur)
     except psycopg2.Error as e:
         logger.error(
             "Database error loading dashboard",
@@ -944,9 +1158,9 @@ def update_filters():
 
 @app.route("/api/homes")
 @limiter.limit("150 per hour")
-@login_required
+@api_subscriber_required
 def api_homes():
-    """Return homes matching the logged-in user's filters, with pagination."""
+    """Return homes matching the authenticated device's filters, with pagination."""
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
     page = max(1, page)
@@ -954,35 +1168,26 @@ def api_homes():
     offset = (page - 1) * per_page
 
     try:
+        sub = request.subscriber
+        min_price = sub["filter_min_price"]
+        max_price = sub["filter_max_price"]
+        min_sqm = sub.get("filter_min_sqm", 0) or 0
+        cities = sub["filter_cities"] or []
+        agencies = sub["filter_agencies"] or []
+
+        if not cities or not agencies:
+            return jsonify({"homes": [], "total": 0, "page": page, "per_page": per_page})
+
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    "SELECT filter_min_price, filter_max_price, filter_min_sqm, filter_cities, filter_agencies FROM hestia.subscribers WHERE email_address = %s",
-                    (request.email,),
-                )
-                sub = cur.fetchone()
-                if sub is None:
-                    return jsonify({"homes": [], "total": 0, "page": page, "per_page": per_page})
-
-                min_price = sub["filter_min_price"]
-                max_price = sub["filter_max_price"]
-                min_sqm = sub.get("filter_min_sqm", 0) or 0
-                cities = sub["filter_cities"] or []
-                agencies = sub["filter_agencies"] or []
-
-                if not cities and not agencies:
-                    return jsonify({"homes": [], "total": 0, "page": page, "per_page": per_page})
-
                 conditions = ["h.price >= %s", "h.price <= %s", "h.date_added >= %s"]
                 params = [min_price, max_price, datetime.now(timezone.utc) - timedelta(weeks=4)]
 
-                if cities:
-                    conditions.append("LOWER(h.city) = ANY(%s)")
-                    params.append([c.lower() for c in cities])
+                conditions.append("LOWER(h.city) = ANY(%s)")
+                params.append([c.lower() for c in cities])
 
-                if agencies:
-                    conditions.append("h.agency = ANY(%s)")
-                    params.append(agencies)
+                conditions.append("h.agency = ANY(%s)")
+                params.append(agencies)
 
                 if min_sqm > 0:
                     # Don't exclude listings with unknown sqm (-1); users may still want to see them.
@@ -1037,13 +1242,303 @@ def api_homes():
         logger.error(
             "Database error fetching homes",
             extra={
-                "email": request.email,
+                "device_id": getattr(request, "device_id", None),
                 "error": str(e),
                 "error_type": type(e).__name__,
             },
             exc_info=True,
         )
         return jsonify({"error": "Database error"}), 500
+
+
+@app.route("/api/register-device", methods=["POST"])
+@limiter.limit("10 per hour")
+def api_register_device():
+    """Register an anonymous iOS device by device_id."""
+    payload = request.get_json(silent=True)
+    if payload is None:
+        _increment_ios_metric("register-device", "bad_request")
+        logger.info(
+            "Register device rejected: invalid JSON",
+            extra={"event": "register_device", "outcome": "invalid_json"},
+        )
+        return jsonify({"error": "Invalid JSON body"}), 400
+
+    normalized_device_id = _normalize_device_id(payload.get("device_id"))
+    if normalized_device_id is None:
+        _increment_ios_metric("register-device", "bad_request")
+        logger.info(
+            "Register device rejected: malformed device_id",
+            extra={"event": "register_device", "outcome": "malformed_device_id"},
+        )
+        return jsonify({"error": "Malformed device_id"}), 400
+
+    apns_token = payload.get("apns_token")
+    if apns_token is not None and not isinstance(apns_token, str):
+        _increment_ios_metric("register-device", "bad_request")
+        logger.info(
+            "Register device rejected: apns_token not string",
+            extra={"event": "register_device", "outcome": "invalid_apns_token_type"},
+        )
+        return jsonify({"error": "apns_token must be a string"}), 400
+    if isinstance(apns_token, str):
+        apns_token = apns_token.strip() or None
+
+    try:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO hestia.subscribers (device_id, apns_token)
+                    VALUES (%s, %s)
+                    ON CONFLICT (device_id) DO NOTHING
+                    RETURNING id
+                    """,
+                    (normalized_device_id, apns_token),
+                )
+                created = cur.fetchone()
+    except psycopg2.Error as e:
+        logger.error(
+            "Database error registering device",
+            extra={
+                "device_id": normalized_device_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+            exc_info=True,
+        )
+        _increment_ios_metric("register-device", "db_error")
+        return jsonify({"error": "Database error"}), 500
+
+    if created is None:
+        _increment_ios_metric("register-device", "exists")
+        logger.info(
+            "Register device no-op: already exists",
+            extra={"event": "register_device", "outcome": "exists", "device_id": normalized_device_id},
+        )
+        return jsonify({"status": "exists"})
+    _increment_ios_metric("register-device", "ok")
+    logger.info(
+        "Register device succeeded",
+        extra={"event": "register_device", "outcome": "ok", "device_id": normalized_device_id},
+    )
+    return jsonify({"status": "ok"})
+
+
+@app.route("/api/filters", methods=["GET", "POST"])
+@api_subscriber_required
+def api_filters():
+    """Load or update filters using session auth or X-Device-Id."""
+    if request.method == "GET":
+        sub = request.subscriber
+        try:
+            with get_db() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    available_cities, available_agencies_raw = _load_available_cities_and_agencies(cur)
+        except psycopg2.Error as e:
+            logger.error(
+                "Database error loading api filters",
+                extra={
+                    "auth_method": getattr(request, "auth_method", None),
+                    "device_id": getattr(request, "device_id", None),
+                    "email": getattr(request, "email", None),
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
+            )
+            return jsonify({"error": "Database error"}), 500
+
+        selected_agencies = set(sub.get("filter_agencies") or [])
+        available_agencies = [
+            {"name": row["id"], "enabled": row["id"] in selected_agencies}
+            for row in available_agencies_raw
+        ]
+
+        logger.info(
+            "Loaded api filters",
+            extra={
+                "event": "filter_load",
+                "outcome": "ok",
+                "auth_method": getattr(request, "auth_method", None),
+                "device_id": getattr(request, "device_id", None),
+                "email": getattr(request, "email", None),
+                "subscriber_id": request.subscriber_id,
+            },
+        )
+        return jsonify(
+            {
+                "filters": {
+                    "min_price": sub["filter_min_price"],
+                    "max_price": sub["filter_max_price"],
+                    "min_sqm": sub.get("filter_min_sqm", 0) or 0,
+                    "cities": sub["filter_cities"] or [],
+                    "agencies": sub["filter_agencies"] or [],
+                },
+                "available_cities": available_cities,
+                "available_agencies": available_agencies,
+                "email": sub.get("email_address"),
+                "telegram_linked": bool(sub.get("telegram_id")),
+                "notifications_enabled": bool(sub.get("telegram_enabled")),
+            }
+        )
+
+    payload = request.get_json(silent=True)
+    if payload is None:
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "Invalid JSON body"}), 400
+
+    min_price = payload.get("min_price")
+    max_price = payload.get("max_price")
+    min_sqm = payload.get("min_sqm")
+    filter_cities = payload.get("cities")
+    filter_agencies = payload.get("agencies")
+    notifications_enabled = payload.get("notifications_enabled")
+
+    if not isinstance(min_price, int):
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "min_price must be an integer"}), 400
+    if not isinstance(max_price, int):
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "max_price must be an integer"}), 400
+    if min_price < 0 or max_price < 0:
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "min_price and max_price must be >= 0"}), 400
+    if min_price > max_price:
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "min_price cannot be greater than max_price"}), 400
+    if not isinstance(min_sqm, int):
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "min_sqm must be an integer"}), 400
+    if min_sqm < 0:
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "min_sqm must be >= 0"}), 400
+    if not isinstance(filter_cities, list) or any(not isinstance(c, str) for c in filter_cities):
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "cities must be an array of strings"}), 400
+    if not isinstance(filter_agencies, list) or any(not isinstance(a, str) for a in filter_agencies):
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "agencies must be an array of strings"}), 400
+    if notifications_enabled is not None and not isinstance(notifications_enabled, bool):
+        _increment_ios_metric("filter-save", "bad_request")
+        return jsonify({"error": "notifications_enabled must be a boolean"}), 400
+
+    min_price = max(0, min(min_price, 99999))
+    max_price = max(0, min(max_price, 99999))
+    min_sqm = max(0, min(min_sqm, 2000))
+
+    normalized_cities = [city.strip().lower() for city in filter_cities if city.strip()]
+    normalized_agencies = [agency.strip() for agency in filter_agencies if agency.strip()]
+    current_notifications_enabled = bool(request.subscriber.get("telegram_enabled"))
+    notifications_value = (
+        notifications_enabled if notifications_enabled is not None else current_notifications_enabled
+    )
+
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE hestia.subscribers
+                    SET telegram_enabled = %s,
+                        filter_min_price = %s,
+                        filter_max_price = %s,
+                        filter_min_sqm = %s,
+                        filter_cities = %s,
+                        filter_agencies = %s
+                    WHERE id = %s
+                    """,
+                    (
+                        notifications_value,
+                        min_price,
+                        max_price,
+                        min_sqm,
+                        psycopg2.extras.Json(normalized_cities),
+                        psycopg2.extras.Json(normalized_agencies),
+                        request.subscriber_id,
+                    ),
+                )
+    except psycopg2.Error as e:
+        logger.error(
+            "Database error saving device filters",
+            extra={
+                "auth_method": getattr(request, "auth_method", None),
+                "device_id": getattr(request, "device_id", None),
+                "email": getattr(request, "email", None),
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+            exc_info=True,
+        )
+        _increment_ios_metric("filter-save", "db_error")
+        return jsonify({"error": "Database error"}), 500
+
+    _increment_ios_metric("filter-save", "ok")
+    logger.info(
+        "Saved device filters",
+        extra={
+            "event": "filter_save",
+            "outcome": "ok",
+            "auth_method": getattr(request, "auth_method", None),
+            "device_id": getattr(request, "device_id", None),
+            "email": getattr(request, "email", None),
+            "subscriber_id": request.subscriber_id,
+        },
+    )
+    return jsonify({"status": "ok"})
+
+
+@app.route("/api/device-token", methods=["POST"])
+@device_auth_required
+def api_device_token():
+    """Update APNs token for the authenticated device."""
+    payload = request.get_json(silent=True)
+    if payload is None:
+        _increment_ios_metric("device-token", "bad_request")
+        return jsonify({"error": "Invalid JSON body"}), 400
+    if "apns_token" not in payload:
+        _increment_ios_metric("device-token", "bad_request")
+        return jsonify({"error": "Missing apns_token"}), 400
+
+    apns_token = payload.get("apns_token")
+    if apns_token is not None and not isinstance(apns_token, str):
+        _increment_ios_metric("device-token", "bad_request")
+        return jsonify({"error": "apns_token must be a string or null"}), 400
+    if isinstance(apns_token, str):
+        apns_token = apns_token.strip() or None
+
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE hestia.subscribers SET apns_token = %s WHERE id = %s",
+                    (apns_token, request.subscriber_id),
+                )
+    except psycopg2.Error as e:
+        logger.error(
+            "Database error saving device token",
+            extra={
+                "device_id": request.device_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+            exc_info=True,
+        )
+        _increment_ios_metric("device-token", "db_error")
+        return jsonify({"error": "Database error"}), 500
+
+    _increment_ios_metric("device-token", "ok")
+    logger.info(
+        "Saved device token",
+        extra={
+            "event": "device_token_update",
+            "outcome": "ok",
+            "device_id": request.device_id,
+            "subscriber_id": request.subscriber_id,
+            "apns_token_present": bool(apns_token),
+        },
+    )
+    return jsonify({"status": "ok"})
 
 
 class PreviewImageParser(HTMLParser):
@@ -1093,8 +1588,70 @@ def _looks_like_image_url(url):
     return False
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Prevent urllib from auto-following redirects so each hop is validated."""
+
+    def http_error_302(self, req, fp, code, msg, headers):
+        raise urllib.error.HTTPError(req.full_url, code, msg, headers, fp)
+
+    http_error_301 = http_error_303 = http_error_307 = http_error_308 = http_error_302
+
+
+class _IPValidatingHTTPConnection(http.client.HTTPConnection):
+    """HTTP connection that pins DNS resolution and rejects non-public IPs."""
+
+    def connect(self):
+        resolved = socket.gethostbyname(self.host)
+        ip = ipaddress.ip_address(resolved)
+        if not ip.is_global:
+            raise ValueError(f"Resolved to non-public IP: {resolved}")
+        self.sock = socket.create_connection(
+            (resolved, self.port), self.timeout, self.source_address
+        )
+
+
+class _IPValidatingHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPS connection that pins DNS resolution and rejects non-public IPs."""
+
+    def connect(self):
+        resolved = socket.gethostbyname(self.host)
+        ip = ipaddress.ip_address(resolved)
+        if not ip.is_global:
+            raise ValueError(f"Resolved to non-public IP: {resolved}")
+        self.sock = socket.create_connection(
+            (resolved, self.port), self.timeout, self.source_address
+        )
+        if self._context is None:
+            self._context = ssl.create_default_context()
+        self.sock = self._context.wrap_socket(
+            self.sock, server_hostname=self.host
+        )
+
+
+class _IPValidatingHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_IPValidatingHTTPConnection, req)
+
+
+class _IPValidatingHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_IPValidatingHTTPSConnection, req)
+
+
+_ssrf_safe_opener = urllib.request.build_opener(
+    _NoRedirectHandler,
+    _IPValidatingHTTPHandler,
+    _IPValidatingHTTPSHandler,
+)
+
+
 def _safe_urlopen(url, headers, method="GET", timeout=5, max_redirects=3):
-    """Open a URL with redirect validation and public-host enforcement."""
+    """Open a URL with redirect validation and public-host enforcement.
+
+    Redirects are followed manually so each hop is validated against
+    _is_public_host.  DNS resolution is pinned at connect time via
+    _IPValidatingHTTP(S)Connection to prevent DNS-rebinding attacks.
+    """
     current = url
     for _ in range(max_redirects + 1):
         parsed = urlparse(current)
@@ -1104,9 +1661,9 @@ def _safe_urlopen(url, headers, method="GET", timeout=5, max_redirects=3):
             raise ValueError("non-public host")
         req = Request(current, method=method, headers=headers)
         try:
-            return urlopen(req, timeout=timeout)
-        except Exception as e:
-            if hasattr(e, "code") and e.code in {301, 302, 303, 307, 308}:
+            return _ssrf_safe_opener.open(req, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            if e.code in {301, 302, 303, 307, 308}:
                 location = e.headers.get("Location")
                 if not location:
                     raise
@@ -1217,7 +1774,7 @@ def _preview_cache_set(url, status, ttl, image_url=None, image_bytes=None, conte
 
 
 @app.route("/api/preview-image")
-@login_required
+@preview_api_subscriber_required(raw=False)
 @limiter.limit("50 per minute; 250 per hour")
 def api_preview_image():
     url = request.args.get("url", "")
@@ -1267,7 +1824,7 @@ def api_preview_image():
 
 
 @app.route("/api/preview-image-raw")
-@login_required
+@preview_api_subscriber_required(raw=True)
 @limiter.limit("50 per minute; 250 per hour")
 def api_preview_image_raw():
     url = request.args.get("url", "")
@@ -1322,7 +1879,7 @@ def avatar():
 
 @app.route("/api/statistics")
 @limiter.limit("30 per minute")
-@login_required
+@api_client_auth_required
 def api_statistics():
     """Return public statistics about homes and subscribers."""
     try:
@@ -1372,6 +1929,7 @@ def api_statistics():
 
 
 @app.route("/api/donation-link")
+@api_client_auth_required
 def donation_link():
     """Return the donation link from the database."""
     try:

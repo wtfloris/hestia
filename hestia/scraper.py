@@ -3,6 +3,7 @@ import logging
 import hashlib
 import traceback
 import requests
+from collections import Counter
 from time import sleep
 from asyncio import run
 from telegram.error import Forbidden
@@ -11,7 +12,21 @@ from datetime import datetime, timedelta
 import hestia_utils.db as db
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
+import hestia_utils.apns as apns
 from hestia_utils.parser import Home, HomeResults
+
+APNS_MAX_RETRIES = 3
+APNS_RETRY_BASE_SECONDS = 0.5
+APNS_INVALID_TOKEN_THRESHOLD = 1
+SCRAPER_METRICS = Counter()
+
+
+def _increment_scraper_metric(metric_name: str, outcome: str) -> int:
+    key = f"{metric_name}:{outcome}"
+    SCRAPER_METRICS[key] += 1
+    value = SCRAPER_METRICS[key]
+    logging.info("scraper_metric metric=%s outcome=%s value=%s", metric_name, outcome, value)
+    return value
 
 
 def _build_error_fingerprint(component: str, target: dict, exc: BaseException) -> str:
@@ -141,11 +156,15 @@ Good luck in your search\!"""
 
 async def broadcast(homes: list[Home]) -> None:
     subs = set()
+    apns_client = apns.APNsClient()
+    apns_invalid_counts: dict[int, int] = {}
     
     if db.get_dev_mode():
-        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true AND user_level > 1")
+        subs = db.fetch_all(
+            "SELECT * FROM hestia.subscribers WHERE (telegram_enabled = true OR apns_token IS NOT NULL) AND user_level > 1"
+        )
     else:
-        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true")
+        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true OR apns_token IS NOT NULL")
         
     # Create dict of agencies and their pretty names
     agencies = db.fetch_all("SELECT agency, user_info FROM hestia.targets")
@@ -166,17 +185,66 @@ async def broadcast(homes: list[Home]) -> None:
                     message += f"{meta.SQM_EMOJI} {home.sqm} m\u00b2\n"
                 message += "\n"
                 message = meta.escape_markdownv2(message)
-                message += f"{meta.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
-                
-                try:
-                    await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
-                except Forbidden as e:
-                    # This means the user deleted their account or blocked the bot, so disable them
-                    db.disable_user(sub["telegram_id"])
-                    logging.warning(f"Removed subscriber with Telegram id {str(sub['telegram_id'])} due to broadcast failure: {repr(e)}")
-                except Exception as e:
-                    # Log any other exceptions
-                    logging.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
+                agency_name = agencies[home.agency]
+                message += f"{meta.LINK_EMOJI} [{agency_name}]({home.url})"
+
+                if sub.get("telegram_enabled") and sub.get("telegram_id"):
+                    try:
+                        await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
+                    except Forbidden as e:
+                        # This means the user deleted their account or blocked the bot, so disable them
+                        db.disable_user(sub["telegram_id"])
+                        logging.warning(
+                            f"Removed subscriber with Telegram id {str(sub['telegram_id'])} due to broadcast failure: {repr(e)}"
+                        )
+                    except Exception as e:
+                        # Log any other exceptions
+                        logging.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
+
+                apns_token = sub.get("apns_token")
+                if not apns_token or not apns_client.enabled:
+                    continue
+
+                payload = apns.build_home_notification_payload(home, agency_name)
+                result = None
+                for attempt in range(1, APNS_MAX_RETRIES + 1):
+                    result = apns_client.send(apns_token, payload)
+                    if result.ok:
+                        _increment_scraper_metric("apns", "success")
+                        logging.info(
+                            "APNs send success subscriber_id=%s device_id=%s",
+                            str(sub.get("id")),
+                            str(sub.get("device_id")),
+                        )
+                        break
+                    if not result.should_retry or attempt == APNS_MAX_RETRIES:
+                        break
+                    backoff_seconds = APNS_RETRY_BASE_SECONDS * (2 ** (attempt - 1))
+                    sleep(backoff_seconds)
+
+                if result is None or result.ok:
+                    continue
+
+                logging.warning(
+                    "APNs send failure subscriber_id=%s device_id=%s status=%s reason=%s retryable=%s",
+                    str(sub.get("id")),
+                    str(sub.get("device_id")),
+                    str(result.status_code),
+                    result.reason,
+                    str(result.should_retry),
+                )
+                _increment_scraper_metric("apns", "failure")
+
+                if result.permanent_invalid and sub.get("id") is not None:
+                    sub_id = int(sub["id"])
+                    apns_invalid_counts[sub_id] = apns_invalid_counts.get(sub_id, 0) + 1
+                    if apns_invalid_counts[sub_id] >= APNS_INVALID_TOKEN_THRESHOLD:
+                        db.clear_apns_token(sub_id)
+                        logging.warning(
+                            "Cleared APNs token for subscriber_id=%s after invalid token failures=%s",
+                            str(sub_id),
+                            str(apns_invalid_counts[sub_id]),
+                        )
 
 
 async def scrape_site(target: dict) -> None:
