@@ -1260,8 +1260,8 @@ class TestApiFiltersDevice:
             "agencies": ["agency1"],
         }
         assert data["available_agencies"] == [
-            {"name": "agency1", "enabled": True},
-            {"name": "agency2", "enabled": False},
+            {"id": "agency1", "name": "Agency One", "enabled": True},
+            {"id": "agency2", "name": "Agency Two", "enabled": False},
         ]
         assert data["email"] is None
         assert data["telegram_linked"] is False
