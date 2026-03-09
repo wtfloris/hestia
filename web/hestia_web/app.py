@@ -1351,7 +1351,7 @@ def api_filters():
 
         selected_agencies = set(sub.get("filter_agencies") or [])
         available_agencies = [
-            {"name": row["id"], "enabled": row["id"] in selected_agencies}
+            {"id": row["id"], "name": row["name"], "enabled": row["id"] in selected_agencies}
             for row in available_agencies_raw
         ]
 
