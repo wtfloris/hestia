@@ -125,9 +125,9 @@ class APNsClient:
 
 def build_home_notification_payload(home, agency_name: str) -> dict:
     if home.sqm > 0:
-        body = f"EUR {home.price}/m, {home.sqm} m2"
+        body = f"€{home.price}/m, {home.sqm} m²"
     else:
-        body = f"EUR {home.price}/m"
+        body = f"€{home.price}/m"
 
     now_utc = datetime.now(timezone.utc).isoformat()
     return {
