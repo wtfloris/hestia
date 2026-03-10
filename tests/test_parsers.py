@@ -1646,3 +1646,62 @@ class TestSubstituteNuxtVars:
     def test_empty_input(self):
         result = HomeResults._substitute_nuxt_vars('', {})
         assert result == ''
+
+
+class TestParseEasylease:
+    def test_basic_parsing(self, mock_response):
+        data = {
+            "name": "EAZLEE",
+            "values": [
+                {
+                    "data": {
+                        "forrent": True,
+                        "status": "Te huur",
+                        "locality": {
+                            "street": "Graafseweg",
+                            "city": "Den Bosch",
+                            "number": "26",
+                            "addition": ""
+                        },
+                        "label": "Nieuw",
+                        "price": 595,
+                        "surface": 20
+                    },
+                    "page_item_url": "den-bosch-graafseweg-H104920346"
+                }
+            ]
+        }
+        r = mock_response(data)
+        results = HomeResults("easyleasewonen", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Graafseweg 26"
+        assert results[0].city == "Den Bosch"
+        assert results[0].url == "https://www.easyleasewonen.nl/woning/den-bosch-graafseweg-H104920346"
+        assert results[0].price == 595
+        assert results[0].sqm == 20
+
+    def test_filters_verhuurd(self, mock_response):
+        data = {
+            "name": "EAZLEE",
+            "values": [
+                {
+                    "data": {
+                        "forrent": True,
+                        "status": "Verhuurd (onder voorbehoud)",
+                        "locality": {
+                            "street": "Karrenstraat",
+                            "city": "Den Bosch",
+                            "number": "44",
+                            "addition": "A"
+                        },
+                        "label": "Verhuurd (onder voorbehoud)",
+                        "price": 864,
+                        "surface": 55
+                    },
+                    "page_item_url": "den-bosch-karrenstraat-H104920008"
+                }
+            ]
+        }
+        r = mock_response(data)
+        results = HomeResults("easyleasewonen", r)
+        assert len(results.homes) == 0
