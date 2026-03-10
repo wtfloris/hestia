@@ -1947,6 +1947,12 @@ def donation_link():
         return jsonify({"error": "Database error"}), 500
 
 
+@app.route("/privacy")
+def privacy():
+    """Privacy policy page."""
+    return render_template("privacy.html")
+
+
 @app.route("/health")
 def health():
     """Health check endpoint for container orchestration."""
