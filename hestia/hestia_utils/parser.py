@@ -476,25 +476,30 @@ class HomeResults:
         results = json.loads(r.content)["responses"][0]["hits"]["hits"]
         
         for res in results:
-            # Some listings don't have house numbers, so skip
-            if "house_number" not in res["_source"]["address"].keys():
-                continue
-            # Some listings don't have a rent_price, skip as well
+            # Some listings don't have a rent_price, skip
             if "rent_price" not in res["_source"]["price"].keys():
                 continue
         
             home = Home(agency="funda")
-            
-            home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
-            if "house_number_suffix" in res["_source"]["address"].keys():
-                suffix = res["_source"]["address"]["house_number_suffix"]
+
+            res_addr = res['_source']['address']
+            address_raw = res_addr['street_name']
+            if nr := res_addr.get('house_number'):
+                address_raw += f" {nr}"
+
+            if suffix := res_addr.get('house_number_suffix'):
                 if '-' not in suffix and '+' not in suffix:
-                    suffix = f" {suffix}"
-                home.address += f"{suffix}"
+                    suffix = " " + suffix
+                address_raw += str(suffix)
             
             home.city = res["_source"]["address"]["city"]
             home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
             home.price = res["_source"]["price"]["rent_price"][0]
+
+            if not (address := self._marshal_address(address_raw, home.price)):
+                continue
+
+            home.address = address
 
             # Funda search results may include a usable sqm in `_source.floor_area`.
             # Keep parsing defensive: treat unknown/ambiguous values as "unknown" (-1).

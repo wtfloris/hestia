@@ -725,7 +725,8 @@ class TestParseFunda:
         ]}}]}
         r = mock_response(data)
         results = HomeResults("funda", r)
-        assert len(results.homes) == 0
+        assert len(results.homes) == 1
+        assert results[0].address == "Project [€1000]"  # < improvised number!
 
     def test_filters_missing_rent_price(self, mock_response):
         data = {"responses": [{"hits": {"hits": [
