@@ -171,3 +171,7 @@ class TestHomeAddressProperty:
         home = Home()
         home.address = "Nieuwe Straat 5"
         assert home.address == "Nieuwe Straat 5"
+
+    def test_getter_tidy(self):
+        home = Home(address="Kerkstraat [€1234]")
+        assert home.address_tidy == "Kerkstraat"
