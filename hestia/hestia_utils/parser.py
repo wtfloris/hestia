@@ -457,7 +457,10 @@ class HomeResults:
             except Exception:
                 continue
 
-            home.address = self._marshal_address(address_raw, home.price)
+            if not (address := self._marshal_address(address_raw, home.price)):
+                continue
+
+            home.address = address
             
             self.homes.append(home)
             
