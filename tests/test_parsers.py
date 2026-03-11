@@ -54,6 +54,19 @@ class TestParseVesteda:
         results = HomeResults("vesteda", r)
         assert results[0].address == "Hoofdweg 5A"
 
+    def test_missing_house_number(self, mock_response):
+        data = {"results": {"objects": [
+            {
+                "status": 1, "onlySixtyFivePlus": False,
+                "street": "Hoofdweg",
+                "city": "Rotterdam", "url": "/huurwoning/rotterdam/hoofdweg-xxx",
+                "priceUnformatted": 1200
+            }
+        ]}}
+        r = mock_response(data)
+        results = HomeResults("vesteda", r)
+        assert results[0].address == "Hoofdweg [€1200]"  # < Improvised number!
+
     def test_filters_non_status_1(self, mock_response):
         data = {"results": {"objects": [
             {
@@ -592,7 +605,8 @@ class TestParsePararius:
         html = f"<html>{self._make_listing_html(address='Appartement Kerkstraat')}</html>"
         r = mock_response(html)
         results = HomeResults("pararius", r)
-        assert len(results.homes) == 0
+        assert len(results.homes) == 1
+        assert results[0].address == "Kerkstraat [€1500]"  # < improvised number!
 
     def test_filters_address_starting_with_number(self, mock_response):
         """Addresses where the raw content starts with a digit (no type prefix) are filtered."""
@@ -689,7 +703,8 @@ class TestParseFunda:
         ]}}]}
         r = mock_response(data)
         results = HomeResults("funda", r)
-        assert len(results.homes) == 0
+        assert len(results.homes) == 1
+        assert results[0].address == "Project [€1000]"  # < improvised number!
 
     def test_filters_missing_rent_price(self, mock_response):
         data = {"responses": [{"hits": {"hits": [
