@@ -54,6 +54,19 @@ class TestParseVesteda:
         results = HomeResults("vesteda", r)
         assert results[0].address == "Hoofdweg 5A"
 
+    def test_missing_house_number(self, mock_response):
+        data = {"results": {"objects": [
+            {
+                "status": 1, "onlySixtyFivePlus": False,
+                "street": "Hoofdweg",
+                "city": "Rotterdam", "url": "/huurwoning/rotterdam/hoofdweg-xxx",
+                "priceUnformatted": 1200
+            }
+        ]}}
+        r = mock_response(data)
+        results = HomeResults("vesteda", r)
+        assert results[0].address == "Hoofdweg [€1200]"  # < Improvised number!
+
     def test_filters_non_status_1(self, mock_response):
         data = {"results": {"objects": [
             {
