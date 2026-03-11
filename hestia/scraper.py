@@ -179,7 +179,7 @@ async def broadcast(homes: list[Home]) -> None:
                (home.agency in sub["filter_agencies"]) and \
                sqm_ok:
 
-                message = f"{meta.HOUSE_EMOJI} {home.address}, {home.city}\n"
+                message = f"{meta.HOUSE_EMOJI} {home.address_tidy}, {home.city}\n"
                 message += f"{meta.EURO_EMOJI} €{home.price}/m\n"
                 if home.sqm > 0:
                     message += f"{meta.SQM_EMOJI} {home.sqm} m\u00b2\n"

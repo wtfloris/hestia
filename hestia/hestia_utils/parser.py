@@ -36,7 +36,16 @@ class Home:
     @address.setter
     def address(self, address: str) -> None:
         self._address = address
-        
+
+    @property
+    def address_tidy(self) -> str:
+        """Get address but without any improvised numbers."""
+        if not self._address.endswith("]") or (pos := self._address.find("[")) <= 0:
+            return self._address
+
+        return self._address[:pos].rstrip()
+        # Turn e.g. "Grote Beer [€1234]" into "Grote Beer"
+
     @property
     def city(self) -> str:
         return self._parsed_city
@@ -426,22 +435,6 @@ class HomeResults:
             # right now homes are tracked by address, not by URL (which has its own downsides).
             # This is probably not 100% reliable either, but it's close enough.
             address_raw = title_link.get_text(" ", strip=True)
-            if not address_raw:
-                continue
-            if re.search(r"^[0-9]", address_raw):  # Filter "1e Foobarstraat 5", etc.
-                continue
-            if not re.search(r"[0-9]", address_raw):
-                continue
-                
-            # Most Pararius titles are prefixed with a property type; strip when present.
-            parts = address_raw.split()
-            if parts and parts[0].lower() in {"appartement", "huis", "studio", "kamer", "woning", "woonhuis"}:
-                address = " ".join(parts[1:]).strip()
-            else:
-                address = address_raw.strip()
-            if not re.search(r"[0-9]", address):
-                continue
-            home.address = address
 
             city_raw = subtitle.get_text(" ", strip=True)
             # Typical format: "1234 AB Amsterdam (Centrum)".
@@ -463,6 +456,8 @@ class HomeResults:
                 home.price = int(m.group(1).replace(".", "").replace(",", ""))
             except Exception:
                 continue
+
+            home.address = self._marshal_address(address_raw, home.price)
             
             self.homes.append(home)
             
@@ -1374,6 +1369,44 @@ class HomeResults:
                         continue
 
                     add_home(address, city, link.get("href", ""), price_match.group(1), card_text)
+
+    @staticmethod
+    def _marshal_address(address_raw, price):
+        """Validate and (optionally) patch the address line.
+
+        Returns ``None`` when the address is not valid.
+        In case no number is present in the address but the price is known, the price
+        will be added to the address line to maintain some uniqueness.
+
+        :param address_raw: Raw address text
+        :type address_raw: str
+        :param price: The monthly rent - used as fallback address number
+        :type price: int | None
+        :rtype: str | None
+        """
+        if not address_raw:
+            return None
+
+        if re.search(r"^[0-9]", address_raw):  # Filter "1e Foobarstraat 5", etc.
+            return None
+
+        # Many titles are prefixed with a property type; strip when present
+        parts = address_raw.split()
+        ignore = {"appartement", "huis", "studio", "kamer", "woning", "woonhuis"}
+        if parts and parts[0].lower() in ignore:
+            address = " ".join(parts[1:]).strip()
+        else:
+            address = address_raw.strip()
+
+        # In case the house number is not included in the address:
+        if not re.search(r"[0-9]", address_raw):
+            if price is not None:
+                address += f" [€{price}]"
+                # Just add an improved identifier
+            else:
+                return None  # No other options left
+
+        return address
 
     @staticmethod
     def _substitute_nuxt_vars(js_text, mapping):
