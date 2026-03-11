@@ -5,17 +5,147 @@ import chompjs
 import logging
 import requests
 from urllib import parse
+from collections.abc import Iterable
 from bs4 import BeautifulSoup, NavigableString
 
 
 class Home:
-    def __init__(self, address: str = '', city: str = '', url: str = '', agency: str = '', price: int = -1, sqm: int = -1):
+    """A single housing listing (advertisement)."""
+
+    def __init__(
+            self,
+            address: str = '',
+            city: str = '',
+            url: str = '',
+            agency: str = '',
+            price: int = -1,
+            sqm: int = -1,
+    ):
+        """Construct an instance from clean, ready data."""
         self.address = address
         self.city = city
         self.url = url
         self.agency = agency
         self.price = price
         self.sqm = sqm
+
+    @classmethod
+    def from_dict(cls, data: dict, keys_map: dict | None = None) -> "Home":
+        """See ``from_kwargs()``.
+
+        :param data:
+        :param keys_map: Dictionary that maps keys from ``data`` to fields
+        """
+        new_data = {}
+        for key, value in data.items():
+            if keys_map and key in keys_map:
+                key = keys_map[key]
+
+            new_data[key] = value
+
+        return cls.from_kwargs(**new_data)
+
+    @classmethod
+    def from_kwargs(
+            cls,
+            agency: str,
+            city: str,
+            price: str | int | None,
+            url: str | None,
+            address: str | None = None,
+            street: str | None = None,
+            number: str | int | None = None,
+            addition: str | int | None = None,
+            sqm: str | int | None = -1,
+    ) -> "Home":
+        """Try our hardest to parse data into a home.
+
+        :raises ValueError: When not enough good data was found to identify a home
+        """
+        # Strip all whitespace:
+        agency = agency.strip()
+        city = city.strip()
+        if price and isinstance(price, str):
+            price = price.strip().replace("\xa0", "")
+            # Also remove "non-breaking space" character
+        if url:
+            url = url.strip()
+        if address:
+            address = address.strip()
+        if street:
+            street = street.strip()
+        if number and isinstance(number, str):
+            number = number.strip()
+        if addition and isinstance(addition, str):
+            addition = addition.strip()
+
+        # Fields that are always required:
+        if not agency or not city or not price or not url:
+            raise ValueError("Missing any of the required fields: agency, city, price, url")
+
+        if not address and not street:
+            raise ValueError("Missing any of the required address info: address, street")
+
+        # Validate URL:
+        if not url.startswith("http://") and not url.startswith("https://"):
+            raise ValueError("Provided URL is not an absolute link")
+
+        # Validate price:
+        if isinstance(price, str):
+            # Perform a greedy match on digits and separators:
+            match = re.search(r"(\d[\d.,']*)", price)
+            if not match:
+                raise ValueError(f"Failed to parse rental price from: '{price}'")
+            price = match.group(1).replace(".", "").replace(",", "")
+            price = int(price)
+
+        # Validate address:
+        if address is None:
+            address = street  # Build from parts instead
+            if number is not None:
+                address += " " + str(number)
+            if addition is not None:
+                addition = str(addition)
+                if not addition.startswith("-") and not addition.startswith("+"):
+                    addition = " " + addition
+                address += addition
+        else:
+            # Remove keywords that might appear in the address field
+            ignore = {"appartement", "huis", "studio", "kamer", "woning", "woonhuis"}
+            first_word, _, rest = address.partition(" ")
+            if first_word.lower() in ignore:
+                address = rest.strip()
+
+        if address[0].isdigit():  # Filter "1e Foobarstraat 5", etc.
+            raise ValueError(f"Cannot support leading digits in an address: '{address}'")
+
+        if not re.search(r"[0-9]", address):  # If no digits in street at all
+            raise ValueError(f"No number detected in address '{address}'")
+
+        # Validate floor area ('square meters'):
+        if sqm is None:
+            sqm = -1  # This is used as 'unknown', over ``None``
+        else:
+            if isinstance(sqm, str):
+                match = re.search(r"^\d+", sqm)  # Pick the first group of digits
+                if not match:
+                    sqm = -1
+                else:
+                    sqm = int(match.group(1))
+
+        if sqm == 0:
+            sqm = -1
+
+        home = Home(
+            agency=agency,
+            url=url,
+            city=city,
+            address=address,
+            price=price,
+            sqm=sqm,
+        )
+
+        return home
         
     def __repr__(self) -> str:
         return str(self)
@@ -24,10 +154,10 @@ class Home:
         return f"{self.address}, {self.city} ({self.agency.title()})"
         
     def __eq__(self, other) -> bool:
-        if self.address.lower() == other.address.lower():
-            if self.city.lower() == other.city.lower():
-                return True
-        return False
+        return (
+                self.address.lower() == other.address.lower() and
+                self.city.lower() == other.city.lower()
+        )
     
     @property
     def address(self) -> str:
@@ -43,6 +173,8 @@ class Home:
         
     @city.setter
     def city(self, city: str) -> None:
+        # TODO: Absorb setter into factory methods
+
         # Strip the trailing province if present
         if re.search(r" \([a-zA-Z]{2}\)$", city):
             city = ' '.join(city.split(' ')[:-1])
@@ -395,22 +527,18 @@ class HomeResults:
         results = soup.select("section.listing-search-item--for-rent")
         
         for res in results:
-            home = Home(agency="pararius")
-
             # Filter unavailable statuses early when possible
             label = res.select_one(".listing-search-item__label")
             if label:
                 label_text = label.get_text(" ", strip=True).lower()
-                if any(
-                    bad in label_text
-                    for bad in [
-                        "verhuurd",
-                        "onder optie",
-                        "withdrawn",
-                        "rentedwithreservation",
-                        "rented with reservation",
-                    ]
-                ):
+                bad_words = [
+                    "verhuurd",
+                    "onder optie",
+                    "withdrawn",
+                    "rentedwithreservation",
+                    "rented with reservation",
+                ]
+                if any(bad in label_text for bad in bad_words):
                     continue
 
             # Required fields
@@ -422,93 +550,64 @@ class HomeResults:
             if not title_link or not subtitle or not price_main:
                 continue
         
-            # A lot of properties on Pararius don't include house numbers, so it's impossible to keep track of them because
-            # right now homes are tracked by address, not by URL (which has its own downsides).
-            # This is probably not 100% reliable either, but it's close enough.
-            address_raw = title_link.get_text(" ", strip=True)
-            if not address_raw:
-                continue
-            if re.search(r"^[0-9]", address_raw):  # Filter "1e Foobarstraat 5", etc.
-                continue
-            if not re.search(r"[0-9]", address_raw):
-                continue
-                
-            # Most Pararius titles are prefixed with a property type; strip when present.
-            parts = address_raw.split()
-            if parts and parts[0].lower() in {"appartement", "huis", "studio", "kamer", "woning", "woonhuis"}:
-                address = " ".join(parts[1:]).strip()
-            else:
-                address = address_raw.strip()
-            if not re.search(r"[0-9]", address):
-                continue
-            home.address = address
+            address_raw = title_link.get_text()
 
-            city_raw = subtitle.get_text(" ", strip=True)
-            # Typical format: "1234 AB Amsterdam (Centrum)".
+            city_raw = subtitle.get_text().strip()  # Typical format: "1234 AB Amsterdam (Centrum)"
+            # Remove leading postalcode:
             city_raw = re.sub(r"^\d{4}\s*[A-Z]{2}\s+", "", city_raw).strip()
-            home.city = city_raw.split("(")[0].strip()
+            city_raw, _, _ = city_raw.partition("(")  # Keep all until opening "("
 
             href = str(title_link.get("href", "")).strip()
-            if not href:
-                continue
-            home.url = ("https://www.pararius.nl" + href) if href.startswith("/") else href
+            if href:
+                href = ("https://www.pararius.nl" + href) if href.startswith("/") else href
 
-            price_text = price_main.get_text(" ", strip=True).replace("\xa0", " ")
-            
-            # If unable to cast to int, the price is not available so skip the listing
             try:
-                m = re.search(r"(\d[\d\.,]*)", price_text)
-                if not m:
-                    continue
-                home.price = int(m.group(1).replace(".", "").replace(",", ""))
-            except Exception:
+                home = Home.from_kwargs(
+                    agency="pararius",
+                    address=address_raw,
+                    city=city_raw,
+                    url=href,
+                    price=price_main.get_text(),
+                )
+            except ValueError:
                 continue
-            
+
             self.homes.append(home)
             
     def parse_funda(self, r: requests.models.Response):
         results = json.loads(r.content)["responses"][0]["hits"]["hits"]
         
         for res in results:
-            # Some listings don't have house numbers, so skip
-            if "house_number" not in res["_source"]["address"].keys():
-                continue
-            # Some listings don't have a rent_price, skip as well
-            if "rent_price" not in res["_source"]["price"].keys():
-                continue
-        
-            home = Home(agency="funda")
-            
-            home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
-            if "house_number_suffix" in res["_source"]["address"].keys():
-                suffix = res["_source"]["address"]["house_number_suffix"]
-                if '-' not in suffix and '+' not in suffix:
-                    suffix = f" {suffix}"
-                home.address += f"{suffix}"
-            
-            home.city = res["_source"]["address"]["city"]
-            home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
-            home.price = res["_source"]["price"]["rent_price"][0]
+            data = res["_source"]
+            data_addr = data["address"]
 
-            # Funda search results may include a usable sqm in `_source.floor_area`.
-            # Keep parsing defensive: treat unknown/ambiguous values as "unknown" (-1).
-            sqm = -1
-            try:
-                floor_area = res["_source"].get("floor_area")
-                if isinstance(floor_area, list) and floor_area:
-                    if isinstance(floor_area[0], (int, float)) and floor_area[0] > 0:
-                        sqm = int(floor_area[0])
-                if sqm == -1:
-                    far = res["_source"].get("floor_area_range")
-                    if isinstance(far, dict):
-                        gte = far.get("gte")
-                        lte = far.get("lte")
-                        if isinstance(gte, (int, float)) and isinstance(lte, (int, float)) and gte == lte and gte > 0:
-                            sqm = int(gte)
-            except Exception:
-                sqm = -1
-            home.sqm = sqm
+            sqm = data.get("floor_area")
+            if sqm and isinstance(sqm, Iterable):
+                sqm = sqm[0]
+            if sqm is None and (sqm_range := data.get("floor_area_range")):
+                gte = sqm_range.get("gte")
+                lte = sqm_range.get("lte")
+                if gte and lte and gte == lte:
+                    sqm = gte
+
+            price = data["price"].get("rent_price")
+            if isinstance(price, Iterable):
+                price = price[0]
             
+            try:
+                home = Home.from_kwargs(
+                    agency="funda",
+                    city=data_addr.get("city"),
+                    street=data_addr.get("street_name"),
+                    number=data_addr.get("house_number"),
+                    addition=data_addr.get("house_number_suffix"),
+                    price=price,
+                    url="https://funda.nl" + data["object_detail_page_relative_url"],
+                    sqm=sqm,
+                )
+            except ValueError:
+                continue
+
             self.homes.append(home)
             
     # I love websites with (accidental) public API endpoints and proper JSON
