@@ -286,12 +286,21 @@ class HomeResults:
                 continue
             
             home = Home(agency="vesteda")
-            home.address = f"{res['street']} {res['houseNumber']}"
-            if res["houseNumberAddition"] is not None:
-                home.address += f"{res['houseNumberAddition']}"
+
+            address_raw = res['street']
+            if nr := res.get('houseNumber'):
+                address_raw += f" {nr}"
+            if suffix := res.get('houseNumberAddition'):
+                address_raw += suffix
+
             home.city = res["city"]
             home.url = "https://vesteda.com" + res["url"]
             home.price = int(res["priceUnformatted"])
+
+            if not (address := self._marshal_address(address_raw, home.price)):
+                continue
+            home.address = address
+
             try:
                 sqm = res.get("size")
                 if sqm not in (None, "", 0, "0"):
