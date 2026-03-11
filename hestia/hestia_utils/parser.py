@@ -432,7 +432,7 @@ class HomeResults:
                 continue
             if not re.search(r"[0-9]", address_raw):
                 continue
-                
+
             # Most Pararius titles are prefixed with a property type; strip when present.
             parts = address_raw.split()
             if parts and parts[0].lower() in {"appartement", "huis", "studio", "kamer", "woning", "woonhuis", "flat", "house", "room", "apartment"}:
