@@ -435,7 +435,7 @@ class HomeResults:
                 
             # Most Pararius titles are prefixed with a property type; strip when present.
             parts = address_raw.split()
-            if parts and parts[0].lower() in {"appartement", "huis", "studio", "kamer", "woning", "woonhuis"}:
+            if parts and parts[0].lower() in {"appartement", "huis", "studio", "kamer", "woning", "woonhuis", "flat", "house", "room", "apartment"}:
                 address = " ".join(parts[1:]).strip()
             else:
                 address = address_raw.strip()
@@ -451,7 +451,7 @@ class HomeResults:
             href = str(title_link.get("href", "")).strip()
             if not href:
                 continue
-            home.url = ("https://www.pararius.nl" + href) if href.startswith("/") else href
+            home.url = ("https://www.pararius.com" + href) if href.startswith("/") else href
 
             price_text = price_main.get_text(" ", strip=True).replace("\xa0", " ")
             
@@ -463,7 +463,13 @@ class HomeResults:
                 home.price = int(m.group(1).replace(".", "").replace(",", ""))
             except Exception:
                 continue
-            
+
+            sqm_el = res.select_one(".illustrated-features__item--surface-area")
+            if sqm_el:
+                sqm_match = re.search(r"(\d+)", sqm_el.get_text(" ", strip=True))
+                if sqm_match:
+                    home.sqm = int(sqm_match.group(1))
+
             self.homes.append(home)
             
     def parse_funda(self, r: requests.models.Response):

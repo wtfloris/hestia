@@ -558,6 +558,7 @@ class TestParsePararius:
         city="1011 AB Amsterdam (Centrum)",
         url="/appartement-te-huur/amsterdam/kerkstraat-10",
         price="\u20ac\u00a01.500 per maand",
+        sqm: int | None = 75,
         status_label: str | None = None,
         include_all=True,
     ):
@@ -576,6 +577,10 @@ class TestParsePararius:
             parts += '<div class="listing-search-item__price">'
             parts += f'<span class="listing-search-item__price-main">{price}</span>'
             parts += '</div>'
+            if sqm is not None:
+                parts += '<ul class="illustrated-features">'
+                parts += f'<li class="illustrated-features__item illustrated-features__item--surface-area">{sqm} m²</li>'
+                parts += '</ul>'
         parts += "</section>"
         return parts
 
@@ -587,6 +592,36 @@ class TestParsePararius:
         assert results[0].address == "Kerkstraat 10"
         assert results[0].city == "Amsterdam"
         assert results[0].price == 1500
+        assert results[0].sqm == 75
+        assert results[0].url == "https://www.pararius.com/appartement-te-huur/amsterdam/kerkstraat-10"
+
+    def test_missing_sqm(self, mock_response):
+        html = f"<html>{self._make_listing_html(sqm=None)}</html>"
+        r = mock_response(html)
+        results = HomeResults("pararius", r)
+        assert len(results.homes) == 1
+        assert results[0].sqm == -1
+
+    def test_strips_english_property_type_prefix(self, mock_response):
+        html = f"<html>{self._make_listing_html(address='Flat Bergselaan 362 D')}</html>"
+        r = mock_response(html)
+        results = HomeResults("pararius", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Bergselaan 362 D"
+
+    def test_strips_house_prefix(self, mock_response):
+        html = f"<html>{self._make_listing_html(address='House Kerkstraat 10')}</html>"
+        r = mock_response(html)
+        results = HomeResults("pararius", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Kerkstraat 10"
+
+    def test_strips_room_prefix(self, mock_response):
+        html = f"<html>{self._make_listing_html(address='Room Kwaadeindstraat 101')}</html>"
+        r = mock_response(html)
+        results = HomeResults("pararius", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Kwaadeindstraat 101"
 
     def test_filters_no_house_number(self, mock_response):
         html = f"<html>{self._make_listing_html(address='Appartement Kerkstraat')}</html>"
