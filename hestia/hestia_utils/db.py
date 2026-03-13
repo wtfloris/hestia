@@ -175,6 +175,7 @@ def get_recent_error_rollups(hours: int = 24, limit: int = 20) -> list[RealDictR
         FROM hestia.error_rollups
         WHERE last_seen >= now() - (%s::int * interval '1 hour')
         GROUP BY fingerprint, component, agency, target_id, error_class
+        HAVING SUM(count) > 50
         ORDER BY total_count DESC, MAX(last_seen) DESC
         LIMIT %s
         """,
