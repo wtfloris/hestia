@@ -54,19 +54,6 @@ class TestParseVesteda:
         results = HomeResults("vesteda", r)
         assert results[0].address == "Hoofdweg 5A"
 
-    def test_missing_house_number(self, mock_response):
-        data = {"results": {"objects": [
-            {
-                "status": 1, "onlySixtyFivePlus": False,
-                "street": "Hoofdweg",
-                "city": "Rotterdam", "url": "/huurwoning/rotterdam/hoofdweg-xxx",
-                "priceUnformatted": 1200
-            }
-        ]}}
-        r = mock_response(data)
-        results = HomeResults("vesteda", r)
-        assert results[0].address == "Hoofdweg [€1200]"  # < Improvised number!
-
     def test_filters_non_status_1(self, mock_response):
         data = {"results": {"objects": [
             {
@@ -738,8 +725,7 @@ class TestParseFunda:
         ]}}]}
         r = mock_response(data)
         results = HomeResults("funda", r)
-        assert len(results.homes) == 1
-        assert results[0].address == "Project [€1000]"  # < improvised number!
+        assert len(results.homes) == 0
 
     def test_filters_missing_rent_price(self, mock_response):
         data = {"responses": [{"hits": {"hits": [

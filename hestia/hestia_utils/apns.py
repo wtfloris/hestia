@@ -133,7 +133,7 @@ def build_home_notification_payload(home, agency_name: str) -> dict:
     return {
         "aps": {
             "alert": {
-                "title": f"{home.address_tidy}, {home.city}",
+                "title": f"{home.address}, {home.city}",
                 "body": body,
             },
             "sound": "default",
