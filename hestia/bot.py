@@ -66,7 +66,7 @@ async def new_sub(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE, r
     else:
         db.add_user(update.effective_chat.id)
         
-    await context.bot.send_message(update.effective_chat.id, strings.get("start"))
+    await context.bot.send_message(update.effective_chat.id, strings.get("start"), parse_mode="MarkdownV2")
 
 
 async def start(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) -> None:
