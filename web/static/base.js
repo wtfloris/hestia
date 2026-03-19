@@ -111,6 +111,8 @@ var HESTIA_I18N = {
         'faq_a_buy': 'Not yet, but who knows what I might build when I am looking to buy something myself!',
         'faq_q_pararius': 'I saw this listing on Pararius and I did not get a message from Hestia. Why?',
         'faq_a_pararius': 'Pararius does not list a house number for all homes, so Hestia cannot check if it has already seen the listing on another website. To avoid duplicates, those listings are skipped.',
+        'faq_q_app': 'Is there an app?',
+        'faq_a_app': 'Yes! Hestia is available as an <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">iPhone app</a>.',
         'faq_q_thanks': 'Can I thank you for building and sharing Hestia for free?',
         'faq_a_thanks': 'Yes! Click the euro icon below the settings panel. Thanks!',
         'link_telegram_modal_title': 'Link your Telegram account',
@@ -136,7 +138,7 @@ var HESTIA_I18N = {
         'browser_notif_denied': 'Notifications blocked by browser',
         'browser_notif_new_one': '1 new home has been found',
         'browser_notif_new_many': '{count} new homes have been found',
-        'browser_notif_ios_info': "Browser notifications are not available due to iOS restrictions (but I'm working on an iOS app!). For now, you can use a desktop browser to get immediate notifications.",
+        'browser_notif_ios_info': 'Browser notifications are not available due to iOS restrictions. Download the <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">Hestia app for iPhone</a> to get notifications on your phone!',
         'experimental_warning': 'Hestia is still a work in progress \u2014 you may experience some instability here and there!'
     },
     nl: {
@@ -204,6 +206,8 @@ var HESTIA_I18N = {
         'faq_a_buy': 'Nog niet, maar wie weet wat ik bouw wanneer we zelf iets willen kopen!',
         'faq_q_pararius': 'Ik zag een woning op Pararius en kreeg geen melding van Hestia. Waarom?',
         'faq_a_pararius': 'Pararius vermeldt niet bij alle woningen een huisnummer, waardoor Hestia niet kan controleren of de woning al op een andere website is gezien. Om dubbele meldingen te voorkomen slaan we die over.',
+        'faq_q_app': 'Is er een app?',
+        'faq_a_app': 'Ja! Hestia is beschikbaar als <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">iPhone-app</a>.',
         'faq_q_thanks': 'Kan ik je bedanken voor het bouwen en delen van Hestia?',
         'faq_a_thanks': 'Zeker! Klik op het euro-icoon onder het instellingenpaneel. Thanks!',
         'link_telegram_modal_title': 'Koppel je Telegram-account',
@@ -229,7 +233,7 @@ var HESTIA_I18N = {
         'browser_notif_denied': 'Meldingen geblokkeerd door browser',
         'browser_notif_new_one': '1 nieuwe woning gevonden',
         'browser_notif_new_many': '{count} nieuwe woningen gevonden',
-        'browser_notif_ios_info': 'Notificaties in de browser werken niet door beperkingen binnen iOS (maar er wordt aan een iOS app gewerkt!). Gebruik voorlopig een laptop of desktop voor browsernotificaties.',
+        'browser_notif_ios_info': 'Notificaties in de browser werken niet door beperkingen binnen iOS. Download de <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">Hestia-app voor iPhone</a> om notificaties op je telefoon te ontvangen!',
         'experimental_warning': 'Hestia is nog volop in ontwikkeling \u2014 het kan zijn dat er soms iets stuk gaat!'
     }
 };
