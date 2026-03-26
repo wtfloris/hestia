@@ -1,10 +1,14 @@
 import json
 import logging
+import re
 import time
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import httpx
+
+_DEDUP_SUFFIX_RE = re.compile(r"\s*\[€\d+\]$")
 try:
     import jwt
 except ImportError:  # pragma: no cover - exercised only when dependency is missing
@@ -133,7 +137,7 @@ def build_home_notification_payload(home, agency_name: str) -> dict:
     return {
         "aps": {
             "alert": {
-                "title": f"{home.address}, {home.city}",
+                "title": f"{_DEDUP_SUFFIX_RE.sub('', home.address)}, {home.city}",
                 "body": body,
             },
             "sound": "default",
