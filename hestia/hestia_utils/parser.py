@@ -36,7 +36,7 @@ class Home:
     @address.setter
     def address(self, address: str) -> None:
         self._address = address
-        
+
     @property
     def city(self) -> str:
         return self._parsed_city
@@ -430,17 +430,30 @@ class HomeResults:
                 continue
             if re.search(r"^[0-9]", address_raw):  # Filter "1e Foobarstraat 5", etc.
                 continue
-            if not re.search(r"[0-9]", address_raw):
+
+            price_text = price_main.get_text(" ", strip=True).replace("\xa0", " ")
+            # If unable to cast to int, the price is not available so skip the listing
+            try:
+                m = re.search(r"(\d[\d\.,]*)", price_text)
+                if not m:
+                    continue
+                home.price = int(m.group(1).replace(".", "").replace(",", ""))
+            except Exception:
                 continue
-                
+
             # Most Pararius titles are prefixed with a property type; strip when present.
-            parts = address_raw.split()
-            if parts and parts[0].lower() in {"appartement", "huis", "studio", "kamer", "woning", "woonhuis", "flat", "house", "room", "apartment"}:
-                address = " ".join(parts[1:]).strip()
-            else:
-                address = address_raw.strip()
+            ignored = {"appartement", "huis", "studio", "kamer", "woning", "woonhuis", "flat", "house", "room", "apartment"}
+            address = address_raw.strip()
+            first, _, address_rest = address.partition(" ")
+            if first.lower() in ignored:
+                address = address_rest
+
             if not re.search(r"[0-9]", address):
-                continue
+                # Quite a lot of listings on Pararius don't include the house number
+                # Instead of skipping them, just rely on the amount of rent
+                # This will still distinguish most houses in the database
+                address += f" [€{home.price}]"
+
             home.address = address
 
             city_raw = subtitle.get_text(" ", strip=True)
@@ -452,17 +465,6 @@ class HomeResults:
             if not href:
                 continue
             home.url = ("https://www.pararius.com" + href) if href.startswith("/") else href
-
-            price_text = price_main.get_text(" ", strip=True).replace("\xa0", " ")
-            
-            # If unable to cast to int, the price is not available so skip the listing
-            try:
-                m = re.search(r"(\d[\d\.,]*)", price_text)
-                if not m:
-                    continue
-                home.price = int(m.group(1).replace(".", "").replace(",", ""))
-            except Exception:
-                continue
 
             sqm_el = res.select_one(".illustrated-features__item--surface-area")
             if sqm_el:
@@ -484,7 +486,7 @@ class HomeResults:
                 continue
         
             home = Home(agency="funda")
-            
+
             home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
             if "house_number_suffix" in res["_source"]["address"].keys():
                 suffix = res["_source"]["address"]["house_number_suffix"]
