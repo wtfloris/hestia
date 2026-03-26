@@ -1222,6 +1222,10 @@ def api_homes():
                 )
                 homes = cur.fetchall()
 
+        # Strip internal dedup suffixes (e.g. " [€1500]") from addresses
+        for h in homes:
+            h["address"] = re.sub(r"\s*\[€\d+\]$", "", h.get("address", ""))
+
         # Serialize date_added to ISO string in UTC
         for h in homes:
             if h.get("date_added") and hasattr(h["date_added"], "isoformat"):

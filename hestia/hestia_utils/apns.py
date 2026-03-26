@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -133,7 +134,7 @@ def build_home_notification_payload(home, agency_name: str) -> dict:
     return {
         "aps": {
             "alert": {
-                "title": f"{home.address}, {home.city}",
+                "title": f"{re.sub(r'\s*\[€\d+\]$', '', home.address)}, {home.city}",
                 "body": body,
             },
             "sound": "default",
