@@ -1213,7 +1213,10 @@ def api_homes():
                         COALESCE(t.user_info->>'agency', h.agency) AS agency,
                         h.date_added
                     FROM hestia.homes h
-                    LEFT JOIN hestia.targets t ON t.agency = h.agency
+                    LEFT JOIN LATERAL (
+                        SELECT user_info FROM hestia.targets t2
+                        WHERE t2.agency = h.agency LIMIT 1
+                    ) t ON true
                     WHERE {where}
                     ORDER BY h.date_added DESC
                     LIMIT %s OFFSET %s
