@@ -156,6 +156,7 @@ class HomeResults:
             # Filter out listings that don't have all info
             if (
                 "city" not in res
+                or not res["city"]
                 or "name" not in res["city"]
                 or "street" not in res
                 or "houseNumber" not in res
