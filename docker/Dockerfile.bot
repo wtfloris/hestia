@@ -13,4 +13,3 @@ RUN sed -i "s/APP_VERSION = ''/APP_VERSION = '$APP_VERSION'/g" /bot/hestia/hesti
 
 WORKDIR /bot/hestia
 CMD ["python3", "/bot/hestia/bot.py"]
-# CMD ["sleep", "infinity"]

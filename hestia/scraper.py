@@ -4,9 +4,10 @@ import hashlib
 import os
 import traceback
 import requests
-from collections import Counter
 from time import sleep
 from asyncio import run
+from collections import Counter
+from functools import lru_cache
 from telegram.error import Forbidden
 from datetime import datetime, timedelta
 
@@ -16,7 +17,9 @@ import hestia_utils.secrets as secrets
 import hestia_utils.apns as apns
 from hestia_utils.parser import Home, HomeResults
 
-AGENCY = os.environ.get("AGENCY")
+HESTIA_TARGET = os.environ.get("HESTIA_TARGET", "")
+
+logging = __import__("logging").getLogger(HESTIA_TARGET or "maintenance")
 
 APNS_MAX_RETRIES = 3
 APNS_RETRY_BASE_SECONDS = 0.5
@@ -93,10 +96,16 @@ async def _record_target_error(target: dict, exc: BaseException) -> None:
         await meta.BOT.send_message(text=fallback_error, chat_id=secrets.OWN_CHAT_ID)
 
 
+@lru_cache(1)
+def _get_agency_pretty_name() -> str:
+    agency = db.fetch_one("SELECT agency, user_info FROM hestia.targets WHERE agency = %s", [HESTIA_TARGET,])
+    return agency.get("user_info", {}).get("agency", HESTIA_TARGET)
+
+
 async def main() -> None:
 
-    # Maintenance tasks — only run when AGENCY is not set
-    if not AGENCY:
+    # Maintenance tasks — only run when HESTIA_TARGET is not set
+    if not HESTIA_TARGET:
         # Once a day at exactly 19:00 UTC, check some stuff and send an alert if necessary
         if datetime.now().hour == 19 and datetime.now().minute == 0:
             message = ""
@@ -146,22 +155,25 @@ Good luck in your search\!"""
 
         return  # maintenance container does not scrape
 
-    # Scraping — only run when AGENCY is set
+    # Scraping — only run when HESTIA_TARGET is set
     if not db.get_scraper_halted():
         scrape_start_ts = datetime.now()
         targets = db.fetch_all(
             "SELECT * FROM hestia.targets WHERE enabled = true AND agency = %s",
-            (AGENCY,)
+            [HESTIA_TARGET,]
         )
-        for target in targets:
-            try:
-                await scrape_site(target)
-            except BaseException as e:
-                error = f"[{target['agency']} ({target['id']})] {repr(e)}"
-                logging.error(error)
-                await _record_target_error(target, e)
-        scrape_duration = datetime.now() - scrape_start_ts
-        logging.warning(f"Scrape took {scrape_duration.total_seconds()} seconds")
+        if targets:
+            for target in targets:
+                try:
+                    await scrape_site(target)
+                except BaseException as e:
+                    error = f"[{target['agency']} ({target['id']})] {repr(e)}"
+                    logging.error(error)
+                    await _record_target_error(target, e)
+            scrape_duration = datetime.now() - scrape_start_ts
+            logging.warning(f"Scrape took {scrape_duration.total_seconds():.2f} seconds")
+        else:
+            logging.warning(f"No (enabled) targets in database for {HESTIA_TARGET}")
     else:
         logging.warning("Scraper is halted")
 
@@ -177,27 +189,20 @@ async def broadcast(homes: list[Home]) -> None:
         )
     else:
         subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true OR apns_token IS NOT NULL")
-        
-    # Create dict of agencies and their pretty names
-    agencies = db.fetch_all("SELECT agency, user_info FROM hestia.targets")
-    agencies = dict([(a["agency"], a["user_info"]["agency"]) for a in agencies])
     
     for home in homes:
         for sub in subs:
             # Apply filters
+            price_ok = (home.price >= sub["filter_min_price"] and home.price <= sub["filter_max_price"])
             sqm_ok = (sub["filter_min_sqm"] == 0) or (home.sqm == -1) or (home.sqm >= sub["filter_min_sqm"])
-            if (home.price >= sub["filter_min_price"] and home.price <= sub["filter_max_price"]) and \
-               (home.city.lower() in sub["filter_cities"]) and \
-               (home.agency in sub["filter_agencies"]) and \
-               sqm_ok:
-
+            if price_ok and sqm_ok and home.city.lower() in sub["filter_cities"] and home.agency in sub["filter_agencies"]:
                 message = f"{meta.HOUSE_EMOJI} {home.address}, {home.city}\n"
                 message += f"{meta.EURO_EMOJI} €{home.price}/m\n"
                 if home.sqm > 0:
                     message += f"{meta.SQM_EMOJI} {home.sqm} m\u00b2\n"
                 message += "\n"
                 message = meta.escape_markdownv2(message)
-                agency_name = agencies[home.agency]
+                agency_name = _get_agency_pretty_name()
                 message += f"{meta.LINK_EMOJI} [{agency_name}]({home.url})"
 
                 if sub.get("telegram_enabled") and sub.get("telegram_id"):

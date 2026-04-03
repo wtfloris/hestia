@@ -9,7 +9,7 @@ from psycopg2.extras import RealDictCursor, RealDictRow
 from hestia_utils.secrets import DB
 
 logging.basicConfig(
-    format="%(asctime)s [%(levelname)s]: %(message)s",
+    format="%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
     level=logging.WARNING,
     filename="/data/hestia.log"
 )

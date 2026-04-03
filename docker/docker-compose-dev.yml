@@ -16,7 +16,7 @@ x-scraper-dev: &scraper-dev-base
     - hestia-network-dev
   restart: unless-stopped
   volumes:
-    - /root/hestia-dev/data:/data
+    - /home/robot/hestia/data:/data
   working_dir: /scraper
 
 services:
@@ -30,7 +30,7 @@ services:
       - hestia-network-dev
     restart: unless-stopped
     volumes:
-      - /root/hestia-dev/data:/data
+      - /home/robot/hestia/data:/data
     working_dir: /hestia
 
   hestia-scraper-maintenance-dev:
@@ -41,271 +41,271 @@ services:
     <<: *scraper-dev-base
     container_name: hestia-scraper-123wonen-dev
     environment:
-      - AGENCY=123wonen
+      - HESTIA_TARGET=123wonen
 
   hestia-scraper-alliantie-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-alliantie-dev
     environment:
-      - AGENCY=alliantie
+      - HESTIA_TARGET=alliantie
 
   hestia-scraper-atta-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-atta-dev
     environment:
-      - AGENCY=atta
+      - HESTIA_TARGET=atta
 
   hestia-scraper-easylease-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-easylease-dev
     environment:
-      - AGENCY=easylease
+      - HESTIA_TARGET=easylease
 
   hestia-scraper-entree-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-entree-dev
     environment:
-      - AGENCY=entree
+      - HESTIA_TARGET=entree
 
   hestia-scraper-funda-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-funda-dev
     environment:
-      - AGENCY=funda
+      - HESTIA_TARGET=funda
 
   hestia-scraper-hexia-dewoningzoeker-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-dewoningzoeker-dev
     environment:
-      - AGENCY=hexia_dewoningzoeker
+      - HESTIA_TARGET=hexia_dewoningzoeker
 
   hestia-scraper-hexia-frieslandhuurt-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-frieslandhuurt-dev
     environment:
-      - AGENCY=hexia_frieslandhuurt
+      - HESTIA_TARGET=hexia_frieslandhuurt
 
   hestia-scraper-hexia-hollandrijnland-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-hollandrijnland-dev
     environment:
-      - AGENCY=hexia_hollandrijnland
+      - HESTIA_TARGET=hexia_hollandrijnland
 
   hestia-scraper-hexia-klikvoorwonen-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-klikvoorwonen-dev
     environment:
-      - AGENCY=hexia_klikvoorwonen
+      - HESTIA_TARGET=hexia_klikvoorwonen
 
   hestia-scraper-hexia-mosaic-plaza-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-mosaic-plaza-dev
     environment:
-      - AGENCY=hexia_mosaic-plaza
+      - HESTIA_TARGET=hexia_mosaic-plaza
 
   hestia-scraper-hexia-noordveluwe-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-noordveluwe-dev
     environment:
-      - AGENCY=hexia_noordveluwe
+      - HESTIA_TARGET=hexia_noordveluwe
 
   hestia-scraper-hexia-oostwestwonen-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-oostwestwonen-dev
     environment:
-      - AGENCY=hexia_oostwestwonen
+      - HESTIA_TARGET=hexia_oostwestwonen
 
   hestia-scraper-hexia-thuisindeachterhoek-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-thuisindeachterhoek-dev
     environment:
-      - AGENCY=hexia_thuisindeachterhoek
+      - HESTIA_TARGET=hexia_thuisindeachterhoek
 
   hestia-scraper-hexia-thuisinlimburg-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-thuisinlimburg-dev
     environment:
-      - AGENCY=hexia_thuisinlimburg
+      - HESTIA_TARGET=hexia_thuisinlimburg
 
   hestia-scraper-hexia-thuispoort-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-thuispoort-dev
     environment:
-      - AGENCY=hexia_thuispoort
+      - HESTIA_TARGET=hexia_thuispoort
 
   hestia-scraper-hexia-thuispoortstudenten-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-thuispoortstudenten-dev
     environment:
-      - AGENCY=hexia_thuispoortstudenten
+      - HESTIA_TARGET=hexia_thuispoortstudenten
 
   hestia-scraper-hexia-woninginzicht-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-woninginzicht-dev
     environment:
-      - AGENCY=hexia_woninginzicht
+      - HESTIA_TARGET=hexia_woninginzicht
 
   hestia-scraper-hexia-wooniezie-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-wooniezie-dev
     environment:
-      - AGENCY=hexia_wooniezie
+      - HESTIA_TARGET=hexia_wooniezie
 
   hestia-scraper-hexia-woonnethaaglanden-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-woonnethaaglanden-dev
     environment:
-      - AGENCY=hexia_woonnethaaglanden
+      - HESTIA_TARGET=hexia_woonnethaaglanden
 
   hestia-scraper-hexia-zuidwestwonen-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-zuidwestwonen-dev
     environment:
-      - AGENCY=hexia_zuidwestwonen
+      - HESTIA_TARGET=hexia_zuidwestwonen
 
   hestia-scraper-hoekstra-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hoekstra-dev
     environment:
-      - AGENCY=hoekstra
+      - HESTIA_TARGET=hoekstra
 
   hestia-scraper-krk-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-krk-dev
     environment:
-      - AGENCY=krk
+      - HESTIA_TARGET=krk
 
   hestia-scraper-maxxhuren-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-maxxhuren-dev
     environment:
-      - AGENCY=maxxhuren
+      - HESTIA_TARGET=maxxhuren
 
   hestia-scraper-nmg-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-nmg-dev
     environment:
-      - AGENCY=nmg
+      - HESTIA_TARGET=nmg
 
   hestia-scraper-ooms-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-ooms-dev
     environment:
-      - AGENCY=ooms
+      - HESTIA_TARGET=ooms
 
   hestia-scraper-rebo-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-rebo-dev
     environment:
-      - AGENCY=rebo
+      - HESTIA_TARGET=rebo
 
   hestia-scraper-roofz-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-roofz-dev
     environment:
-      - AGENCY=roofz
+      - HESTIA_TARGET=roofz
 
   hestia-scraper-vanderlinden-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-vanderlinden-dev
     environment:
-      - AGENCY=vanderlinden
+      - HESTIA_TARGET=vanderlinden
 
   hestia-scraper-vbo-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-vbo-dev
     environment:
-      - AGENCY=vbo
+      - HESTIA_TARGET=vbo
 
   hestia-scraper-vbt-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-vbt-dev
     environment:
-      - AGENCY=vbt
+      - HESTIA_TARGET=vbt
 
   hestia-scraper-vesteda-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-vesteda-dev
     environment:
-      - AGENCY=vesteda
+      - HESTIA_TARGET=vesteda
 
   hestia-scraper-woningnet-almere-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-almere-dev
     environment:
-      - AGENCY=woningnet_almere
+      - HESTIA_TARGET=woningnet_almere
 
   hestia-scraper-woningnet-amsterdam-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-amsterdam-dev
     environment:
-      - AGENCY=woningnet_amsterdam
+      - HESTIA_TARGET=woningnet_amsterdam
 
   hestia-scraper-woningnet-eemvallei-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-eemvallei-dev
     environment:
-      - AGENCY=woningnet_eemvallei
+      - HESTIA_TARGET=woningnet_eemvallei
 
   hestia-scraper-woningnet-gooienvecht-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-gooienvecht-dev
     environment:
-      - AGENCY=woningnet_gooienvecht
+      - HESTIA_TARGET=woningnet_gooienvecht
 
   hestia-scraper-woningnet-groningen-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-groningen-dev
     environment:
-      - AGENCY=woningnet_groningen
+      - HESTIA_TARGET=woningnet_groningen
 
   hestia-scraper-woningnet-huiswaarts-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-huiswaarts-dev
     environment:
-      - AGENCY=woningnet_huiswaarts
+      - HESTIA_TARGET=woningnet_huiswaarts
 
   hestia-scraper-woningnet-middenholland-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-middenholland-dev
     environment:
-      - AGENCY=woningnet_middenholland
+      - HESTIA_TARGET=woningnet_middenholland
 
   hestia-scraper-woningnet-mijnwoonservice-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-mijnwoonservice-dev
     environment:
-      - AGENCY=woningnet_mijnwoonservice
+      - HESTIA_TARGET=woningnet_mijnwoonservice
 
   hestia-scraper-woningnet-utrecht-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-utrecht-dev
     environment:
-      - AGENCY=woningnet_utrecht
+      - HESTIA_TARGET=woningnet_utrecht
 
   hestia-scraper-woningnet-woongaard-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-woongaard-dev
     environment:
-      - AGENCY=woningnet_woongaard
+      - HESTIA_TARGET=woningnet_woongaard
 
   hestia-scraper-woningnet-woonkeus-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woningnet-woonkeus-dev
     environment:
-      - AGENCY=woningnet_woonkeus
+      - HESTIA_TARGET=woningnet_woonkeus
 
   hestia-scraper-woonin-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woonin-dev
     environment:
-      - AGENCY=woonin
+      - HESTIA_TARGET=woonin
 
   hestia-scraper-woonmatchwaterland-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-woonmatchwaterland-dev
     environment:
-      - AGENCY=woonmatchwaterland
+      - HESTIA_TARGET=woonmatchwaterland
 
   hestia-database-dev:
     container_name: hestia-database-dev

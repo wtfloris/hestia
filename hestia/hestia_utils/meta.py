@@ -15,7 +15,7 @@ def escape_markdownv2(text: str) -> str:
     return text
 
 logging.basicConfig(
-    format="%(asctime)s [%(levelname)s]: %(message)s",
+    format="%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
     level=logging.WARNING,
     filename="/data/hestia.log"
 )
