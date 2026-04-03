@@ -1608,45 +1608,6 @@ class TestParseMaxxhuren:
         assert len(results.homes) == 0
 
 
-class TestSubstituteNuxtVars:
-    def test_replaces_variables(self):
-        js = '{street:a,city:b}'
-        mapping = {"a": "Kerkstraat", "b": "Amsterdam"}
-        result = HomeResults._substitute_nuxt_vars(js, mapping)
-        assert '"Kerkstraat"' in result
-        assert '"Amsterdam"' in result
-
-    def test_preserves_quoted_strings(self):
-        js = '{name:"hello",value:a}'
-        mapping = {"a": "world"}
-        result = HomeResults._substitute_nuxt_vars(js, mapping)
-        assert '"hello"' in result
-        assert '"world"' in result
-
-    def test_preserves_keywords(self):
-        js = '{active:true,data:null,value:a}'
-        mapping = {"a": "test"}
-        result = HomeResults._substitute_nuxt_vars(js, mapping)
-        assert 'true' in result
-        assert 'null' in result
-
-    def test_escapes_special_chars_in_values(self):
-        js = '{name:a}'
-        mapping = {"a": 'he said "hi"'}
-        result = HomeResults._substitute_nuxt_vars(js, mapping)
-        assert '\\"' in result
-
-    def test_unmapped_identifier_preserved(self):
-        js = '{name:unknownVar}'
-        mapping = {}
-        result = HomeResults._substitute_nuxt_vars(js, mapping)
-        assert 'unknownVar' in result
-
-    def test_empty_input(self):
-        result = HomeResults._substitute_nuxt_vars('', {})
-        assert result == ''
-
-
 class TestParseEasylease:
     def test_basic_parsing(self, mock_response):
         data = {
@@ -1671,7 +1632,7 @@ class TestParseEasylease:
             ]
         }
         r = mock_response(data)
-        results = HomeResults("easyleasewonen", r)
+        results = HomeResults("easylease", r)
         assert len(results.homes) == 1
         assert results[0].address == "Graafseweg 26"
         assert results[0].city == "Den Bosch"
@@ -1702,5 +1663,5 @@ class TestParseEasylease:
             ]
         }
         r = mock_response(data)
-        results = HomeResults("easyleasewonen", r)
+        results = HomeResults("easylease", r)
         assert len(results.homes) == 0
