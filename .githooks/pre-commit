@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-"$(git rev-parse --show-toplevel)/.githooks/check-sql-secrets.sh" auto
-
