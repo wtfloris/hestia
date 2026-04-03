@@ -20,6 +20,7 @@ from hestia_utils.parser import Home, HomeResults
 HESTIA_TARGET = os.environ.get("HESTIA_TARGET", "")
 
 logger = logging.getLogger(HESTIA_TARGET or "maintenance")
+logger.setLevel(logging.INFO)
 
 APNS_MAX_RETRIES = 3
 APNS_RETRY_BASE_SECONDS = 0.5
@@ -31,7 +32,7 @@ def _increment_scraper_metric(metric_name: str, outcome: str) -> int:
     key = f"{metric_name}:{outcome}"
     SCRAPER_METRICS[key] += 1
     value = SCRAPER_METRICS[key]
-    logger.info("scraper_metric metric=%s outcome=%s value=%s", metric_name, outcome, value)
+    logger.debug("scraper_metric metric=%s outcome=%s value=%s", metric_name, outcome, value)
     return value
 
 
@@ -139,7 +140,7 @@ async def main() -> None:
                 """)
 
                 donation_link = db.get_donation_link()
-                logger.warning(f"Broadcasting thanks message to {len(subs)} subscribers")
+                logger.info(f"Broadcasting thanks message to {len(subs)} subscribers")
                 for sub in subs:
                     sleep(1/29)  # avoid rate limit (broadcasting to max 30 users per second)
                     message = rf"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
@@ -171,7 +172,7 @@ Good luck in your search\!"""
                     logger.error(error)
                     await _record_target_error(target, e)
             scrape_duration = datetime.now() - scrape_start_ts
-            logger.warning(f"Scrape took {scrape_duration.total_seconds():.2f} seconds")
+            logger.info(f"Scrape took {scrape_duration.total_seconds():.2f} seconds")
         else:
             logger.warning("No (enabled) targets in database")
     else:
@@ -211,7 +212,7 @@ async def broadcast(homes: list[Home]) -> None:
                     except Forbidden as e:
                         # This means the user deleted their account or blocked the bot, so disable them
                         db.disable_user(sub["telegram_id"])
-                        logger.warning(
+                        logger.info(
                             f"Removed subscriber with Telegram id {str(sub['telegram_id'])} due to broadcast failure: {repr(e)}"
                         )
                     except Exception as e:
@@ -228,7 +229,7 @@ async def broadcast(homes: list[Home]) -> None:
                     result = apns_client.send(apns_token, payload)
                     if result.ok:
                         _increment_scraper_metric("apns", "success")
-                        logger.info(
+                        logger.debug(
                             "APNs send success subscriber_id=%s device_id=%s",
                             str(sub.get("id")),
                             str(sub.get("device_id")),
@@ -257,7 +258,7 @@ async def broadcast(homes: list[Home]) -> None:
                     apns_invalid_counts[sub_id] = apns_invalid_counts.get(sub_id, 0) + 1
                     if apns_invalid_counts[sub_id] >= APNS_INVALID_TOKEN_THRESHOLD:
                         db.clear_apns_token(sub_id)
-                        logger.warning(
+                        logger.info(
                             "Cleared APNs token for subscriber_id=%s after invalid token failures=%s",
                             str(sub_id),
                             str(apns_invalid_counts[sub_id]),
