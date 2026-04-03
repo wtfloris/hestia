@@ -1671,7 +1671,7 @@ class TestParseEasylease:
             ]
         }
         r = mock_response(data)
-        results = HomeResults("easyleasewonen", r)
+        results = HomeResults("easylease", r)
         assert len(results.homes) == 1
         assert results[0].address == "Graafseweg 26"
         assert results[0].city == "Den Bosch"
@@ -1702,5 +1702,5 @@ class TestParseEasylease:
             ]
         }
         r = mock_response(data)
-        results = HomeResults("easyleasewonen", r)
+        results = HomeResults("easylease", r)
         assert len(results.homes) == 0
