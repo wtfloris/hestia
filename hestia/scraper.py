@@ -1,17 +1,39 @@
 import json
 import logging
 import hashlib
+import os
 import traceback
 import requests
 from time import sleep
 from asyncio import run
+from collections import Counter
+from functools import lru_cache
 from telegram.error import Forbidden
 from datetime import datetime, timedelta
 
 import hestia_utils.db as db
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
+import hestia_utils.apns as apns
 from hestia_utils.parser import Home, HomeResults
+
+HESTIA_TARGET = os.environ.get("HESTIA_TARGET", "")
+
+logger = logging.getLogger(HESTIA_TARGET or "maintenance")
+logger.setLevel(logging.INFO)
+
+APNS_MAX_RETRIES = 3
+APNS_RETRY_BASE_SECONDS = 0.5
+APNS_INVALID_TOKEN_THRESHOLD = 1
+SCRAPER_METRICS = Counter()
+
+
+def _increment_scraper_metric(metric_name: str, outcome: str) -> int:
+    key = f"{metric_name}:{outcome}"
+    SCRAPER_METRICS[key] += 1
+    value = SCRAPER_METRICS[key]
+    logger.debug("scraper_metric metric=%s outcome=%s value=%s", metric_name, outcome, value)
+    return value
 
 
 def _build_error_fingerprint(component: str, target: dict, exc: BaseException) -> str:
@@ -71,112 +93,176 @@ async def _record_target_error(target: dict, exc: BaseException) -> None:
         )
     except BaseException as db_error:
         fallback_error = f"Failed to persist error rollup for target {target.get('id')}: {repr(db_error)}"
-        logging.error(fallback_error)
+        logger.error(fallback_error)
         await meta.BOT.send_message(text=fallback_error, chat_id=secrets.OWN_CHAT_ID)
 
 
+@lru_cache(1)
+def _get_agency_pretty_name() -> str:
+    agency = db.fetch_one("SELECT agency, user_info FROM hestia.targets WHERE agency = %s", [HESTIA_TARGET,])
+    return agency.get("user_info", {}).get("agency", HESTIA_TARGET)
+
+
 async def main() -> None:
-    
-    # Once a day at exactly 19:00 UTC, check some stuff and send an alert if necessary
-    if datetime.now().hour == 19 and datetime.now().minute == 0:
-        message = ""
-        if db.get_dev_mode():
-            message += "\n\nDev mode is enabled"
-        if db.get_scraper_halted() and 'dev' not in meta.APP_VERSION:
-            message += "\n\nScraper is halted"
-    
-        # Check if the donation link is expiring soon
-        # Expiry of Tikkie links is 14 days, start warning after 13
-        last_updated = db.get_donation_link_updated()
-        if datetime.now() - last_updated >= timedelta(days=13):
-            message += "\n\nDonation link expiring soon, use /setdonate"
 
-        message += _build_daily_error_digest()
-        message += _build_zero_results_digest()
-        db.cleanup_error_rollups(retention_days=30)
-            
-        if message:
-            await meta.BOT.send_message(text=message[2:], chat_id=secrets.OWN_CHAT_ID)
+    # Maintenance tasks — only run when HESTIA_TARGET is not set
+    if not HESTIA_TARGET:
+        # Once a day at exactly 19:00 UTC, check some stuff and send an alert if necessary
+        if datetime.now().hour == 19 and datetime.now().minute == 0:
+            message = ""
+            if db.get_dev_mode():
+                message += "\n\nDev mode is enabled"
+            if db.get_scraper_halted() and 'dev' not in meta.APP_VERSION:
+                message += "\n\nScraper is halted"
 
-    # Once a week, Friday 6pm UTC, send all who subscribed three weeks ago a thanks with a donation link reminder
-    if datetime.now().weekday() == 4 and datetime.now().hour == 18 and datetime.now().minute < 4:
-        if db.get_dev_mode():
-            logging.warning("Dev mode is enabled, not broadcasting thanks messages")
-        else:
-            subs = db.fetch_all("""
-                SELECT * FROM hestia.subscribers 
-                WHERE telegram_enabled = true 
-                AND date_added BETWEEN NOW() - INTERVAL '4 weeks' AND NOW() - INTERVAL '3 weeks'
-            """)
+            # Check if the donation link is expiring soon
+            # Expiry of Tikkie links is 14 days, start warning after 13
+            last_updated = db.get_donation_link_updated()
+            if datetime.now() - last_updated >= timedelta(days=13):
+                message += "\n\nDonation link expiring soon, use /setdonate"
 
-            donation_link = db.get_donation_link()
-            logging.warning(f"Broadcasting thanks message to {len(subs)} subscribers")
-            for sub in subs:
-                sleep(1/29)  # avoid rate limit (broadcasting to max 30 users per second)
-                message = rf"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
-                
+            message += _build_daily_error_digest()
+            message += _build_zero_results_digest()
+            db.cleanup_error_rollups(retention_days=30)
+
+            if message:
+                await meta.BOT.send_message(text=message[2:], chat_id=secrets.OWN_CHAT_ID)
+
+        # Once a week, Friday 6pm UTC, send all who subscribed three weeks ago a thanks with a donation link reminder
+        if datetime.now().weekday() == 4 and datetime.now().hour == 18 and datetime.now().minute < 4:
+            if db.get_dev_mode():
+                logger.warning("Dev mode is enabled, not broadcasting thanks messages")
+            else:
+                subs = db.fetch_all("""
+                    SELECT * FROM hestia.subscribers
+                    WHERE telegram_enabled = true
+                    AND date_added BETWEEN NOW() - INTERVAL '4 weeks' AND NOW() - INTERVAL '3 weeks'
+                """)
+
+                donation_link = db.get_donation_link()
+                logger.info(f"Broadcasting thanks message to {len(subs)} subscribers")
+                for sub in subs:
+                    sleep(1/29)  # avoid rate limit (broadcasting to max 30 users per second)
+                    message = rf"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
+
 Moving is expensive enough and similar scraping services start at like €20/month\. Hopefully Hestia has helped you save some money\! With this open Tikkie you could use some of those savings to [buy me a beer]({donation_link}) {meta.LOVE_EMOJI}
 
 Good luck in your search\!"""
-                try:
-                    await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2", disable_web_page_preview=True)
-                except BaseException as e:
-                    logging.warning(f"Exception while broadcasting thanks message to {sub['telegram_id']}: {repr(e)}")
-                    continue
-    
+                    try:
+                        await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2", disable_web_page_preview=True)
+                    except BaseException as e:
+                        logger.warning(f"Exception while broadcasting thanks message to {sub['telegram_id']}: {repr(e)}")
+                        continue
+
+        return  # maintenance container does not scrape
+
+    # Scraping — only run when HESTIA_TARGET is set
     if not db.get_scraper_halted():
         scrape_start_ts = datetime.now()
-        for target in db.fetch_all("SELECT * FROM hestia.targets WHERE enabled = true"):
-            try:
-                await scrape_site(target)
-            except BaseException as e:
-                error = f"[{target['agency']} ({target['id']})] {repr(e)}"
-                logging.error(error)
-                await _record_target_error(target, e)
-        scrape_duration = datetime.now() - scrape_start_ts
-        logging.warning(f"Scrape took {scrape_duration.total_seconds()} seconds")
+        targets = db.fetch_all(
+            "SELECT * FROM hestia.targets WHERE enabled = true AND agency = %s",
+            [HESTIA_TARGET,]
+        )
+        if targets:
+            for target in targets:
+                try:
+                    await scrape_site(target)
+                except BaseException as e:
+                    error = f"[{target['agency']} ({target['id']})] {repr(e)}"
+                    logger.error(error)
+                    await _record_target_error(target, e)
+            scrape_duration = datetime.now() - scrape_start_ts
+            logger.info(f"Scrape took {scrape_duration.total_seconds():.2f} seconds")
+        else:
+            logger.warning("No (enabled) targets in database")
     else:
-        logging.warning("Scraper is halted")
+        logger.warning("Scraper is halted")
 
 
 async def broadcast(homes: list[Home]) -> None:
     subs = set()
+    apns_client = apns.APNsClient()
+    apns_invalid_counts: dict[int, int] = {}
     
     if db.get_dev_mode():
-        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true AND user_level > 1")
+        subs = db.fetch_all(
+            "SELECT * FROM hestia.subscribers WHERE (telegram_enabled = true OR apns_token IS NOT NULL) AND user_level > 1"
+        )
     else:
-        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true")
-        
-    # Create dict of agencies and their pretty names
-    agencies = db.fetch_all("SELECT agency, user_info FROM hestia.targets")
-    agencies = dict([(a["agency"], a["user_info"]["agency"]) for a in agencies])
+        subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true OR apns_token IS NOT NULL")
     
     for home in homes:
         for sub in subs:
             # Apply filters
+            price_ok = (home.price >= sub["filter_min_price"] and home.price <= sub["filter_max_price"])
             sqm_ok = (sub["filter_min_sqm"] == 0) or (home.sqm == -1) or (home.sqm >= sub["filter_min_sqm"])
-            if (home.price >= sub["filter_min_price"] and home.price <= sub["filter_max_price"]) and \
-               (home.city.lower() in sub["filter_cities"]) and \
-               (home.agency in sub["filter_agencies"]) and \
-               sqm_ok:
-
+            if price_ok and sqm_ok and home.city.lower() in sub["filter_cities"] and home.agency in sub["filter_agencies"]:
                 message = f"{meta.HOUSE_EMOJI} {home.address}, {home.city}\n"
                 message += f"{meta.EURO_EMOJI} €{home.price}/m\n"
                 if home.sqm > 0:
                     message += f"{meta.SQM_EMOJI} {home.sqm} m\u00b2\n"
                 message += "\n"
                 message = meta.escape_markdownv2(message)
-                message += f"{meta.LINK_EMOJI} [{agencies[home.agency]}]({home.url})"
-                
-                try:
-                    await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
-                except Forbidden as e:
-                    # This means the user deleted their account or blocked the bot, so disable them
-                    db.disable_user(sub["telegram_id"])
-                    logging.warning(f"Removed subscriber with Telegram id {str(sub['telegram_id'])} due to broadcast failure: {repr(e)}")
-                except Exception as e:
-                    # Log any other exceptions
-                    logging.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
+                agency_name = _get_agency_pretty_name()
+                message += f"{meta.LINK_EMOJI} [{agency_name}]({home.url})"
+
+                if sub.get("telegram_enabled") and sub.get("telegram_id"):
+                    try:
+                        await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2")
+                    except Forbidden as e:
+                        # This means the user deleted their account or blocked the bot, so disable them
+                        db.disable_user(sub["telegram_id"])
+                        logger.info(
+                            f"Removed subscriber with Telegram id {str(sub['telegram_id'])} due to broadcast failure: {repr(e)}"
+                        )
+                    except Exception as e:
+                        # Log any other exceptions
+                        logger.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
+
+                apns_token = sub.get("apns_token")
+                if not apns_token or not apns_client.enabled:
+                    continue
+
+                payload = apns.build_home_notification_payload(home, agency_name)
+                result = None
+                for attempt in range(1, APNS_MAX_RETRIES + 1):
+                    result = apns_client.send(apns_token, payload)
+                    if result.ok:
+                        _increment_scraper_metric("apns", "success")
+                        logger.debug(
+                            "APNs send success subscriber_id=%s device_id=%s",
+                            str(sub.get("id")),
+                            str(sub.get("device_id")),
+                        )
+                        break
+                    if not result.should_retry or attempt == APNS_MAX_RETRIES:
+                        break
+                    backoff_seconds = APNS_RETRY_BASE_SECONDS * (2 ** (attempt - 1))
+                    sleep(backoff_seconds)
+
+                if result is None or result.ok:
+                    continue
+
+                logger.warning(
+                    "APNs send failure subscriber_id=%s device_id=%s status=%s reason=%s retryable=%s",
+                    str(sub.get("id")),
+                    str(sub.get("device_id")),
+                    str(result.status_code),
+                    result.reason,
+                    str(result.should_retry),
+                )
+                _increment_scraper_metric("apns", "failure")
+
+                if result.permanent_invalid and sub.get("id") is not None:
+                    sub_id = int(sub["id"])
+                    apns_invalid_counts[sub_id] = apns_invalid_counts.get(sub_id, 0) + 1
+                    if apns_invalid_counts[sub_id] >= APNS_INVALID_TOKEN_THRESHOLD:
+                        db.clear_apns_token(sub_id)
+                        logger.info(
+                            "Cleared APNs token for subscriber_id=%s after invalid token failures=%s",
+                            str(sub_id),
+                            str(apns_invalid_counts[sub_id]),
+                        )
 
 
 async def scrape_site(target: dict) -> None:

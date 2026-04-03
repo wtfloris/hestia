@@ -9,7 +9,7 @@ from psycopg2.extras import RealDictCursor, RealDictRow
 from hestia_utils.secrets import DB
 
 logging.basicConfig(
-    format="%(asctime)s [%(levelname)s]: %(message)s",
+    format="%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
     level=logging.WARNING,
     filename="/data/hestia.log"
 )
@@ -108,6 +108,8 @@ def enable_user(telegram_id: int) -> None:
     _write("UPDATE hestia.subscribers SET telegram_enabled = true WHERE telegram_id = %s", [str(telegram_id)])
 def disable_user(telegram_id: int) -> None:
     _write("UPDATE hestia.subscribers SET telegram_enabled = false WHERE telegram_id = %s", [str(telegram_id)])
+def clear_apns_token(subscriber_id: int) -> None:
+    _write("UPDATE hestia.subscribers SET apns_token = NULL WHERE id = %s", [str(subscriber_id)])
 def halt_scraper() -> None:
     _write("UPDATE hestia.meta SET scraper_halted = true WHERE id = 'default'")
 def resume_scraper() -> None:
@@ -173,6 +175,7 @@ def get_recent_error_rollups(hours: int = 24, limit: int = 20) -> list[RealDictR
         FROM hestia.error_rollups
         WHERE last_seen >= now() - (%s::int * interval '1 hour')
         GROUP BY fingerprint, component, agency, target_id, error_class
+        HAVING SUM(count) > 50
         ORDER BY total_count DESC, MAX(last_seen) DESC
         LIMIT %s
         """,

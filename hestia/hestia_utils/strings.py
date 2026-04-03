@@ -3,19 +3,21 @@ from hestia_utils.meta import LOVE_EMOJI
 
 _STRINGS = {
     "start": {
-        "en": """Hi there!
+        "en": r"""Hi there\!
 
-I check real estate websites for new rental homes in The Netherlands. For more info on which websites I check, say /websites.
+I check real estate websites for new rental homes in The Netherlands\. For more info on which websites I check, say /websites\.
 
-To see and modify your personal filters (like city and maximum price), say /filter.
+To see and modify your personal filters \(like city and maximum price\), say /filter\.
 
-You will receive a message when I find a new home that matches your filters! If you want me to stop, just say /stop.
+You will receive a message when I find a new home that matches your filters\! If you want me to stop, just say /stop\.
 
-You can also visit hestia.bot to manage your filters and see new listings come in live!
+You can also visit [hestia\.bot](https://hestia\.bot) to manage your filters and see new listings come in live\!
 
-If you have any questions, please read the /faq!
+Prefer an app? Hestia is now also available as an [iPhone app](https://apps\.apple\.com/app/id6760269825)\!
 
-(zeg /nl als je mij liever in het Nederlands wilt)"""
+If you have any questions, please read the /faq\!
+
+\(zeg /nl als je mij liever in het Nederlands wilt\)"""
     },
     "already_subscribed": {
         "en": "You are already subscribed, I'll let you know if I see any new rental homes online!",
@@ -162,7 +164,7 @@ Succes met je zoektocht\!"""
 *Can you add website \.\.\.?*
     Probably, please check [this issue](https://github.com/wtfloris/hestia/issues/53) on GitHub to see if it's already on the list\.
 
-*Can you add a filter for: amount of rooms/square m2/postal code, etc\.?*
+*Can you add a filter for: amount of rooms/postal code, etc\.?*
     In short: no, because it makes Hestia less reliable\. Please see [this comment](https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778) for the full explanation \(and feel free to discuss if you don\'t agree\)\!
 
 *Does this work if I want to buy a home?*
@@ -172,7 +174,7 @@ Succes met je zoektocht\!"""
     Pararius does not list a house number for all homes, so Hestia can\'t check if it\'s already seen the listing on another website\. To avoid duplicates, we skip these listings altogether\.
 
 *Can I use Hestia without Telegram?*
-    No\. Telegram provides an easy interface for programming, this is much harder on WhatsApp\.
+    Yes\! You can use the website at hestia\.bot or download the [Hestia app for iPhone](https://apps\.apple\.com/app/id6760269825)\.
 
 *Can I thank you for building and sharing Hestia for free?*
     Yes of course, you can buy me a beer [with this Tikkie]({{}})\! {LOVE_EMOJI}
@@ -192,7 +194,7 @@ Succes met je zoektocht\!"""
 *Kun je website \.\.\. toevoegen?*
     Waarschijnlijk wel, kijk op GitHub bij [dit issue](https://github.com/wtfloris/hestia/issues/53) om te zien of de website al op de lijst staat\.
 
-*Kun je een filter toevoegen voor: aantal kamers/vierkante meters/postcode, etc\.?*
+*Kun je een filter toevoegen voor: aantal kamers/postcode, etc\.?*
     Kort gezegd: nee, omdat dit Hestia minder stabiel maakt\. Zie [deze opmerking](https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778) voor de volledige uitleg \(en voel je vrij om te discussiëren als je het er niet mee eens bent\)\!
 
 *Werkt dit ook als ik een huis wil kopen?*
@@ -202,7 +204,7 @@ Succes met je zoektocht\!"""
     Pararius vermeldt niet voor alle woningen een huisnummer, dus Hestia kan niet controleren of de advertentie al op een andere website is gespot\. Om dubbele meldingen te voorkomen slaan we deze advertenties dus over\.
 
 *Kan ik Hestia zonder Telegram gebruiken?*
-    Nee\. Telegram biedt een makkelijke interface om mee te programmeren\. Met WhatsApp gaat dit een stuk lastiger\.
+    Ja\! Je kunt de website hestia\.bot gebruiken of de [Hestia\-app voor iPhone](https://apps\.apple\.com/app/id6760269825) downloaden\.
 
 *Kan ik je bedanken voor het bouwen en delen van Hestia?*
     Jazeker, je kunt [met dit Tikkie]({{}}) een biertje voor me kopen\! {LOVE_EMOJI}

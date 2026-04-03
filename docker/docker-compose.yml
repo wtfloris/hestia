@@ -6,6 +6,19 @@ volumes:
   hestia-database-volume:
     name: hestia-database-volume
 
+x-scraper: &scraper-base
+  healthcheck:
+    test: pgrep cron || exit 1
+    start_period: 5s
+  image: wtfloris/hestia-scraper:latest
+  init: true
+  networks:
+    - hestia-network
+  restart: unless-stopped
+  volumes:
+    - /root/hestia/data:/data
+  working_dir: /scraper
+
 services:
   hestia-bot:
     container_name: hestia-bot
@@ -13,25 +26,286 @@ services:
       test: cat /proc/1/cmdline || exit 1
       start_period: 5s
     image: wtfloris/hestia-bot:latest
-    networks: 
+    networks:
       - hestia-network
     restart: unless-stopped
     volumes:
       - /root/hestia/data:/data
     working_dir: /hestia
 
-  hestia-scraper:
-    container_name: hestia-scraper
-    healthcheck:
-      test: pgrep cron || exit 1
-      start_period: 5s
-    image: wtfloris/hestia-scraper:latest
-    networks: 
-      - hestia-network
-    restart: unless-stopped
-    volumes:
-      - /root/hestia/data:/data
-    working_dir: /scraper
+  hestia-scraper-maintenance:
+    <<: *scraper-base
+    container_name: hestia-scraper-maintenance
+
+  hestia-scraper-123wonen:
+    <<: *scraper-base
+    container_name: hestia-scraper-123wonen
+    environment:
+      - HESTIA_TARGET=123wonen
+
+  hestia-scraper-alliantie:
+    <<: *scraper-base
+    container_name: hestia-scraper-alliantie
+    environment:
+      - HESTIA_TARGET=alliantie
+
+  hestia-scraper-atta:
+    <<: *scraper-base
+    container_name: hestia-scraper-atta
+    environment:
+      - HESTIA_TARGET=atta
+
+  hestia-scraper-easylease:
+    <<: *scraper-base
+    container_name: hestia-scraper-easylease
+    environment:
+      - HESTIA_TARGET=easylease
+
+  hestia-scraper-entree:
+    <<: *scraper-base
+    container_name: hestia-scraper-entree
+    environment:
+      - HESTIA_TARGET=entree
+
+  hestia-scraper-funda:
+    <<: *scraper-base
+    container_name: hestia-scraper-funda
+    environment:
+      - HESTIA_TARGET=funda
+
+  hestia-scraper-hexia-dewoningzoeker:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-dewoningzoeker
+    environment:
+      - HESTIA_TARGET=hexia_dewoningzoeker
+
+  hestia-scraper-hexia-frieslandhuurt:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-frieslandhuurt
+    environment:
+      - HESTIA_TARGET=hexia_frieslandhuurt
+
+  hestia-scraper-hexia-hollandrijnland:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-hollandrijnland
+    environment:
+      - HESTIA_TARGET=hexia_hollandrijnland
+
+  hestia-scraper-hexia-klikvoorwonen:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-klikvoorwonen
+    environment:
+      - HESTIA_TARGET=hexia_klikvoorwonen
+
+  hestia-scraper-hexia-mosaic-plaza:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-mosaic-plaza
+    environment:
+      - HESTIA_TARGET=hexia_mosaic-plaza
+
+  hestia-scraper-hexia-noordveluwe:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-noordveluwe
+    environment:
+      - HESTIA_TARGET=hexia_noordveluwe
+
+  hestia-scraper-hexia-oostwestwonen:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-oostwestwonen
+    environment:
+      - HESTIA_TARGET=hexia_oostwestwonen
+
+  hestia-scraper-hexia-thuisindeachterhoek:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-thuisindeachterhoek
+    environment:
+      - HESTIA_TARGET=hexia_thuisindeachterhoek
+
+  hestia-scraper-hexia-thuisinlimburg:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-thuisinlimburg
+    environment:
+      - HESTIA_TARGET=hexia_thuisinlimburg
+
+  hestia-scraper-hexia-thuispoort:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-thuispoort
+    environment:
+      - HESTIA_TARGET=hexia_thuispoort
+
+  hestia-scraper-hexia-thuispoortstudenten:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-thuispoortstudenten
+    environment:
+      - HESTIA_TARGET=hexia_thuispoortstudenten
+
+  hestia-scraper-hexia-woninginzicht:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-woninginzicht
+    environment:
+      - HESTIA_TARGET=hexia_woninginzicht
+
+  hestia-scraper-hexia-wooniezie:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-wooniezie
+    environment:
+      - HESTIA_TARGET=hexia_wooniezie
+
+  hestia-scraper-hexia-woonnethaaglanden:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-woonnethaaglanden
+    environment:
+      - HESTIA_TARGET=hexia_woonnethaaglanden
+
+  hestia-scraper-hexia-zuidwestwonen:
+    <<: *scraper-base
+    container_name: hestia-scraper-hexia-zuidwestwonen
+    environment:
+      - HESTIA_TARGET=hexia_zuidwestwonen
+
+  hestia-scraper-hoekstra:
+    <<: *scraper-base
+    container_name: hestia-scraper-hoekstra
+    environment:
+      - HESTIA_TARGET=hoekstra
+
+  hestia-scraper-krk:
+    <<: *scraper-base
+    container_name: hestia-scraper-krk
+    environment:
+      - HESTIA_TARGET=krk
+
+  hestia-scraper-maxxhuren:
+    <<: *scraper-base
+    container_name: hestia-scraper-maxxhuren
+    environment:
+      - HESTIA_TARGET=maxxhuren
+
+  hestia-scraper-nmg:
+    <<: *scraper-base
+    container_name: hestia-scraper-nmg
+    environment:
+      - HESTIA_TARGET=nmg
+
+  hestia-scraper-ooms:
+    <<: *scraper-base
+    container_name: hestia-scraper-ooms
+    environment:
+      - HESTIA_TARGET=ooms
+
+  hestia-scraper-rebo:
+    <<: *scraper-base
+    container_name: hestia-scraper-rebo
+    environment:
+      - HESTIA_TARGET=rebo
+
+  hestia-scraper-roofz:
+    <<: *scraper-base
+    container_name: hestia-scraper-roofz
+    environment:
+      - HESTIA_TARGET=roofz
+
+  hestia-scraper-vanderlinden:
+    <<: *scraper-base
+    container_name: hestia-scraper-vanderlinden
+    environment:
+      - HESTIA_TARGET=vanderlinden
+
+  hestia-scraper-vbo:
+    <<: *scraper-base
+    container_name: hestia-scraper-vbo
+    environment:
+      - HESTIA_TARGET=vbo
+
+  hestia-scraper-vbt:
+    <<: *scraper-base
+    container_name: hestia-scraper-vbt
+    environment:
+      - HESTIA_TARGET=vbt
+
+  hestia-scraper-vesteda:
+    <<: *scraper-base
+    container_name: hestia-scraper-vesteda
+    environment:
+      - HESTIA_TARGET=vesteda
+
+  hestia-scraper-woningnet-almere:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-almere
+    environment:
+      - HESTIA_TARGET=woningnet_almere
+
+  hestia-scraper-woningnet-amsterdam:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-amsterdam
+    environment:
+      - HESTIA_TARGET=woningnet_amsterdam
+
+  hestia-scraper-woningnet-eemvallei:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-eemvallei
+    environment:
+      - HESTIA_TARGET=woningnet_eemvallei
+
+  hestia-scraper-woningnet-gooienvecht:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-gooienvecht
+    environment:
+      - HESTIA_TARGET=woningnet_gooienvecht
+
+  hestia-scraper-woningnet-groningen:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-groningen
+    environment:
+      - HESTIA_TARGET=woningnet_groningen
+
+  hestia-scraper-woningnet-huiswaarts:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-huiswaarts
+    environment:
+      - HESTIA_TARGET=woningnet_huiswaarts
+
+  hestia-scraper-woningnet-middenholland:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-middenholland
+    environment:
+      - HESTIA_TARGET=woningnet_middenholland
+
+  hestia-scraper-woningnet-mijnwoonservice:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-mijnwoonservice
+    environment:
+      - HESTIA_TARGET=woningnet_mijnwoonservice
+
+  hestia-scraper-woningnet-utrecht:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-utrecht
+    environment:
+      - HESTIA_TARGET=woningnet_utrecht
+
+  hestia-scraper-woningnet-woongaard:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-woongaard
+    environment:
+      - HESTIA_TARGET=woningnet_woongaard
+
+  hestia-scraper-woningnet-woonkeus:
+    <<: *scraper-base
+    container_name: hestia-scraper-woningnet-woonkeus
+    environment:
+      - HESTIA_TARGET=woningnet_woonkeus
+
+  hestia-scraper-woonin:
+    <<: *scraper-base
+    container_name: hestia-scraper-woonin
+    environment:
+      - HESTIA_TARGET=woonin
+
+  hestia-scraper-woonmatchwaterland:
+    <<: *scraper-base
+    container_name: hestia-scraper-woonmatchwaterland
+    environment:
+      - HESTIA_TARGET=woonmatchwaterland
 
   hestia-database:
     container_name: hestia-database
@@ -42,11 +316,11 @@ services:
       retries: 10
       start_period: 10s
     image: postgres:15
-    networks: 
+    networks:
       - hestia-network
     ports:
       - "127.0.0.1:5432:5432"
-    restart: unless-stopped 
+    restart: unless-stopped
     volumes:
       - hestia-database-volume:/var/lib/postgresql/data
 

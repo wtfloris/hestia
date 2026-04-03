@@ -558,6 +558,7 @@ class TestParsePararius:
         city="1011 AB Amsterdam (Centrum)",
         url="/appartement-te-huur/amsterdam/kerkstraat-10",
         price="\u20ac\u00a01.500 per maand",
+        sqm: int | None = 75,
         status_label: str | None = None,
         include_all=True,
     ):
@@ -576,6 +577,10 @@ class TestParsePararius:
             parts += '<div class="listing-search-item__price">'
             parts += f'<span class="listing-search-item__price-main">{price}</span>'
             parts += '</div>'
+            if sqm is not None:
+                parts += '<ul class="illustrated-features">'
+                parts += f'<li class="illustrated-features__item illustrated-features__item--surface-area">{sqm} m²</li>'
+                parts += '</ul>'
         parts += "</section>"
         return parts
 
@@ -587,12 +592,43 @@ class TestParsePararius:
         assert results[0].address == "Kerkstraat 10"
         assert results[0].city == "Amsterdam"
         assert results[0].price == 1500
+        assert results[0].sqm == 75
+        assert results[0].url == "https://www.pararius.com/appartement-te-huur/amsterdam/kerkstraat-10"
+
+    def test_missing_sqm(self, mock_response):
+        html = f"<html>{self._make_listing_html(sqm=None)}</html>"
+        r = mock_response(html)
+        results = HomeResults("pararius", r)
+        assert len(results.homes) == 1
+        assert results[0].sqm == -1
+
+    def test_strips_english_property_type_prefix(self, mock_response):
+        html = f"<html>{self._make_listing_html(address='Flat Bergselaan 362 D')}</html>"
+        r = mock_response(html)
+        results = HomeResults("pararius", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Bergselaan 362 D"
+
+    def test_strips_house_prefix(self, mock_response):
+        html = f"<html>{self._make_listing_html(address='House Kerkstraat 10')}</html>"
+        r = mock_response(html)
+        results = HomeResults("pararius", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Kerkstraat 10"
+
+    def test_strips_room_prefix(self, mock_response):
+        html = f"<html>{self._make_listing_html(address='Room Kwaadeindstraat 101')}</html>"
+        r = mock_response(html)
+        results = HomeResults("pararius", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Kwaadeindstraat 101"
 
     def test_filters_no_house_number(self, mock_response):
         html = f"<html>{self._make_listing_html(address='Appartement Kerkstraat')}</html>"
         r = mock_response(html)
         results = HomeResults("pararius", r)
-        assert len(results.homes) == 0
+        assert len(results.homes) == 1
+        assert results[0].address == "Kerkstraat [€1500]"  # < improvised number!
 
     def test_filters_address_starting_with_number(self, mock_response):
         """Addresses where the raw content starts with a digit (no type prefix) are filtered."""
@@ -1070,123 +1106,86 @@ class TestParseWoonzeker:
 
 
 class TestParseRoofz:
-    def _make_nuxt_html(self, rent_items, mapping=None):
-        """Build minimal Nuxt IIFE HTML for roofz parser testing."""
-        if mapping is None:
-            mapping = {}
+    def _make_response(self, mock_response, listings, meta=None):
+        """Build a mock JSON API response for roofz parser testing."""
+        payload = {"data": listings, "meta": meta or {"last_page": 1}}
+        r = mock_response(payload)
+        r.json.return_value = payload
+        r.url = "https://roofz.eu/api/ms/listing/properties"
+        return r
 
-        func_args = list(mapping.keys()) if mapping else ["a"]
-        params = list(mapping.values()) if mapping else ['"unused"']
-
-        func_args_str = ",".join(func_args)
-        params_str = ",".join(params)
-
-        rent_js = json.dumps(rent_items)
-
-        script = f"""<script>window.__NUXT__=(function({func_args_str}){{return {{rent:{rent_js}}}}})({params_str}));</script>"""
-        return f"<html>{script}</html>"
+    def _listing(self, street="Kerkstraat", house_number="10",
+                 addition="", city="Amsterdam", price=1500,
+                 slug="kerkstraat-10", status_code="available",
+                 stage="available", living_area=75):
+        listing = {
+            "status": {"code": status_code, "label": status_code.title()},
+            "stage": stage,
+            "slug": slug,
+            "address": {
+                "street": street,
+                "house_number": house_number,
+                "house_number_addition": addition,
+                "location": city,
+            },
+            "handover": {"price": price},
+        }
+        if living_area is not None:
+            listing["characteristic"] = {"living_area": living_area}
+        return listing
 
     def test_basic_parsing(self, mock_response):
-        rent_items = [
-            {
-                "status": "available",
-                "slug": "kerkstraat-10-amsterdam",
-                "address": {
-                    "street": "Kerkstraat",
-                    "houseNumber": 10,
-                    "houseNumberExtension": "",
-                    "location": "Amsterdam"
-                },
-                "handover": {"price": 1500}
-            }
-        ]
-        html = self._make_nuxt_html(rent_items)
-        r = mock_response(html)
+        r = self._make_response(mock_response, [self._listing()])
         results = HomeResults("roofz", r)
         assert len(results.homes) == 1
         assert results[0].address == "Kerkstraat 10"
         assert results[0].city == "Amsterdam"
         assert results[0].price == 1500
-        assert "roofz.eu/availability/" in results[0].url
+        assert results[0].sqm == 75
+        assert results[0].url == "https://roofz.eu/huur/woningen/kerkstraat-10"
 
-    def test_with_extension(self, mock_response):
-        rent_items = [
-            {
-                "status": "available",
-                "slug": "kerkstraat-10a",
-                "address": {
-                    "street": "Kerkstraat",
-                    "houseNumber": 10,
-                    "houseNumberExtension": "A",
-                    "location": "Amsterdam"
-                },
-                "handover": {"price": 1500}
-            }
-        ]
-        html = self._make_nuxt_html(rent_items)
-        r = mock_response(html)
+    def test_missing_living_area(self, mock_response):
+        r = self._make_response(mock_response, [self._listing(living_area=None)])
+        results = HomeResults("roofz", r)
+        assert results[0].sqm == -1
+
+    def test_with_addition(self, mock_response):
+        r = self._make_response(mock_response, [
+            self._listing(addition="A", slug="kerkstraat-10a"),
+        ])
         results = HomeResults("roofz", r)
         assert results[0].address == "Kerkstraat 10 A"
 
-    def test_filters_rented(self, mock_response):
-        rent_items = [
-            {
-                "status": "rented",
-                "slug": "straat-1",
-                "address": {
-                    "street": "Straat",
-                    "houseNumber": 1,
-                    "houseNumberExtension": "",
-                    "location": "Amsterdam"
-                },
-                "handover": {"price": 1000}
-            }
-        ]
-        html = self._make_nuxt_html(rent_items)
-        r = mock_response(html)
+    def test_filters_occupied(self, mock_response):
+        r = self._make_response(mock_response, [
+            self._listing(status_code="occupied", stage="occupied"),
+        ])
         results = HomeResults("roofz", r)
         assert len(results.homes) == 0
 
-    def test_filters_under_option(self, mock_response):
-        rent_items = [
-            {
-                "status": "under option",
-                "slug": "straat-1",
-                "address": {
-                    "street": "Straat",
-                    "houseNumber": 1,
-                    "houseNumberExtension": "",
-                    "location": "Amsterdam"
-                },
-                "handover": {"price": 1000}
-            }
-        ]
-        html = self._make_nuxt_html(rent_items)
-        r = mock_response(html)
+    def test_filters_unavailable(self, mock_response):
+        r = self._make_response(mock_response, [
+            self._listing(status_code="unavailable", stage="option"),
+        ])
+        results = HomeResults("roofz", r)
+        assert len(results.homes) == 0
+
+    def test_filters_option_stage(self, mock_response):
+        r = self._make_response(mock_response, [
+            self._listing(status_code="available", stage="option"),
+        ])
         results = HomeResults("roofz", r)
         assert len(results.homes) == 0
 
     def test_filters_missing_street(self, mock_response):
-        rent_items = [
-            {
-                "status": "available",
-                "slug": "unknown",
-                "address": {
-                    "street": "",
-                    "houseNumber": 1,
-                    "location": "Amsterdam"
-                },
-                "handover": {"price": 1000}
-            }
-        ]
-        html = self._make_nuxt_html(rent_items)
-        r = mock_response(html)
+        r = self._make_response(mock_response, [
+            self._listing(street=""),
+        ])
         results = HomeResults("roofz", r)
         assert len(results.homes) == 0
 
-    def test_no_nuxt_script(self, mock_response):
-        html = "<html><body>No nuxt data</body></html>"
-        r = mock_response(html)
+    def test_empty_data(self, mock_response):
+        r = self._make_response(mock_response, [])
         results = HomeResults("roofz", r)
         assert len(results.homes) == 0
 
