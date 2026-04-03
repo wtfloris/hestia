@@ -2,6 +2,8 @@
 .vscode
 AGENTS.md
 misc/maintenance.py
+hestia/hestia_utils/pararius_scraper.py
+requirements-private.txt
 # Hestia specific files
 error.log
 hestia.log

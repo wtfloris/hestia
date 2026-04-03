@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install cron procps gcc -y && rm -rf /var/lib/apt/
 COPY hestia/requirements.txt /scraper/requirements.txt
 RUN pip3 install -r /scraper/requirements.txt
 
+COPY requirements-private.tx[t] /scraper/
+RUN if [ -f /scraper/requirements-private.txt ]; then pip3 install -r /scraper/requirements-private.txt; fi
+
 COPY hestia /scraper/hestia
 
 COPY docker/entrypoint-scraper.sh /entrypoint.sh

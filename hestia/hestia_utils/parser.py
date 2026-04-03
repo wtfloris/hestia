@@ -105,8 +105,6 @@ class HomeResults:
             self.parse_woonmatchwaterland(raw)
         elif "woningnet_" in source:
             self.parse_woningnet_dak(raw, source.split("_")[1])
-        elif source == "pararius":
-            self.parse_pararius(raw)
         elif source == "funda":
             self.parse_funda(raw)
         elif source == "rebo":
@@ -391,90 +389,6 @@ class HomeResults:
             home.city = res["place"]
             home.url = res["url"]
             home.price = int(res["rent_price"])
-            self.homes.append(home)
-            
-    def parse_pararius(self, r: requests.models.Response):
-        soup = BeautifulSoup(r.content, "html.parser")
-        results = soup.select("section.listing-search-item--for-rent")
-        
-        for res in results:
-            home = Home(agency="pararius")
-
-            # Filter unavailable statuses early when possible
-            label = res.select_one(".listing-search-item__label")
-            if label:
-                label_text = label.get_text(" ", strip=True).lower()
-                if any(
-                    bad in label_text
-                    for bad in [
-                        "verhuurd",
-                        "onder optie",
-                        "withdrawn",
-                        "rentedwithreservation",
-                        "rented with reservation",
-                    ]
-                ):
-                    continue
-
-            # Required fields
-            title_link = res.select_one("a.listing-search-item__link--title")
-            subtitle = res.select_one(".listing-search-item__sub-title")
-            price_main = res.select_one(".listing-search-item__price-main") or res.select_one(
-                ".listing-search-item__price"
-            )
-            if not title_link or not subtitle or not price_main:
-                continue
-        
-            # A lot of properties on Pararius don't include house numbers, so it's impossible to keep track of them because
-            # right now homes are tracked by address, not by URL (which has its own downsides).
-            # This is probably not 100% reliable either, but it's close enough.
-            address_raw = title_link.get_text(" ", strip=True)
-            if not address_raw:
-                continue
-            if re.search(r"^[0-9]", address_raw):  # Filter "1e Foobarstraat 5", etc.
-                continue
-
-            price_text = price_main.get_text(" ", strip=True).replace("\xa0", " ")
-            # If unable to cast to int, the price is not available so skip the listing
-            try:
-                m = re.search(r"(\d[\d\.,]*)", price_text)
-                if not m:
-                    continue
-                home.price = int(m.group(1).replace(".", "").replace(",", ""))
-            except Exception:
-                continue
-
-            # Most Pararius titles are prefixed with a property type; strip when present.
-            ignored = {"appartement", "huis", "studio", "kamer", "woning", "woonhuis", "flat", "house", "room", "apartment"}
-            address = address_raw.strip()
-            first, _, address_rest = address.partition(" ")
-            if first.lower() in ignored:
-                address = address_rest
-
-            if not re.search(r"[0-9]", address):
-                # Quite a lot of listings on Pararius don't include the house number
-                # Instead of skipping them, just rely on the amount of rent
-                # This will still distinguish most houses in the database
-                address += f" [€{home.price}]"
-
-            home.address = address
-
-            city_raw = subtitle.get_text(" ", strip=True)
-            # Typical format: "1234 AB Amsterdam (Centrum)".
-            city_raw = re.sub(r"^\d{4}\s*[A-Z]{2}\s+", "", city_raw).strip()
-            home.city = city_raw.split("(")[0].strip()
-
-            href = str(title_link.get("href", "")).strip()
-            if not href:
-                continue
-            home.url = ("https://www.pararius.com" + href) if href.startswith("/") else href
-
-            sqm_el = res.select_one(".illustrated-features__item--surface-area")
-            if sqm_el:
-                sqm_match = re.search(r"(\d+)", sqm_el.get_text(" ", strip=True))
-                if sqm_match:
-                    home.sqm = int(sqm_match.group(1))
-
             self.homes.append(home)
             
     def parse_funda(self, r: requests.models.Response):

@@ -11,6 +11,14 @@ from functools import lru_cache
 from telegram.error import Forbidden
 from datetime import datetime, timedelta
 
+try:
+    from hestia_utils.pararius_scraper import scrape_pararius
+    # This is not open source: Pararius was very quick to fix the last workaround for their
+    # anti-scrape measures, I kinda suspect them of watching the Hestia repo... Good luck!
+    HAS_PARARIUS_SCRAPER = True
+except ImportError:
+    HAS_PARARIUS_SCRAPER = False
+
 import hestia_utils.db as db
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
@@ -266,6 +274,23 @@ async def broadcast(homes: list[Home]) -> None:
 
 
 async def scrape_site(target: dict) -> None:
+    if target["agency"] == "pararius":
+        if not HAS_PARARIUS_SCRAPER:
+            logger.warning("Pararius scraper module not found, skipping")
+            return
+        new_homes = []
+        prev_homes = [
+            Home(home["address"], home["city"])
+            for home in db.fetch_all("SELECT address, city FROM hestia.homes WHERE date_added > now() - interval '180 day'")
+        ]
+        for home in scrape_pararius(target):
+            if home not in prev_homes:
+                new_homes.append(home)
+        for home in new_homes:
+            db.add_home(home.url, home.address, home.city, home.price, home.agency, datetime.now().isoformat(), home.sqm)
+        await broadcast(new_homes)
+        return
+
     if target["method"] == "GET":
         r = requests.get(target["queryurl"], headers=target["headers"])
     elif target["method"] == "POST":

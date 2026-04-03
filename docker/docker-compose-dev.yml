@@ -193,6 +193,12 @@ services:
     environment:
       - HESTIA_TARGET=ooms
 
+  hestia-scraper-pararius-dev:
+    <<: *scraper-dev-base
+    container_name: hestia-scraper-pararius-dev
+    environment:
+      - HESTIA_TARGET=pararius
+
   hestia-scraper-rebo-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-rebo-dev
