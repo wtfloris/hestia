@@ -19,7 +19,7 @@ from hestia_utils.parser import Home, HomeResults
 
 HESTIA_TARGET = os.environ.get("HESTIA_TARGET", "")
 
-logging = __import__("logging").getLogger(HESTIA_TARGET or "maintenance")
+logger = logging.getLogger(HESTIA_TARGET or "maintenance")
 
 APNS_MAX_RETRIES = 3
 APNS_RETRY_BASE_SECONDS = 0.5
@@ -31,7 +31,7 @@ def _increment_scraper_metric(metric_name: str, outcome: str) -> int:
     key = f"{metric_name}:{outcome}"
     SCRAPER_METRICS[key] += 1
     value = SCRAPER_METRICS[key]
-    logging.info("scraper_metric metric=%s outcome=%s value=%s", metric_name, outcome, value)
+    logger.info("scraper_metric metric=%s outcome=%s value=%s", metric_name, outcome, value)
     return value
 
 
@@ -92,7 +92,7 @@ async def _record_target_error(target: dict, exc: BaseException) -> None:
         )
     except BaseException as db_error:
         fallback_error = f"Failed to persist error rollup for target {target.get('id')}: {repr(db_error)}"
-        logging.error(fallback_error)
+        logger.error(fallback_error)
         await meta.BOT.send_message(text=fallback_error, chat_id=secrets.OWN_CHAT_ID)
 
 
@@ -130,7 +130,7 @@ async def main() -> None:
         # Once a week, Friday 6pm UTC, send all who subscribed three weeks ago a thanks with a donation link reminder
         if datetime.now().weekday() == 4 and datetime.now().hour == 18 and datetime.now().minute < 4:
             if db.get_dev_mode():
-                logging.warning("Dev mode is enabled, not broadcasting thanks messages")
+                logger.warning("Dev mode is enabled, not broadcasting thanks messages")
             else:
                 subs = db.fetch_all("""
                     SELECT * FROM hestia.subscribers
@@ -139,7 +139,7 @@ async def main() -> None:
                 """)
 
                 donation_link = db.get_donation_link()
-                logging.warning(f"Broadcasting thanks message to {len(subs)} subscribers")
+                logger.warning(f"Broadcasting thanks message to {len(subs)} subscribers")
                 for sub in subs:
                     sleep(1/29)  # avoid rate limit (broadcasting to max 30 users per second)
                     message = rf"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
@@ -150,7 +150,7 @@ Good luck in your search\!"""
                     try:
                         await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2", disable_web_page_preview=True)
                     except BaseException as e:
-                        logging.warning(f"Exception while broadcasting thanks message to {sub['telegram_id']}: {repr(e)}")
+                        logger.warning(f"Exception while broadcasting thanks message to {sub['telegram_id']}: {repr(e)}")
                         continue
 
         return  # maintenance container does not scrape
@@ -168,14 +168,14 @@ Good luck in your search\!"""
                     await scrape_site(target)
                 except BaseException as e:
                     error = f"[{target['agency']} ({target['id']})] {repr(e)}"
-                    logging.error(error)
+                    logger.error(error)
                     await _record_target_error(target, e)
             scrape_duration = datetime.now() - scrape_start_ts
-            logging.warning(f"Scrape took {scrape_duration.total_seconds():.2f} seconds")
+            logger.warning(f"Scrape took {scrape_duration.total_seconds():.2f} seconds")
         else:
-            logging.warning(f"No (enabled) targets in database for {HESTIA_TARGET}")
+            logger.warning(f"No (enabled) targets in database for {HESTIA_TARGET}")
     else:
-        logging.warning("Scraper is halted")
+        logger.warning("Scraper is halted")
 
 
 async def broadcast(homes: list[Home]) -> None:
@@ -211,12 +211,12 @@ async def broadcast(homes: list[Home]) -> None:
                     except Forbidden as e:
                         # This means the user deleted their account or blocked the bot, so disable them
                         db.disable_user(sub["telegram_id"])
-                        logging.warning(
+                        logger.warning(
                             f"Removed subscriber with Telegram id {str(sub['telegram_id'])} due to broadcast failure: {repr(e)}"
                         )
                     except Exception as e:
                         # Log any other exceptions
-                        logging.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
+                        logger.warning(f"Failed to broadcast to {sub['telegram_id']}: {repr(e)}")
 
                 apns_token = sub.get("apns_token")
                 if not apns_token or not apns_client.enabled:
@@ -228,7 +228,7 @@ async def broadcast(homes: list[Home]) -> None:
                     result = apns_client.send(apns_token, payload)
                     if result.ok:
                         _increment_scraper_metric("apns", "success")
-                        logging.info(
+                        logger.info(
                             "APNs send success subscriber_id=%s device_id=%s",
                             str(sub.get("id")),
                             str(sub.get("device_id")),
@@ -242,7 +242,7 @@ async def broadcast(homes: list[Home]) -> None:
                 if result is None or result.ok:
                     continue
 
-                logging.warning(
+                logger.warning(
                     "APNs send failure subscriber_id=%s device_id=%s status=%s reason=%s retryable=%s",
                     str(sub.get("id")),
                     str(sub.get("device_id")),
@@ -257,7 +257,7 @@ async def broadcast(homes: list[Home]) -> None:
                     apns_invalid_counts[sub_id] = apns_invalid_counts.get(sub_id, 0) + 1
                     if apns_invalid_counts[sub_id] >= APNS_INVALID_TOKEN_THRESHOLD:
                         db.clear_apns_token(sub_id)
-                        logging.warning(
+                        logger.warning(
                             "Cleared APNs token for subscriber_id=%s after invalid token failures=%s",
                             str(sub_id),
                             str(apns_invalid_counts[sub_id]),
