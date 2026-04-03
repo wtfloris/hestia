@@ -143,7 +143,7 @@ class HomeResults:
             self.parse_maxxhuren(raw)
         elif source == "hoekstra":
             self.parse_hoekstra(raw)
-        elif source == "easyleasewonen":
+        elif source == "easylease":
             self.parse_easylease(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
