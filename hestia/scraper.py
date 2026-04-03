@@ -173,7 +173,7 @@ Good luck in your search\!"""
             scrape_duration = datetime.now() - scrape_start_ts
             logger.warning(f"Scrape took {scrape_duration.total_seconds():.2f} seconds")
         else:
-            logger.warning(f"No (enabled) targets in database for {HESTIA_TARGET}")
+            logger.warning("No (enabled) targets in database")
     else:
         logger.warning("Scraper is halted")
 
