@@ -56,3 +56,4 @@ I'll take your parser and run it in the dev environment for a few days to see ho
 * [Ventilaar](https://github.com/ventilaar) - Hexia, Woonnet Rijnmond and Woonin parsers
 * [PimMeulensteen](https://github.com/PimMeulensteen) - Woonmatchwaterland parser
 * [fernandez-a](https://github.com/fernandez-a) - 123Wonen and Entree parser
+* [z-defnemetin](https://github.com/z-defnemetin) - Easylease parser
