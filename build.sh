@@ -5,6 +5,10 @@ if [[ -f "${SCRIPT_DIR}/.devenv" ]] && [[ "${1:-}" != "dev" ]]; then
         echo "Error: .devenv detected; you must run this script with the 'dev' arg (e.g. 'bash build.sh dev -y')." >&2
         exit 1
 fi
+if [[ ! -f "${SCRIPT_DIR}/.devenv" ]] && [[ "${1:-}" == "dev" ]]; then
+        echo "Error: no .devenv found; cannot run with 'dev' arg on a non-dev environment." >&2
+        exit 1
+fi
 
 TAG=latest
 APP_VERSION=$(git rev-parse --short HEAD)
