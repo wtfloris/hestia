@@ -169,6 +169,12 @@ services:
     environment:
       - HESTIA_TARGET=hoekstra
 
+  hestia-scraper-ikwilhuren:
+    <<: *scraper-base
+    container_name: hestia-scraper-ikwilhuren
+    environment:
+      - HESTIA_TARGET=ikwilhuren
+
   hestia-scraper-krk:
     <<: *scraper-base
     container_name: hestia-scraper-krk

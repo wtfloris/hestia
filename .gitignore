@@ -3,6 +3,9 @@
 AGENTS.md
 misc/maintenance.py
 hestia/hestia_utils/pararius_scraper.py
+hestia/hestia_utils/ikwilhuren_scraper.py
+tests/test_ikwilhuren_scraper.py
+tests/test_pararius_scraper.py
 requirements-private.txt
 # Hestia specific files
 error.log

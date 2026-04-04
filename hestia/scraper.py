@@ -19,6 +19,12 @@ try:
 except ImportError:
     HAS_PARARIUS_SCRAPER = False
 
+try:
+    from hestia_utils.ikwilhuren_scraper import scrape_ikwilhuren
+    HAS_IKWILHUREN_SCRAPER = True
+except ImportError:
+    HAS_IKWILHUREN_SCRAPER = False
+
 import hestia_utils.db as db
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
@@ -274,7 +280,23 @@ async def broadcast(homes: list[Home]) -> None:
 
 
 async def scrape_site(target: dict) -> None:
-    if target["agency"] == "pararius":
+    if target["agency"] == "ikwilhuren":
+        if not HAS_IKWILHUREN_SCRAPER:
+            logger.warning("ikwilhuren scraper module not found, skipping")
+            return
+        new_homes = []
+        prev_homes = [
+            Home(home["address"], home["city"])
+            for home in db.fetch_all("SELECT address, city FROM hestia.homes WHERE date_added > now() - interval '180 day'")
+        ]
+        for home in scrape_ikwilhuren(target):
+            if home not in prev_homes:
+                new_homes.append(home)
+        for home in new_homes:
+            db.add_home(home.url, home.address, home.city, home.price, home.agency, datetime.now().isoformat(), home.sqm)
+        await broadcast(new_homes)
+
+    elif target["agency"] == "pararius":
         if not HAS_PARARIUS_SCRAPER:
             logger.warning("Pararius scraper module not found, skipping")
             return
@@ -289,42 +311,42 @@ async def scrape_site(target: dict) -> None:
         for home in new_homes:
             db.add_home(home.url, home.address, home.city, home.price, home.agency, datetime.now().isoformat(), home.sqm)
         await broadcast(new_homes)
-        return
 
-    if target["method"] == "GET":
-        r = requests.get(target["queryurl"], headers=target["headers"])
-    elif target["method"] == "POST":
-        r = requests.post(target["queryurl"], json=target["post_data"], headers=target["headers"])
-    elif target["method"] == "POST_NDJSON":
-        post_data = "\n".join(json.dumps(obj, separators=(",", ":")) for obj in target["post_data"]) + "\n"
-        r = requests.post(target["queryurl"], data=post_data, headers=target["headers"])
     else:
-        raise ValueError(f"Unknown method {target['method']} for target id {target['id']}")
-        
-    if r.status_code == 200:
-        prev_homes: list[Home] = []
-        new_homes: list[Home] = []
-        
-        # Check retrieved homes against previously scraped homes (of the last 6 months)
-        for home in db.fetch_all("SELECT address, city FROM hestia.homes WHERE date_added > now() - interval '180 day'"):
-            prev_homes.append(Home(home["address"], home["city"]))
-        for home in HomeResults(target["agency"], r):
-            if home not in prev_homes:
-                new_homes.append(home)
+        if target["method"] == "GET":
+            r = requests.get(target["queryurl"], headers=target["headers"])
+        elif target["method"] == "POST":
+            r = requests.post(target["queryurl"], json=target["post_data"], headers=target["headers"])
+        elif target["method"] == "POST_NDJSON":
+            post_data = "\n".join(json.dumps(obj, separators=(",", ":")) for obj in target["post_data"]) + "\n"
+            r = requests.post(target["queryurl"], data=post_data, headers=target["headers"])
+        else:
+            raise ValueError(f"Unknown method {target['method']} for target id {target['id']}")
+            
+        if r.status_code == 200:
+            prev_homes: list[Home] = []
+            new_homes: list[Home] = []
+            
+            # Check retrieved homes against previously scraped homes (of the last 6 months)
+            for home in db.fetch_all("SELECT address, city FROM hestia.homes WHERE date_added > now() - interval '180 day'"):
+                prev_homes.append(Home(home["address"], home["city"]))
+            for home in HomeResults(target["agency"], r):
+                if home not in prev_homes:
+                    new_homes.append(home)
 
-        # Write new homes to database
-        for home in new_homes:
-            db.add_home(home.url,
-                        home.address,
-                        home.city,
-                        home.price,
-                        home.agency,
-                        datetime.now().isoformat(),
-                        home.sqm)
+            # Write new homes to database
+            for home in new_homes:
+                db.add_home(home.url,
+                            home.address,
+                            home.city,
+                            home.price,
+                            home.agency,
+                            datetime.now().isoformat(),
+                            home.sqm)
 
-        await broadcast(new_homes)
-    else:
-        raise ConnectionError(f"Got a non-OK status code: {r.status_code}")
+            await broadcast(new_homes)
+        else:
+            raise ConnectionError(f"Got a non-OK status code: {r.status_code}")
     
 
 if __name__ == '__main__':
