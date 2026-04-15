@@ -122,7 +122,7 @@ async def main() -> None:
     # Maintenance tasks — only run when HESTIA_TARGET is not set
     if not HESTIA_TARGET:
         # Once a day at exactly 19:00 UTC, check some stuff and send an alert if necessary
-        if datetime.now().hour == 19 and datetime.now().minute == 0:
+        if datetime.now().hour == 19 and datetime.now().minute < 5:
             message = ""
             if db.get_dev_mode():
                 message += "\n\nDev mode is enabled"
@@ -211,7 +211,8 @@ async def broadcast(homes: list[Home]) -> None:
             price_ok = (home.price >= sub["filter_min_price"] and home.price <= sub["filter_max_price"])
             sqm_ok = (sub["filter_min_sqm"] == 0) or (home.sqm == -1) or (home.sqm >= sub["filter_min_sqm"])
             if price_ok and sqm_ok and home.city.lower() in sub["filter_cities"] and home.agency in sub["filter_agencies"]:
-                message = f"{meta.HOUSE_EMOJI} {home.address}, {home.city}\n"
+                display_address = apns.DEDUP_SUFFIX_RE.sub("", home.address)
+                message = f"{meta.HOUSE_EMOJI} {display_address}, {home.city}\n"
                 message += f"{meta.EURO_EMOJI} €{home.price}/m\n"
                 if home.sqm > 0:
                     message += f"{meta.SQM_EMOJI} {home.sqm} m\u00b2\n"
