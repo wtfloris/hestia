@@ -314,8 +314,8 @@ def link_account(telegram_id: int, code: str) -> Literal["success", "invalid_cod
                     [
                         web_sub["filter_min_price"],
                         web_sub["filter_max_price"],
-                        web_sub["filter_cities"],
-                        web_sub["filter_agencies"],
+                        json.dumps(web_sub["filter_cities"]),
+                        json.dumps(web_sub["filter_agencies"]),
                         web_sub["filter_min_sqm"],
                         str(telegram_id),
                     ],
