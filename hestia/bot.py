@@ -6,6 +6,7 @@ from telegram.error import Forbidden
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 import hestia_utils.db as db
+import hestia_utils.geocode as geocode
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
 import hestia_utils.strings as strings
@@ -272,7 +273,24 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
         for c in sub["filter_cities"]:
             cities_str += f"{c.title()}, "
 
-        message = strings.get("filter", update.effective_chat.id, [sub['filter_min_price'], sub['filter_max_price'], sub['filter_min_sqm'], cities_str[:-2]])
+        if sub.get("filter_radius_km") is not None:
+            location_str = strings.get(
+                "filter_location_value",
+                update.effective_chat.id,
+                [
+                    f"{float(sub['filter_center_lat']):.5f}",
+                    f"{float(sub['filter_center_lon']):.5f}",
+                    f"{float(sub['filter_radius_km']):g}",
+                ],
+            )
+        else:
+            location_str = strings.get("filter_location_none", update.effective_chat.id)
+
+        message = strings.get(
+            "filter",
+            update.effective_chat.id,
+            [sub['filter_min_price'], sub['filter_max_price'], sub['filter_min_sqm'], cities_str[:-2], location_str],
+        )
         
     # Set minprice filter
     elif len(cmd) == 3 and cmd[1] in ["minprice", "min"]:
@@ -380,9 +398,80 @@ async def filter(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             if len(sub_filter_cities) == 0:
                 message += strings.get("filter_city_empty", update.effective_chat.id)
+
+    # Show location filter
+    elif len(cmd) == 2 and cmd[1] == "location":
+        if sub.get("filter_radius_km") is not None:
+            message = strings.get(
+                "filter_location_value",
+                update.effective_chat.id,
+                [
+                    f"{float(sub['filter_center_lat']):.5f}",
+                    f"{float(sub['filter_center_lon']):.5f}",
+                    f"{float(sub['filter_radius_km']):g}",
+                ],
+            )
+        else:
+            message = strings.get("filter_location_none", update.effective_chat.id)
+
+    # Clear location filter
+    elif len(cmd) == 3 and cmd[1] == "location" and cmd[2] in ["clear", "off", "disable"]:
+        db.clear_filter_location(update.effective_chat)
+        message = strings.get("filter_location_cleared", update.effective_chat.id)
+
+    # Set location by raw lat/lon: /filter location <radius_km> <lat> <lon>
+    elif len(cmd) == 5 and cmd[1] == "location":
+        try:
+            radius_km = float(cmd[2])
+            lat = float(cmd[3])
+            lon = float(cmd[4])
+        except ValueError:
+            await context.bot.send_message(update.effective_chat.id, strings.get("filter_location_invalid", update.effective_chat.id))
+            return
+        if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0) or radius_km <= 0:
+            await context.bot.send_message(update.effective_chat.id, strings.get("filter_location_invalid", update.effective_chat.id))
+            return
+        db.set_filter_location(update.effective_chat, lat, lon, radius_km)
+        message = strings.get(
+            "filter_location_set",
+            update.effective_chat.id,
+            [f"{lat:.5f}", f"{lon:.5f}", f"{radius_km:g}"],
+        )
+
+    # Set location by place name: /filter location <radius_km> <place name...>
+    elif len(cmd) >= 4 and cmd[1] == "location":
+        try:
+            radius_km = float(cmd[2])
+        except ValueError:
+            await context.bot.send_message(update.effective_chat.id, strings.get("filter_location_invalid", update.effective_chat.id))
+            return
+        if radius_km <= 0:
+            await context.bot.send_message(update.effective_chat.id, strings.get("filter_location_invalid", update.effective_chat.id))
+            return
+        # Use the raw text so we don't distort city names with the earlier .lower().
+        raw_tokens = update.message.text.split(' ')[3:]
+        place = ' '.join(t.replace(';', '').replace('"', '').replace("'", '') for t in raw_tokens).strip()
+        if not place:
+            await context.bot.send_message(update.effective_chat.id, strings.get("filter_location_invalid", update.effective_chat.id))
+            return
+        geo = geocode.geocode(place, "")
+        if geo is None:
+            await context.bot.send_message(
+                update.effective_chat.id,
+                strings.get("filter_location_not_found", update.effective_chat.id, [place]),
+            )
+            return
+        lat, lon, _ = geo
+        db.set_filter_location(update.effective_chat, lat, lon, radius_km)
+        message = strings.get(
+            "filter_location_set_place",
+            update.effective_chat.id,
+            [place, f"{lat:.5f}", f"{lon:.5f}", f"{radius_km:g}"],
+        )
+
     else:
         message = strings.get("filter_invalid_command", update.effective_chat.id)
-        
+
     await context.bot.send_message(update.effective_chat.id, message, parse_mode="Markdown")
 
 
