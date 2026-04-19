@@ -51,6 +51,7 @@ Min. price: {}
 Max. price: {}
 Min. size: {} m\u00b2
 Cities: {}
+Location: {}
 
 *To change your filters, you can say:*
 `/filter minprice 1200`
@@ -58,6 +59,8 @@ Cities: {}
 `/filter minsqm 40`
 `/filter city add Amsterdam`
 `/filter city remove Den Haag`
+`/filter location 5 Amsterdam Damrak`
+`/filter location clear`
 I will only send you homes in cities that you've included in your filter. Say  `/filter city`  to see the list of possible cities.
 
 Additionally, you can disable updates from certain agencies/websites. Say  `/filter agency`  to select your preferences.""",
@@ -66,6 +69,7 @@ Min. prijs: {}
 Max. prijs: {}
 Min. oppervlakte: {} m\u00b2
 Steden: {}
+Locatie: {}
 
 *Om je filters aan te passen, zeg je bijvoorbeeld:*
 `/filter minprice 1200`
@@ -73,6 +77,8 @@ Steden: {}
 `/filter minsqm 40`
 `/filter city add Amsterdam`
 `/filter city remove Den Haag`
+`/filter location 5 Amsterdam Damrak`
+`/filter location clear`
 Ik stuur alleen meldingen voor woningen in steden die je in je filter hebt opgenomen. Zeg  `/filter city`  om de lijst met mogelijke steden te zien.
 
 Daarnaast kun je updates van bepaalde makelaars/websites uitschakelen. Zeg  `/filter agency`  om deze te selecteren."""
@@ -128,6 +134,34 @@ Een groen vinkje betekent dat je woningen van die makelaar ontvangt, een rood kr
     "filter_city_empty": {
         "en": "\n\nYour city filter is now empty, you will not receive messages about any homes.",
         "nl": "\n\nJe filter voor steden is nu leeg, je ontvangt geen meldingen voor woningen."
+    },
+    "filter_location_none": {
+        "en": "not set",
+        "nl": "niet ingesteld"
+    },
+    "filter_location_value": {
+        "en": "{} km around ({}, {})",
+        "nl": "{} km rond ({}, {})"
+    },
+    "filter_location_set": {
+        "en": "Location filter set: {} km around ({}, {})",
+        "nl": "Locatiefilter ingesteld: {} km rond ({}, {})"
+    },
+    "filter_location_set_place": {
+        "en": "Location filter set to {}: {} km around ({}, {})",
+        "nl": "Locatiefilter ingesteld op {}: {} km rond ({}, {})"
+    },
+    "filter_location_cleared": {
+        "en": "Location filter cleared. You will receive homes regardless of location (subject to your other filters).",
+        "nl": "Locatiefilter verwijderd. Je ontvangt weer woningen ongeacht locatie (op basis van je overige filters)."
+    },
+    "filter_location_invalid": {
+        "en": "Invalid location command. Use: `/filter location <radius_km> <place>` or `/filter location <radius_km> <lat> <lon>` or `/filter location clear`",
+        "nl": "Ongeldig locatie commando. Gebruik: `/filter location <radius_km> <plaats>` of `/filter location <radius_km> <lat> <lon>` of `/filter location clear`"
+    },
+    "filter_location_not_found": {
+        "en": "Could not find coordinates for: {}. Try a more specific address (street + city), or use `/filter location <radius_km> <lat> <lon>` directly.",
+        "nl": "Kon geen coördinaten vinden voor: {}. Probeer een specifieker adres (straat + stad), of gebruik `/filter location <radius_km> <lat> <lon>` direct."
     },
     "filter_invalid_command": {
         "en": "Invalid filter command, say /filter to see options",

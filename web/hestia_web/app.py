@@ -16,6 +16,7 @@ from collections import Counter
 from threading import Lock
 from html.parser import HTMLParser
 import urllib.error
+import urllib.parse
 import urllib.request
 from urllib.parse import urlparse, urljoin
 from urllib.request import Request, urlopen
@@ -1069,6 +1070,9 @@ def update_filters():
     min_price = request.form.get("min_price", "").strip() or None
     max_price = request.form.get("max_price", "").strip() or None
     min_sqm = request.form.get("min_sqm", "").strip() or None
+    radius_km_raw = request.form.get("filter_radius_km", "").strip() or None
+    center_lat_raw = request.form.get("filter_center_lat", "").strip() or None
+    center_lon_raw = request.form.get("filter_center_lon", "").strip() or None
 
     filter_cities = psycopg2.extras.Json([c.lower() for c in request.form.getlist("filter_cities")])
     submitted_agencies = request.form.getlist("filter_agencies")
@@ -1095,6 +1099,18 @@ def update_filters():
     else:
         # DB column is NOT NULL; treat missing/invalid as "no sqm filter".
         min_sqm = 0
+
+    # Location filter: only apply if all three are present AND valid, otherwise clear it.
+    try:
+        radius_km = float(radius_km_raw) if radius_km_raw is not None else None
+        center_lat = float(center_lat_raw) if center_lat_raw is not None else None
+        center_lon = float(center_lon_raw) if center_lon_raw is not None else None
+    except (ValueError, TypeError):
+        radius_km = center_lat = center_lon = None
+    if radius_km is None or center_lat is None or center_lon is None:
+        radius_km = center_lat = center_lon = None
+    elif not (0 < radius_km <= 500 and -90 <= center_lat <= 90 and -180 <= center_lon <= 180):
+        radius_km = center_lat = center_lon = None
 
     try:
         with get_db() as conn:
@@ -1131,10 +1147,13 @@ def update_filters():
                         filter_max_price = %s,
                         filter_min_sqm = %s,
                         filter_cities = %s,
-                        filter_agencies = %s
+                        filter_agencies = %s,
+                        filter_center_lat = %s,
+                        filter_center_lon = %s,
+                        filter_radius_km = %s
                     WHERE email_address = %s
                     """,
-                    (notifications_enabled, min_price, max_price, min_sqm, filter_cities, filter_agencies, request.email),
+                    (notifications_enabled, min_price, max_price, min_sqm, filter_cities, filter_agencies, center_lat, center_lon, radius_km, request.email),
                 )
 
     except psycopg2.Error as e:
@@ -1154,6 +1173,101 @@ def update_filters():
     if wants_json:
         return jsonify({"ok": True})
     return redirect(url_for("dashboard"))
+
+
+PDOK_GEOCODE_URL = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/free"
+_PDOK_POINT_RE = re.compile(r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)")
+
+
+def _pdok_geocode(query: str):
+    """Server-side geocode via PDOK. Returns dict with lat/lon/score or None.
+
+    Uses hestia.geocode_cache for repeat lookups so the UI "Find" button is
+    cheap and doesn't leak user searches to PDOK on every keystroke.
+    """
+    query = (query or "").strip()
+    if not query:
+        return None
+
+    try:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT lat, lon, confidence FROM hestia.geocode_cache WHERE address = %s AND city = %s",
+                    (query, ""),
+                )
+                cached = cur.fetchone()
+    except psycopg2.Error:
+        cached = None
+
+    if cached is not None:
+        if cached["lat"] is None or cached["lon"] is None:
+            return None
+        return {"lat": cached["lat"], "lon": cached["lon"], "score": cached.get("confidence") or 0.0}
+
+    params = urllib.parse.urlencode({"q": query, "fq": "type:adres", "rows": 1})
+    url = f"{PDOK_GEOCODE_URL}?{params}"
+    try:
+        req = Request(url, headers={"User-Agent": "hestia-geocoder/1.0 (+https://hestia.bot)", "Accept": "application/json"})
+        with urlopen(req, timeout=5) as resp:
+            if resp.status != 200:
+                return None
+            import json as _json
+            body = _json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, ValueError):
+        return None
+
+    docs = body.get("response", {}).get("docs", [])
+    if not docs:
+        _cache_geocode(query, None, None, None)
+        return None
+    top = docs[0]
+    m = _PDOK_POINT_RE.search(top.get("centroide_ll", "") or "")
+    if not m:
+        _cache_geocode(query, None, None, None)
+        return None
+    lon = float(m.group(1))
+    lat = float(m.group(2))
+    score = float(top.get("score", 0.0))
+    _cache_geocode(query, lat, lon, score)
+    return {"lat": lat, "lon": lon, "score": score}
+
+
+def _cache_geocode(query, lat, lon, score):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO hestia.geocode_cache (address, city, lat, lon, confidence, fetched_at)
+                    VALUES (%s, %s, %s, %s, %s, now())
+                    ON CONFLICT (address, city) DO UPDATE SET
+                        lat = EXCLUDED.lat,
+                        lon = EXCLUDED.lon,
+                        confidence = EXCLUDED.confidence,
+                        fetched_at = EXCLUDED.fetched_at
+                    """,
+                    (query, "", lat, lon, score),
+                )
+    except psycopg2.Error:
+        pass
+
+
+@app.route("/api/geocode", methods=["POST"])
+@limiter.limit("60 per hour")
+@login_required
+def api_geocode():
+    """Look up coordinates for a place name. Used by the dashboard location filter."""
+    csrf_token = request.form.get("csrf_token", "") or request.headers.get("X-CSRF-Token", "")
+    if not validate_csrf_token(csrf_token):
+        return jsonify({"error": "Invalid CSRF token"}), 403
+    query = (request.form.get("q") or (request.get_json(silent=True) or {}).get("q") or "").strip()
+    if not query or len(query) > 200:
+        return jsonify({"error": "Invalid query"}), 400
+    result = _pdok_geocode(query)
+    if result is None:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    return jsonify({"ok": True, **result})
 
 
 @app.route("/api/homes")

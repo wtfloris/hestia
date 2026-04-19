@@ -100,7 +100,20 @@ def _write(query: str, params: list[str] = []) -> None:
         if conn: conn.close()
 
 def add_home(url: str, address: str, city: str, price: int, agency: str, date_added: str, sqm: int = -1) -> None:
-    _write("INSERT INTO hestia.homes (url, address, city, price, agency, date_added, sqm) VALUES (%s, %s, %s, %s, %s, %s, %s)", [url, address, city, str(price), agency, date_added, str(sqm)])
+    # Import here to avoid circular import (geocode imports db).
+    from hestia_utils import geocode as _geocode
+    try:
+        geo = _geocode.geocode(address, city)
+    except Exception as e:
+        logging.warning(f"Geocoding failed for {address!r}, {city!r}: {repr(e)}")
+        geo = None
+    lat, lon, confidence = (None, None, None)
+    if geo is not None:
+        lat, lon, confidence = geo
+    _write(
+        "INSERT INTO hestia.homes (url, address, city, price, agency, date_added, sqm, lat, lon, geocode_confidence) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        [url, address, city, str(price), agency, date_added, str(sqm), lat, lon, confidence],
+    )
 def add_user(telegram_id: int) -> None:
     # Use an explicit column list so this stays valid when new columns are added to hestia.subscribers.
     _write("INSERT INTO hestia.subscribers (telegram_enabled, telegram_id) VALUES (true, %s)", [str(telegram_id)])
@@ -219,13 +232,23 @@ def set_filter_agencies(telegram_chat: Chat, agencies: set[str]) -> None:
     _write("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", [str(list(agencies)).replace("'", '"'), str(telegram_chat.id)])
 def set_filter_minsqm(telegram_chat: Chat, min_sqm: int) -> None:
     _write("UPDATE hestia.subscribers SET filter_min_sqm = %s WHERE telegram_id = %s", [str(min_sqm), str(telegram_chat.id)])
+def set_filter_location(telegram_chat: Chat, lat: float, lon: float, radius_km: float) -> None:
+    _write(
+        "UPDATE hestia.subscribers SET filter_center_lat = %s, filter_center_lon = %s, filter_radius_km = %s WHERE telegram_id = %s",
+        [lat, lon, radius_km, str(telegram_chat.id)],
+    )
+def clear_filter_location(telegram_chat: Chat) -> None:
+    _write(
+        "UPDATE hestia.subscribers SET filter_center_lat = NULL, filter_center_lon = NULL, filter_radius_km = NULL WHERE telegram_id = %s",
+        [str(telegram_chat.id)],
+    )
 
 def set_user_lang(telegram_chat: Chat, lang: Literal["en", "nl"]) -> None:
     _write("UPDATE hestia.subscribers SET lang = %s WHERE telegram_id = %s", [lang, str(telegram_chat.id)])
     LANG_CACHE[telegram_chat.id] = lang
 
 
-FILTER_COLUMNS = ["filter_min_price", "filter_max_price", "filter_cities", "filter_agencies", "filter_min_sqm"]
+FILTER_COLUMNS = ["filter_min_price", "filter_max_price", "filter_cities", "filter_agencies", "filter_min_sqm", "filter_center_lat", "filter_center_lon", "filter_radius_km"]
 
 
 def _load_filter_defaults(cur) -> dict:
@@ -308,7 +331,10 @@ def link_account(telegram_id: int, code: str) -> Literal["success", "invalid_cod
                         filter_max_price = %s,
                         filter_cities = %s,
                         filter_agencies = %s,
-                        filter_min_sqm = %s
+                        filter_min_sqm = %s,
+                        filter_center_lat = %s,
+                        filter_center_lon = %s,
+                        filter_radius_km = %s
                     WHERE telegram_id = %s
                     """,
                     [
@@ -317,6 +343,9 @@ def link_account(telegram_id: int, code: str) -> Literal["success", "invalid_cod
                         json.dumps(web_sub["filter_cities"]),
                         json.dumps(web_sub["filter_agencies"]),
                         web_sub["filter_min_sqm"],
+                        web_sub.get("filter_center_lat"),
+                        web_sub.get("filter_center_lon"),
+                        web_sub.get("filter_radius_km"),
                         str(telegram_id),
                     ],
                 )

@@ -146,8 +146,9 @@ class TestGetUserLang:
 
 
 class TestWriteActions:
+    @patch('hestia_utils.geocode.geocode', return_value=None)
     @patch('hestia_utils.db._write')
-    def test_add_home(self, mock_write):
+    def test_add_home(self, mock_write, _mock_geo):
         db.add_home("http://example.com", "Kerkstraat 1", "Amsterdam", 1500, "funda", "2024-01-01", 75)
         mock_write.assert_called_once()
         args = mock_write.call_args[0]
@@ -155,12 +156,31 @@ class TestWriteActions:
         assert "http://example.com" in args[1]
         assert "75" in args[1]
 
+    @patch('hestia_utils.geocode.geocode', return_value=None)
     @patch('hestia_utils.db._write')
-    def test_add_home_default_sqm(self, mock_write):
+    def test_add_home_default_sqm(self, mock_write, _mock_geo):
         db.add_home("http://example.com", "Kerkstraat 1", "Amsterdam", 1500, "funda", "2024-01-01")
         mock_write.assert_called_once()
         args = mock_write.call_args[0]
         assert "-1" in args[1]
+
+    @patch('hestia_utils.geocode.geocode', return_value=(52.3676, 4.9041, 9.5))
+    @patch('hestia_utils.db._write')
+    def test_add_home_stores_coords(self, mock_write, _mock_geo):
+        db.add_home("http://example.com", "Kerkstraat 1", "Amsterdam", 1500, "funda", "2024-01-01", 75)
+        args = mock_write.call_args[0]
+        assert 52.3676 in args[1]
+        assert 4.9041 in args[1]
+        assert 9.5 in args[1]
+
+    @patch('hestia_utils.geocode.geocode', return_value=None)
+    @patch('hestia_utils.db._write')
+    def test_add_home_handles_geocode_failure(self, mock_write, _mock_geo):
+        """A geocoding miss should insert the home with NULL coords, not skip it."""
+        db.add_home("http://example.com", "Obscure Address", "Nowhere", 1500, "funda", "2024-01-01")
+        mock_write.assert_called_once()
+        args = mock_write.call_args[0]
+        assert None in args[1]  # lat/lon/confidence are NULL
 
     @patch('hestia_utils.db._write')
     def test_add_user(self, mock_write):
@@ -199,6 +219,32 @@ class TestWriteActions:
         db.resume_scraper()
         mock_write.assert_called_once()
         assert "scraper_halted = false" in mock_write.call_args[0][0]
+
+    @patch('hestia_utils.db._write')
+    def test_set_filter_location(self, mock_write):
+        chat = MagicMock()
+        chat.id = 12345
+        db.set_filter_location(chat, 52.3676, 4.9041, 5.0)
+        mock_write.assert_called_once()
+        query, params = mock_write.call_args[0]
+        assert "filter_center_lat" in query
+        assert "filter_center_lon" in query
+        assert "filter_radius_km" in query
+        assert params[0] == 52.3676
+        assert params[1] == 4.9041
+        assert params[2] == 5.0
+        assert params[3] == "12345"
+
+    @patch('hestia_utils.db._write')
+    def test_clear_filter_location(self, mock_write):
+        chat = MagicMock()
+        chat.id = 12345
+        db.clear_filter_location(chat)
+        mock_write.assert_called_once()
+        query = mock_write.call_args[0][0]
+        assert "filter_center_lat = NULL" in query
+        assert "filter_center_lon = NULL" in query
+        assert "filter_radius_km = NULL" in query
 
 
 class TestLinkAccount:

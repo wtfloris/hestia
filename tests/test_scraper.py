@@ -400,3 +400,65 @@ class TestBroadcast:
         mock_db.clear_apns_token.assert_called_once_with(3)
         assert SCRAPER_METRICS["apns:success"] == 0
         assert SCRAPER_METRICS["apns:failure"] == 1
+
+    @pytest.mark.asyncio
+    @patch('scraper.geocode.geocode')
+    @patch('scraper.meta')
+    @patch('scraper.db')
+    async def test_applies_radius_filter(self, mock_db, mock_meta, mock_geocode_fn):
+        from scraper import broadcast
+
+        mock_db.get_dev_mode.return_value = False
+        # Subscriber is centered on Amsterdam Centraal with a 5km radius.
+        mock_db.fetch_all.side_effect = [
+            [{
+                "telegram_id": 111, "telegram_enabled": True, "apns_token": None,
+                "filter_min_price": 0, "filter_max_price": 9999,
+                "filter_cities": ["amsterdam", "rotterdam"], "filter_agencies": ["rebo"],
+                "filter_min_sqm": 0,
+                "filter_center_lat": 52.3791, "filter_center_lon": 4.9003,
+                "filter_radius_km": 5.0,
+            }],
+            [{"agency": "rebo", "user_info": {"agency": "Rebo"}}],
+        ]
+        mock_meta.BOT.send_message = AsyncMock()
+
+        # Homes already have coords attached; broadcast shouldn't re-geocode them.
+        home_near = Home(address="Damrak 1", city="Amsterdam", url="http://a.com", agency="rebo", price=1200, lat=52.3740, lon=4.8984)
+        home_far = Home(address="Centraal", city="Rotterdam", url="http://b.com", agency="rebo", price=1200, lat=51.9244, lon=4.4695)
+
+        await broadcast([home_near, home_far])
+
+        assert mock_meta.BOT.send_message.call_count == 1
+        # broadcast shouldn't geocode homes that already have lat/lon set.
+        mock_geocode_fn.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('scraper.geocode.geocode')
+    @patch('scraper.meta')
+    @patch('scraper.db')
+    async def test_radius_filter_skipped_when_home_has_no_coords(self, mock_db, mock_meta, mock_geocode_fn):
+        """A home without coords (geocode failed) should still broadcast, not be dropped."""
+        from scraper import broadcast
+
+        mock_db.get_dev_mode.return_value = False
+        mock_db.fetch_all.side_effect = [
+            [{
+                "telegram_id": 111, "telegram_enabled": True, "apns_token": None,
+                "filter_min_price": 0, "filter_max_price": 9999,
+                "filter_cities": ["amsterdam"], "filter_agencies": ["rebo"],
+                "filter_min_sqm": 0,
+                "filter_center_lat": 52.0, "filter_center_lon": 4.0,
+                "filter_radius_km": 1.0,
+            }],
+            [{"agency": "rebo", "user_info": {"agency": "Rebo"}}],
+        ]
+        mock_meta.BOT.send_message = AsyncMock()
+        mock_geocode_fn.return_value = None  # geocode miss
+
+        home = Home(address="Obscure Address 99", city="Amsterdam", url="http://a.com", agency="rebo", price=1200)
+
+        await broadcast([home])
+
+        # Sub has a radius, but home has no coords → radius check skipped, home is broadcast.
+        assert mock_meta.BOT.send_message.call_count == 1
