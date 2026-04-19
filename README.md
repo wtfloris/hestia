@@ -4,9 +4,13 @@ Hestia scrapes real estate websites for new rental listings, and broadcasts the 
 
 ### How to contribute
 
-First of all, thanks! If you want to add a website, you need to write a parser. This takes a bit of detective work to find out how the website can be processed best.
+#### 2026 note
 
 We're all aware that it's very easy to open a PR these days, but a straight-up vibe-coded PR with a default Claude Code comment will just be denied. If you can't be bothered to spend some time, why should I spend time reviewing your slop?
+
+---
+
+First of all, thanks! If you want to add a website, you need to write a parser. This takes a bit of detective work to find out how the website can be processed best.
 
 Ideally, if you check the requests from your browsers' inspector window, you see it makes a request to an API endpoint that gives you a clean JSON response with all the data you need. If that's the case, you can have a parser as simple as the REBO parser:
 
