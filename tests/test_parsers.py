@@ -1461,6 +1461,69 @@ class TestParseIkwilhuren:
         assert len(results.homes) == 0
 
 
+class TestParseBeumer:
+    def test_basic_parsing(self, mock_response):
+        html = """
+        <a href="https://www.beumer.nl/wonen/object/erroll-garnerstraat-113-utrecht/" class="card-house">
+            <div class="offer">
+                <div class="card-house__thumb">
+                    <div class="card-house__label__holder">
+                        <div class="card-house__label">Te huur</div>
+                    </div>
+                </div>
+                <div class="card-house__content">
+                    <h3>Erroll Garnerstraat 113</h3>
+                    <p>Utrecht &bull; &euro; 1.775 ,- p/m</p>
+                    <div class="card-house__content__data">
+                        <p><i class="icon icon-house"></i><span>68 m<sup>2</sup></span></p>
+                    </div>
+                </div>
+            </div>
+        </a>
+        """
+        r = mock_response(html)
+        results = HomeResults("beumer", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "beumer"
+        assert results[0].address == "Erroll Garnerstraat 113"
+        assert results[0].city == "Utrecht"
+        assert results[0].price == 1775
+        assert results[0].sqm == 68
+        assert results[0].url == "https://www.beumer.nl/wonen/object/erroll-garnerstraat-113-utrecht/"
+
+    def test_filters_verhuurd(self, mock_response):
+        html = """
+        <a href="https://www.beumer.nl/wonen/object/x/" class="card-house">
+            <div class="offer">
+                <div class="card-house__label">Verhuurd</div>
+                <div class="card-house__content">
+                    <h3>Grifthoek 114</h3>
+                    <p>Utrecht &bull; &euro; 1.995 ,- p/m</p>
+                </div>
+            </div>
+        </a>
+        """
+        r = mock_response(html)
+        results = HomeResults("beumer", r)
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_house_number(self, mock_response):
+        html = """
+        <a href="https://www.beumer.nl/wonen/object/x/" class="card-house">
+            <div class="offer">
+                <div class="card-house__label">Te huur</div>
+                <div class="card-house__content">
+                    <h3>Nieuwbouwproject</h3>
+                    <p>Utrecht &bull; &euro; 1.500 ,- p/m</p>
+                </div>
+            </div>
+        </a>
+        """
+        r = mock_response(html)
+        results = HomeResults("beumer", r)
+        assert len(results.homes) == 0
+
+
 class TestParseMaxxhuren:
     def test_basic_parsing(self, mock_response):
         html = """

@@ -55,6 +55,12 @@ services:
     environment:
       - HESTIA_TARGET=atta
 
+  hestia-scraper-beumer:
+    <<: *scraper-base
+    container_name: hestia-scraper-beumer
+    environment:
+      - HESTIA_TARGET=beumer
+
   hestia-scraper-easylease:
     <<: *scraper-base
     container_name: hestia-scraper-easylease

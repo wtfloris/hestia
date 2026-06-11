@@ -143,6 +143,8 @@ class HomeResults:
             self.parse_hoekstra(raw)
         elif source == "easylease":
             self.parse_easylease(raw)
+        elif source == "beumer":
+            self.parse_beumer(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -993,6 +995,45 @@ class HomeResults:
                 home.price = int(res["data"]["price"])
                 home.sqm = int(res["data"]["surface"])
                 self.homes.append(home)
+
+    def parse_beumer(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        results = soup.select("a.card-house")
+        for res in results:
+            label_tag = res.select_one(".card-house__label")
+            if not label_tag or label_tag.get_text(strip=True).lower() != "te huur":
+                continue
+            address_tag = res.select_one(".card-house__content h3")
+            info_tag = res.select_one(".card-house__content > p")
+            if not address_tag or not info_tag:
+                continue
+            address = " ".join(address_tag.get_text(" ", strip=True).split())
+            if not re.search(r"\d", address):
+                continue
+            info_text = info_tag.get_text(" ", strip=True)
+            # Format: "Utrecht • € 1.775 ,- p/m"
+            parts = info_text.split("•")
+            if len(parts) < 2:
+                continue
+            city = parts[0].strip()
+            price_digits = ''.join(ch for ch in parts[1] if ch.isdigit())
+            if not city or not price_digits:
+                continue
+            home = Home(agency="beumer")
+            home.address = address
+            home.city = city
+            home.url = str(res["href"])
+            home.price = int(price_digits)
+            sqm_tag = res.select_one(".card-house__content__data .icon-house")
+            if sqm_tag:
+                container = sqm_tag.find_parent("p")
+                if container:
+                    m = re.search(r"(\d{1,4})\s*m", container.get_text(" ", strip=True))
+                    if m:
+                        sqm_i = int(m.group(1))
+                        if 0 < sqm_i < 2000:
+                            home.sqm = sqm_i
+            self.homes.append(home)
 
     def parse_maxxhuren(self, r: requests.models.Response):
         soup = BeautifulSoup(r.content, "html.parser")
