@@ -423,6 +423,7 @@ label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--l
     font-size: 0.85rem;
     line-height: 1.4;
     margin: 0 0.7rem 0.85rem;
+    white-space: pre-line;
 }
 .affiliate-list {
     display: flex;
