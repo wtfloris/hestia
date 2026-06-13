@@ -33,6 +33,24 @@ class TestGetWithParams:
         assert "https://tikkie.me/test" in result
 
 
+class TestSupportStrings:
+    def test_support_intro_has_both_languages(self):
+        assert "en" in _STRINGS["support_intro"]
+        assert "nl" in _STRINGS["support_intro"]
+        assert "en" in _STRINGS["support_empty"]
+        assert "nl" in _STRINGS["support_empty"]
+
+    @patch('hestia_utils.strings.get_user_lang', return_value="en")
+    def test_support_intro_english(self, mock_lang):
+        result = get("support_intro", telegram_id=123)
+        assert "Support Hestia" in result
+
+    @patch('hestia_utils.strings.get_user_lang', return_value="nl")
+    def test_support_intro_dutch(self, mock_lang):
+        result = get("support_intro", telegram_id=123)
+        assert "Steun Hestia" in result
+
+
 class TestGetInvalidKey:
     def test_invalid_key_returns_fallback(self):
         result = get("nonexistent_key_12345")

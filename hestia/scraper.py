@@ -161,6 +161,8 @@ async def main() -> None:
 
 Moving is expensive enough and similar scraping services start at like €20/month\. Hopefully Hestia has helped you save some money\! With this open Tikkie you could use some of those savings to [buy me a beer]({donation_link}) {meta.LOVE_EMOJI}
 
+Arranging energy, internet or other services for your new place? Doing so via /support is a free way to help keep Hestia running\!
+
 Good luck in your search\!"""
                     try:
                         await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2", disable_web_page_preview=True)

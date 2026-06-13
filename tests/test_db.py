@@ -201,6 +201,42 @@ class TestWriteActions:
         assert "scraper_halted = false" in mock_write.call_args[0][0]
 
 
+class TestAffiliate:
+    CATS = [
+        {"id": 1, "slug": "energy", "name_en": "Energy", "name_nl": "Energie", "icon": "⚡"},
+        {"id": 2, "slug": "internet", "name_en": "Internet", "name_nl": "Internet", "icon": None},
+        {"id": 3, "slug": "empty", "name_en": "Empty", "name_nl": "Leeg", "icon": None},
+    ]
+    LINKS = [
+        {"id": 10, "category_id": 1, "provider": "Vandebron", "title_en": "Green power", "title_nl": "Groene stroom", "blurb_en": "Clean", "blurb_nl": "Schoon", "logo": "vdb.png"},
+        {"id": 11, "category_id": 2, "provider": "Odido", "title_en": "Fast fiber", "title_nl": "Snel glasvezel", "blurb_en": None, "blurb_nl": None, "logo": None},
+    ]
+
+    @patch('hestia_utils.db.fetch_all')
+    def test_groups_links_by_category(self, mock_fetch_all):
+        mock_fetch_all.side_effect = [self.CATS, self.LINKS]
+        result = db.get_affiliate_categories_with_links("en")
+        # Empty category (no links) is dropped
+        assert [c["slug"] for c in result] == ["energy", "internet"]
+        assert result[0]["name"] == "Energy"
+        assert result[0]["links"][0]["provider"] == "Vandebron"
+        assert result[0]["links"][0]["title"] == "Green power"
+        assert result[0]["links"][0]["blurb"] == "Clean"
+
+    @patch('hestia_utils.db.fetch_all')
+    def test_localizes_to_nl(self, mock_fetch_all):
+        mock_fetch_all.side_effect = [self.CATS, self.LINKS]
+        result = db.get_affiliate_categories_with_links("nl")
+        assert result[0]["name"] == "Energie"
+        assert result[0]["links"][0]["title"] == "Groene stroom"
+
+    @patch('hestia_utils.db.fetch_all')
+    def test_invalid_lang_defaults_to_en(self, mock_fetch_all):
+        mock_fetch_all.side_effect = [self.CATS, self.LINKS]
+        result = db.get_affiliate_categories_with_links("de")
+        assert result[0]["name"] == "Energy"
+
+
 class TestLinkAccount:
     @patch('hestia_utils.db.get_connection')
     def test_invalid_code(self, mock_get_conn):
