@@ -33,6 +33,133 @@ function syncFiltersForViewport() {
     }
 }
 
+// =====================================================================
+// Affiliate / Support section
+// =====================================================================
+
+function syncAffiliateForViewport() {
+    var details = document.getElementById('affiliate-collapsible');
+    if (!details || !window.matchMedia) return;
+    // On desktop it's a permanent expanded section; on mobile a collapsible panel.
+    var wide = window.matchMedia('(min-width: 1000px)').matches;
+    if (wide) {
+        details.open = true;
+        details.setAttribute('data-fixed', 'true');
+    } else {
+        details.removeAttribute('data-fixed');
+    }
+}
+
+function renderAffiliateLinks(categories) {
+    var section = document.getElementById('affiliate-section');
+    var list = document.getElementById('affiliate-list');
+    if (!section || !list) return;
+    if (!categories || !categories.length) {
+        section.hidden = true;
+        return;
+    }
+    list.textContent = '';
+    categories.forEach(function(cat) {
+        var catEl = document.createElement('div');
+        catEl.className = 'affiliate-category';
+
+        var title = document.createElement('div');
+        title.className = 'affiliate-category-title';
+        if (cat.icon) {
+            var iconEl = document.createElement('span');
+            iconEl.textContent = cat.icon;
+            title.appendChild(iconEl);
+        }
+        var nameEl = document.createElement('span');
+        nameEl.textContent = cat.name;
+        title.appendChild(nameEl);
+        catEl.appendChild(title);
+
+        (cat.links || []).forEach(function(link) {
+            var a = document.createElement('a');
+            a.className = 'affiliate-link';
+            a.href = link.go_url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer sponsored';
+
+            if (link.logo) {
+                var img = document.createElement('img');
+                img.className = 'affiliate-link-logo';
+                img.src = link.logo;
+                img.alt = '';
+                img.loading = 'lazy';
+                a.appendChild(img);
+            }
+
+            var body = document.createElement('div');
+            body.className = 'affiliate-link-body';
+            var provider = document.createElement('div');
+            provider.className = 'affiliate-link-provider';
+            provider.textContent = link.provider;
+            body.appendChild(provider);
+            if (link.title) {
+                var titleEl = document.createElement('div');
+                titleEl.className = 'affiliate-link-title';
+                titleEl.textContent = link.title;
+                body.appendChild(titleEl);
+            }
+            if (link.blurb) {
+                var blurbEl = document.createElement('div');
+                blurbEl.className = 'affiliate-link-blurb';
+                blurbEl.textContent = link.blurb;
+                body.appendChild(blurbEl);
+            }
+            a.appendChild(body);
+
+            var arrow = document.createElement('span');
+            arrow.className = 'affiliate-link-arrow';
+            arrow.innerHTML = '<i data-lucide="external-link" style="width:16px;height:16px"></i>';
+            a.appendChild(arrow);
+
+            catEl.appendChild(a);
+        });
+
+        list.appendChild(catEl);
+    });
+    section.hidden = false;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function loadAffiliateLinks() {
+    var lang = (typeof hestiaGetLang === 'function') ? hestiaGetLang() : 'en';
+    fetch('/api/affiliate-links?lang=' + encodeURIComponent(lang))
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data) return;
+            renderAffiliateLinks(data.categories || []);
+            syncAffiliateForViewport();
+        })
+        .catch(function() { /* non-critical: leave the section hidden */ });
+}
+
+(function() {
+    function init() {
+        loadAffiliateLinks();
+        // On desktop the panel is permanent: swallow summary clicks so it can't collapse.
+        var details = document.getElementById('affiliate-collapsible');
+        var summary = details && details.querySelector('summary');
+        if (summary) {
+            summary.addEventListener('click', function(e) {
+                if (window.matchMedia && window.matchMedia('(min-width: 1000px)').matches) {
+                    e.preventDefault();
+                }
+            });
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+    window.addEventListener('resize', syncAffiliateForViewport);
+    document.addEventListener('hestia:langchange', loadAffiliateLinks);
+})();
+
 (function() {
     // Auto-open settings for new users (only on desktop)
     var layout = document.querySelector('[data-is-new-user]');

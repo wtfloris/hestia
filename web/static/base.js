@@ -60,6 +60,8 @@ var HESTIA_I18N = {
         'logged_in_as': 'Logged in as',
         'logout_confirm': 'Log out of Hestia?',
         'settings_title': 'Settings and filters',
+        'affiliate_title': 'Support Hestia',
+        'affiliate_intro': "Hestia is free and I'd like to keep it that way. If you're arranging energy, internet or other services for your new home anyway, signing up through one of these partners is a great way to support Hestia — each signup helps cover roughly two weeks of running costs, at no extra cost to you.",
         'restore_btn': 'Restore',
         'save_btn': 'Save',
         'notifications_legend': 'Notifications',
@@ -155,6 +157,8 @@ var HESTIA_I18N = {
         'logged_in_as': 'Ingelogd als',
         'logout_confirm': 'Weet je zeker dat je wilt uitloggen?',
         'settings_title': 'Instellingen en filters',
+        'affiliate_title': 'Steun Hestia',
+        'affiliate_intro': 'Hestia is gratis en dat wil ik graag zo houden. Als je toch energie, internet of andere diensten voor je nieuwe huis gaat regelen, is je aanmelden via een van deze partners een mooie manier om Hestia te steunen — elke aanmelding dekt ongeveer twee weken aan draaikosten, zonder extra kosten voor jou.',
         'restore_btn': 'Herstel',
         'save_btn': 'Opslaan',
         'notifications_legend': 'Meldingen',
@@ -273,6 +277,8 @@ function hestiaApplyLang(lang) {
     });
     document.documentElement.setAttribute('lang', lang);
     updateLangLabel();
+    // Let pages re-render dynamic (API-sourced) content for the new language.
+    document.dispatchEvent(new CustomEvent('hestia:langchange', { detail: { lang: lang } }));
 }
 function toggleLang() {
     var current = hestiaGetLang();
