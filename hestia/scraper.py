@@ -29,6 +29,7 @@ import hestia_utils.db as db
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
 import hestia_utils.apns as apns
+import hestia_utils.strings as strings
 from hestia_utils.parser import Home, HomeResults
 
 HESTIA_TARGET = os.environ.get("HESTIA_TARGET", "")
@@ -157,13 +158,7 @@ async def main() -> None:
                 logger.info(f"Broadcasting thanks message to {len(subs)} subscribers")
                 for sub in subs:
                     sleep(1/29)  # avoid rate limit (broadcasting to max 30 users per second)
-                    message = rf"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
-
-Moving is expensive enough and similar scraping services start at like €20/month\. Hopefully Hestia has helped you save some money\! With this open Tikkie you could use some of those savings to [buy me a beer]({donation_link}) {meta.LOVE_EMOJI}
-
-Arranging energy, internet or other services for your new place? Doing so via /support is a free way to help keep Hestia running\!
-
-Good luck in your search\!"""
+                    message = strings.get("weekly_reminder", int(sub["telegram_id"]), [donation_link])
                     try:
                         await meta.BOT.send_message(text=message, chat_id=sub["telegram_id"], parse_mode="MarkdownV2", disable_web_page_preview=True)
                     except BaseException as e:

@@ -169,6 +169,22 @@ Hestia is gratis en dat wil ik graag zo houden\. Als je toch energie, internet o
         "en": r"""There are no partner links available right now\. You can still support Hestia with a beer via /donate\!""",
         "nl": r"""Er zijn op dit moment geen partnerlinks beschikbaar\. Je kunt Hestia nog steeds steunen met een biertje via /donate\!"""
     },
+    "weekly_reminder": {
+        "en": rf"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
+
+If you\'re arranging energy, internet or other services for your new place, signing up through /support is a free way to help keep Hestia running — each signup covers about two weeks of hosting, at no extra cost to you\!
+
+Prefer to chip in directly? You can also [buy me a beer]({{}}) with this open Tikkie {LOVE_EMOJI}
+
+Good luck in your search\!""",
+        "nl": rf"""Bedankt voor het gebruiken van Hestia, ik heb er veel werk in gestoken en ik hoop dat het je helpt\!
+
+Ga je energie, internet of andere diensten voor je nieuwe huis regelen? Je aanmelden via /support is een gratis manier om Hestia draaiende te houden — elke aanmelding dekt ongeveer twee weken aan hosting, zonder extra kosten voor jou\!
+
+Liever direct bijdragen? Je kunt ook [een biertje voor me kopen]({{}}) met dit open Tikkie {LOVE_EMOJI}
+
+Succes met je zoektocht\!"""
+    },
 
     "faq": {
         "en": rf"""*Why is Hestia free?*

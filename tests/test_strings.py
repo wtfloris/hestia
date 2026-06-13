@@ -77,7 +77,7 @@ class TestAllStringsValid:
                       "filter_city_invalid", "filter_city_already_in",
                       "filter_city_added", "filter_city_not_in",
                       "filter_city_removed", "filter_invalid_number",
-                      "donate", "faq", "website_info"}
+                      "donate", "faq", "website_info", "weekly_reminder"}
         for key in _STRINGS:
             if key not in param_keys:
                 result = get(key)
