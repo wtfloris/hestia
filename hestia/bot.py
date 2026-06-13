@@ -419,8 +419,9 @@ async def support(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
         for link in cat["links"]:
             go_url = f"{meta.HESTIA_BASE_URL}/go/{link['id']}"
             provider = meta.escape_markdownv2(link["provider"])
-            title = meta.escape_markdownv2(link["title"])
-            message += f"\n• [{provider}]({go_url}) — {title}"
+            message += f"\n• [{provider}]({go_url})"
+            if link["title"]:
+                message += f" {meta.escape_markdownv2(link['title'])}"
             if link["blurb"]:
                 message += f"\n  {meta.escape_markdownv2(link['blurb'])}"
 

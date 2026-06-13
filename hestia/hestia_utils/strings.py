@@ -5,19 +5,15 @@ _STRINGS = {
     "start": {
         "en": rf"""Hi there\!
 
-I check real estate websites for new rental homes in The Netherlands\. For more info on which websites I check, say /websites\.
-
-To see and modify your personal filters \(like city and maximum price\), say /filter\.
+I check real estate websites for new rental homes in The Netherlands\. To see and modify your personal filters \(like city and maximum price\), say /filter\.
 
 You will receive a message when I find a new home that matches your filters\! If you want me to stop, just say /stop\.
 
-You can also visit [hestia\.bot](https://hestia\.bot) to manage your filters and see new listings come in live\!
+You can also visit [hestia\.bot](https://hestia\.bot) to manage your filters and see new listings come in live\! Prefer an app? Hestia is now also available as an [iPhone app](https://apps\.apple\.com/app/id6760269825)\!
 
-Prefer an app? Hestia is now also available as an [iPhone app](https://apps\.apple\.com/app/id6760269825)\!
+Want to support Hestia? If you\'re arranging energy, internet or other services for your new home, please say /support and help Hestia \(at no cost to you\!\) {LOVE_EMOJI}
 
-Want to support Hestia? If you're arranging energy, internet or other services for your new home, you can help cover the running costs via /support {LOVE_EMOJI}
-
-If you have any questions, please read the /faq\!
+If you have any questions, please read the /faq or say /help\!
 
 \(zeg /nl als je mij liever in het Nederlands wilt\)"""
     },
@@ -26,16 +22,12 @@ If you have any questions, please read the /faq\!
         "nl": "Je bent al geregistreerd, ik stuur een berichtje als er nieuwe huurwoningen online komen!"
     },
     "stop": {
-        "en": rf"""You will no longer receive updates for new listings\. I hope this is because you've found a new home\!
+        "en": rf"""You will no longer receive updates for new listings\. I hope this is because you\'ve found a new home\!
 
-Consider [buying me a beer]({{}}) if Hestia has helped you in your search {LOVE_EMOJI}
-
-Arranging energy, internet or other services for your new place? Doing so via /support is a free way to help keep Hestia running\!""",
+Can you help me keep Hestia free for everyone? Say /support to see some \(free\!\) ways to help, thank you so much {LOVE_EMOJI}""",
         "nl": rf"""Je ontvangt geen updates meer voor nieuwe woningen\. Ik hoop dat dit is omdat je een nieuw huis hebt gevonden\!
 
-Je kunt eventueel [een biertje voor me kopen]({{}}) als Hestia je heeft geholpen in je zoektocht {LOVE_EMOJI}
-
-Ga je energie, internet of andere diensten voor je nieuwe huis regelen? Dat doen via /support is een gratis manier om Hestia draaiende te houden\!"""
+Zou je me willen helpen om Hestia gratis te houden voor iedereen? Zeg /steun om te zien hoe je dit \(gratis\!\) kunt doen {LOVE_EMOJI}"""
     },
     
     "websites": {
@@ -158,32 +150,32 @@ Succes met je zoektocht\!"""
     },
 
     "support_intro": {
-        "en": rf"""*Support Hestia* {LOVE_EMOJI}
+        "en": rf"""Hestia is free and will always be free\. But I do need your help\: if you sign up for utilities in your new home through these links you cover roughly two weeks of Hestia\'s running costs, and at no extra cost to you\!
 
-Hestia is free and I'd like to keep it that way\. If you're about to arrange energy, internet or other services for your new home anyway, signing up through one of these partner links is a great way to support Hestia\. Each signup helps cover roughly two weeks of running costs, at no extra cost to you\!""",
-        "nl": rf"""*Steun Hestia* {LOVE_EMOJI}
-
-Hestia is gratis en dat wil ik graag zo houden\. Als je toch energie, internet of andere diensten voor je nieuwe huis gaat regelen, is je aanmelden via een van deze partnerlinks een mooie manier om Hestia te steunen\. Elke aanmelding dekt ongeveer twee weken aan draaikosten, zonder extra kosten voor jou\!"""
+Thank you so much\!""",
+        "nl": rf"""Hestia is gratis en zal altijd zo blijven\. Maar ik heb wel je hulp nodig\: als je stroom of internet voor je nieuwe woning afsluit via een van de onderstaande links dan dek je ongeveer twee weken aan kosten van Hestia, en het kost je helemaal niets\!
+        
+Heel erg bedankt\!"""
     },
     "support_empty": {
-        "en": r"""There are no partner links available right now\. You can still support Hestia with a beer via /donate\!""",
-        "nl": r"""Er zijn op dit moment geen partnerlinks beschikbaar\. Je kunt Hestia nog steeds steunen met een biertje via /donate\!"""
+        "en": r"""There are no partner links available right now\. You can still support Hestia via /donate\!""",
+        "nl": r"""Er zijn op dit moment geen partnerlinks beschikbaar\. Je kunt Hestia nog steeds steunen via /donate\!"""
     },
     "weekly_reminder": {
-        "en": rf"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
+        "en": rf"""Thanks for using Hestia, I\'ve put a lot of work into it and hope it\'s helping you out\!
 
-If you\'re arranging energy, internet or other services for your new place, signing up through /support is a free way to help keep Hestia running — each signup covers about two weeks of hosting, at no extra cost to you\!
+I have a small request for you\: I\'m trying to keep Hestia free for everyone\. You\'ll probably need electricity, internet and all that stuff at your new place\. I have some links to providers that will give Hestia a small bonus if you sign up using that link\. Each signup helps pay for about two weeks of Hestia\'s running costs \(and it costs you nothing\)\! Just say /support to get the links\.
 
-Prefer to chip in directly? You can also [buy me a beer]({{}}) with this open Tikkie {LOVE_EMOJI}
+Don\'t need any of that but still want to help out? Say /donate to get an open Tikkie link {LOVE_EMOJI}
 
-Good luck in your search\!""",
-        "nl": rf"""Bedankt voor het gebruiken van Hestia, ik heb er veel werk in gestoken en ik hoop dat het je helpt\!
+Either way, thank you and good luck in your search\!""",
+        "nl": rf"""Bedankt voor het gebruiken van Hestia, ik heb er veel werk in gestoken en hoop dat het je helpt\!
 
-Ga je energie, internet of andere diensten voor je nieuwe huis regelen? Je aanmelden via /support is een gratis manier om Hestia draaiende te houden — elke aanmelding dekt ongeveer twee weken aan hosting, zonder extra kosten voor jou\!
+Ik heb een verzoekje\: ik probeer Hestia gratis te houden voor iedereen\. Jij hebt waarschijnlijk elektriciteit, internet, etc\. nodig in je nieuwe woning\. Ik heb wat links naar providers die een kleine bonus geven als je overstapt via deze link\. Iedere overstap zorgt ervoor dat de kosten voor Hestia voor twee weken gedekt zijn \(en het kost jou niets\)\! Zeg /steun om de links te zien\.
 
-Liever direct bijdragen? Je kunt ook [een biertje voor me kopen]({{}}) met dit open Tikkie {LOVE_EMOJI}
+Heb je dat niet nodig en wil je alsnog bijdragen? Zeg dan /donate om een link naar een open Tikkie te krijgen {LOVE_EMOJI}
 
-Succes met je zoektocht\!"""
+In ieder geval\: bedankt en succes met de zoektocht\!"""
     },
 
     "faq": {

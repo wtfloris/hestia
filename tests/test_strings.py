@@ -28,9 +28,9 @@ class TestGetWithParams:
         assert "1200" in result
 
     @patch('hestia_utils.strings.get_user_lang', return_value="en")
-    def test_stop_with_donation_link(self, mock_lang):
-        result = get("stop", telegram_id=123, params=["https://tikkie.me/test"])
-        assert "https://tikkie.me/test" in result
+    def test_stop_mentions_support(self, mock_lang):
+        result = get("stop", telegram_id=123)
+        assert "/support" in result
 
 
 class TestSupportStrings:
@@ -43,12 +43,12 @@ class TestSupportStrings:
     @patch('hestia_utils.strings.get_user_lang', return_value="en")
     def test_support_intro_english(self, mock_lang):
         result = get("support_intro", telegram_id=123)
-        assert "Support Hestia" in result
+        assert "always be free" in result
 
     @patch('hestia_utils.strings.get_user_lang', return_value="nl")
     def test_support_intro_dutch(self, mock_lang):
         result = get("support_intro", telegram_id=123)
-        assert "Steun Hestia" in result
+        assert "altijd zo blijven" in result
 
 
 class TestGetInvalidKey:
