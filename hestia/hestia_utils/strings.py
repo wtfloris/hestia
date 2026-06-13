@@ -171,7 +171,7 @@ Don\'t need any of that but still want to help out? Say /donate to get an open T
 Either way, thank you and good luck in your search\!""",
         "nl": rf"""Bedankt voor het gebruiken van Hestia, ik heb er veel werk in gestoken en hoop dat het je helpt\!
 
-Ik heb een verzoekje\: ik probeer Hestia gratis te houden voor iedereen\. Jij hebt waarschijnlijk elektriciteit, internet, etc\. nodig in je nieuwe woning\. Ik heb wat links naar providers die een kleine bonus geven als je overstapt via deze link\. Iedere overstap zorgt ervoor dat de kosten voor Hestia voor twee weken gedekt zijn \(en het kost jou niets\)\! Zeg /steun om de links te zien\.
+Ik heb een verzoekje\: ik probeer Hestia gratis te houden voor iedereen\. Jij hebt waarschijnlijk elektriciteit, internet, etc\. nodig in je nieuwe woning\. Ik heb wat links naar providers die een kleine bonus geven als je overstapt via deze link\. Iedere overstap zorgt ervoor dat de kosten voor Hestia voor twee weken gedekt zijn \(en het kost jou niets\)\! Zeg /steun om het lijstje met links te zien\.
 
 Heb je dat niet nodig en wil je alsnog bijdragen? Zeg dan /donate om een link naar een open Tikkie te krijgen {LOVE_EMOJI}
 
