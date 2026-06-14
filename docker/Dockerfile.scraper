@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM python:3.11-slim-bookworm
-RUN apt-get update && apt-get install cron procps gcc -y && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install cron procps gcc iproute2 -y && rm -rf /var/lib/apt/lists/*
 
 COPY hestia/requirements.txt /scraper/requirements.txt
 RUN pip3 install -r /scraper/requirements.txt

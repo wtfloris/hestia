@@ -1,3 +1,4 @@
+import os
 import psycopg2
 import logging
 import json
@@ -7,6 +8,13 @@ from datetime import datetime
 from psycopg2.extras import RealDictCursor, RealDictRow
 
 from hestia_utils.secrets import DB
+
+# Allow per-container overrides for host-network scrapers that can't
+# resolve the docker-internal database hostname.
+if os.environ.get("HESTIA_DB_HOST"):
+    DB["host"] = os.environ["HESTIA_DB_HOST"]
+if os.environ.get("HESTIA_DB_PORT"):
+    DB["port"] = os.environ["HESTIA_DB_PORT"]
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
