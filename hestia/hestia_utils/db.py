@@ -92,7 +92,7 @@ def get_affiliate_categories_with_links(lang: Literal["en", "nl"] = "en") -> lis
         "SELECT id, slug, name_en, name_nl, icon FROM hestia.affiliate_categories WHERE enabled = true ORDER BY sort_order, id"
     )
     links = fetch_all(
-        "SELECT id, category_id, provider, title_en, title_nl, blurb_en, blurb_nl, logo FROM hestia.affiliate_links WHERE enabled = true ORDER BY sort_order, id"
+        "SELECT id, category_id, provider, title_en, title_nl, blurb_en, blurb_nl, logo FROM hestia.affiliate_links WHERE enabled = true AND slug IS DISTINCT FROM 'comparison' ORDER BY sort_order, id"
     )
     links_by_category = {}
     for link in links:
@@ -115,6 +115,13 @@ def get_affiliate_categories_with_links(lang: Literal["en", "nl"] = "en") -> lis
             "links": cat_links,
         })
     return result
+
+
+def get_comparison_link() -> dict:
+    """Return the special 'comparison' affiliate link (e.g. Pricewise), or {} if none."""
+    return fetch_one(
+        "SELECT id, provider FROM hestia.affiliate_links WHERE enabled = true AND slug = 'comparison' LIMIT 1"
+    )
 
 
 def get_user_lang(telegram_id: int) -> Literal["en", "nl"]:

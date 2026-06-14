@@ -186,12 +186,14 @@ CREATE TABLE hestia.affiliate_links (
   blurb_en varchar NULL,
   blurb_nl varchar NULL,
   logo varchar NULL,
+  slug varchar NULL,
   sort_order int4 DEFAULT 0 NOT NULL,
   enabled bool DEFAULT true NOT NULL,
   click_count int4 DEFAULT 0 NOT NULL,
   created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
   CONSTRAINT affiliate_links_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_links_slug_key UNIQUE (slug),
   CONSTRAINT affiliate_links_category_id_fkey FOREIGN KEY (category_id) REFERENCES hestia.affiliate_categories(id)
 );
 CREATE INDEX affiliate_links_category_idx ON hestia.affiliate_links USING btree (category_id);

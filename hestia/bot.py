@@ -413,6 +413,14 @@ async def support(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     message = strings.get("support_intro", update.effective_chat.id)
+
+    comparison = db.get_comparison_link()
+    if comparison:
+        go_url = f"{meta.HESTIA_BASE_URL}/go/{comparison['id']}"
+        provider = meta.escape_markdownv2(comparison["provider"])
+        link_md = f"[{provider}]({go_url})"
+        message += "\n\n" + strings.get("support_protip", update.effective_chat.id, [link_md])
+
     for cat in categories:
         icon = f"{cat['icon']} " if cat["icon"] else ""
         message += f"\n\n*{icon}{meta.escape_markdownv2(cat['name'])}*"

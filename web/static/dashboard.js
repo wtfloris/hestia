@@ -125,12 +125,53 @@ function renderAffiliateLinks(categories) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+function setAffiliateTikkieLink() {
+    var link = document.getElementById('affiliate-tikkie-link');
+    if (!link) return;
+    fetch('/api/donation-link').then(function(r) { return r.json(); }).then(function(data) {
+        if (!data.url) return;
+        try {
+            var parsed = new URL(data.url);
+            if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+                link.href = data.url;
+            }
+        } catch (e) {
+            // Ignore invalid URLs
+        }
+    }).catch(function() { /* non-critical */ });
+}
+
+function renderAffiliateProtip(comparison) {
+    var el = document.getElementById('affiliate-protip');
+    if (!el) return;
+    el.textContent = '';
+    if (!comparison || !comparison.go_url || !comparison.provider) {
+        el.hidden = true;
+        return;
+    }
+    var lang = (typeof hestiaGetLang === 'function') ? hestiaGetLang() : 'en';
+    var dict = HESTIA_I18N[lang] || HESTIA_I18N['en'] || {};
+    var template = dict['affiliate_protip'] || '';
+    var parts = template.split('{link}');
+    el.appendChild(document.createTextNode(parts[0] || ''));
+    var a = document.createElement('a');
+    a.href = comparison.go_url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer sponsored';
+    a.textContent = comparison.provider;
+    el.appendChild(a);
+    el.appendChild(document.createTextNode(parts.length > 1 ? parts.slice(1).join('{link}') : ''));
+    el.hidden = false;
+}
+
 function loadAffiliateLinks() {
+    setAffiliateTikkieLink();
     var lang = (typeof hestiaGetLang === 'function') ? hestiaGetLang() : 'en';
     fetch('/api/affiliate-links?lang=' + encodeURIComponent(lang))
         .then(function(r) { return r.ok ? r.json() : null; })
         .then(function(data) {
             if (!data) return;
+            renderAffiliateProtip(data.comparison);
             renderAffiliateLinks(data.categories || []);
             syncAffiliateForViewport();
         })
@@ -148,6 +189,15 @@ function loadAffiliateLinks() {
                 if (window.matchMedia && window.matchMedia('(min-width: 1000px)').matches) {
                     e.preventDefault();
                 }
+            });
+        }
+        // The info icon opens the cost modal (wired via [data-modal] in base.js);
+        // stop the click from toggling the collapsible.
+        var infoBtn = document.getElementById('affiliate-info-btn');
+        if (infoBtn) {
+            infoBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
             });
         }
     }

@@ -425,10 +425,38 @@ label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--l
     margin: 0 0.7rem 0.85rem;
     white-space: pre-line;
 }
+.affiliate-protip,
+.affiliate-cost-note {
+    color: var(--subtitle);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 0 0.7rem 0.85rem;
+}
 .affiliate-list {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+.affiliate-info-btn {
+    margin-left: auto;
+    /* Hidden while collapsed (mobile); shown once the panel is open. On desktop
+       the panel is forced open, so it's always visible there. */
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--subtitle);
+    line-height: 0;
+}
+.affiliate-collapsible[open] .affiliate-info-btn {
+    display: inline-flex;
+}
+.affiliate-info-btn:hover {
+    background: none;
+    color: var(--fg);
 }
 .affiliate-category {
     display: flex;
@@ -890,9 +918,6 @@ footer {
 .modal td { padding: 0.3rem 0; }
 .modal td:last-child { text-align: right; }
 .modal tr.total { border-top: 1px solid var(--hr); font-weight: 600; }
-.modal .donate-text { font-size: 0.85rem; color: var(--subtitle); margin-top: 1rem; }
-.modal .donate-text a { color: var(--link); }
-.modal .donate-text a:hover { color: var(--link-hover); }
 .modal-close {
     float: right;
     background: none;

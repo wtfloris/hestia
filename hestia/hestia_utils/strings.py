@@ -150,12 +150,20 @@ Succes met je zoektocht\!"""
     },
 
     "support_intro": {
-        "en": rf"""Hestia is free and will always be free\. But I do need your help\: if you sign up for utilities in your new home through these links you cover roughly two weeks of Hestia\'s running costs, and at no extra cost to you\!
+        "en": rf"""Hestia is free, but costs about €79/month to run\. And I\'d like to ask for your help\: if you sign up for utilities in your new home through any of the links below then Hestia gets a small bonus\. By doing this you cover roughly a week of Hestia\'s running costs, and at no extra cost to you\!
+
+Don\'t need any of that but still want to contribute? You can use /donate to get an open Tikkie link\!
 
 Thank you so much\!""",
-        "nl": rf"""Hestia is gratis en zal altijd zo blijven\. Maar ik heb wel je hulp nodig\: als je stroom of internet voor je nieuwe woning afsluit via een van de onderstaande links dan dek je ongeveer twee weken aan kosten van Hestia, en het kost je helemaal niets\!
-        
+        "nl": rf"""Hestia is gratis, maar kost ongeveer €79/maand om draaiende te houden\. Ik wil vragen of je kunt helpen\: als je stroom of internet voor je nieuwe woning afsluit via een van de onderstaande links dan krijgt Hestia een kleine bonus\. Hiermee dek je ongeveer een week aan kosten van Hestia, en het kost je helemaal niets\!
+
+Heb je dat niet nodig maar wil je toch bijdragen? Zeg /donate om een link naar een open Tikkie te krijgen\!
+
 Heel erg bedankt\!"""
+    },
+    "support_protip": {
+        "en": r"""Pro tip\: use a comparison tool \(like {}\) and then come back to use the links below""",
+        "nl": r"""Pro tip\: check een vergelijker \(zoals {}\) en kom daarna terug om de links hier te gebruiken"""
     },
     "support_empty": {
         "en": r"""There are no partner links available right now\. You can still support Hestia via /donate\!""",
@@ -164,16 +172,16 @@ Heel erg bedankt\!"""
     "weekly_reminder": {
         "en": rf"""Thanks for using Hestia, I\'ve put a lot of work into it and hope it\'s helping you out\!
 
-I have a small request for you\: I\'m trying to keep Hestia free for everyone\. You\'ll probably need electricity, internet and all that stuff at your new place\. I have some links to providers that will give Hestia a small bonus if you sign up using that link\. Each signup helps pay for about two weeks of Hestia\'s running costs \(and it costs you nothing\)\! Just say /support to get the links\.
+And I\'d like to ask for your help because Hestia costs about €79/month to run\: if you sign up for utilities in your new home through any of my links then Hestia gets a small bonus\. By doing this you cover roughly a week of Hestia\'s running costs, and at no extra cost to you\! Just say /support to get the links\.
 
-Don\'t need any of that but still want to help out? Say /donate to get an open Tikkie link {LOVE_EMOJI}
+Don\'t need any of that but still want to contribute? Say /donate to get an open Tikkie link {LOVE_EMOJI}
 
 Either way, thank you and good luck in your search\!""",
         "nl": rf"""Bedankt voor het gebruiken van Hestia, ik heb er veel werk in gestoken en hoop dat het je helpt\!
 
-Ik heb een verzoekje\: ik probeer Hestia gratis te houden voor iedereen\. Jij hebt waarschijnlijk elektriciteit, internet, etc\. nodig in je nieuwe woning\. Ik heb wat links naar providers die een kleine bonus geven als je overstapt via deze link\. Iedere overstap zorgt ervoor dat de kosten voor Hestia voor twee weken gedekt zijn \(en het kost jou niets\)\! Zeg /steun om het lijstje met links te zien\.
+Ik wil vragen of je kunt helpen omdat Hestia ongeveer €79/maand kost om draaiende te houden\: als je stroom of internet voor je nieuwe woning afsluit via een van mijn links dan krijgt Hestia een kleine bonus\. Hiermee dek je ongeveer een week aan kosten van Hestia, en het kost je helemaal niets\! Zeg /steun om het lijstje met links te zien\.
 
-Heb je dat niet nodig en wil je alsnog bijdragen? Zeg dan /donate om een link naar een open Tikkie te krijgen {LOVE_EMOJI}
+Heb je dat niet nodig maar wil je toch bijdragen? Zeg dan /donate om een link naar een open Tikkie te krijgen {LOVE_EMOJI}
 
 In ieder geval\: bedankt en succes met de zoektocht\!"""
     },

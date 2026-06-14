@@ -61,7 +61,8 @@ var HESTIA_I18N = {
         'logout_confirm': 'Log out of Hestia?',
         'settings_title': 'Settings and filters',
         'affiliate_title': 'Support Hestia',
-        'affiliate_intro': "Hestia is free and will always be free. But I do need your help: if you sign up for utilities in your new home through these links you cover roughly two weeks of Hestia's running costs, and at no extra cost to you!\n\nThank you so much!",
+        'affiliate_intro': "And I'd like to ask for your help: if you sign up for utilities in your new home through any of the links below then Hestia gets a small bonus. By doing this you cover roughly a week of Hestia's running costs, and at no extra cost to you!\n\nDon't need any of that but still want to contribute? You can use <a id=\"affiliate-tikkie-link\" href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">this open Tikkie</a>!\n\nThank you so much!",
+        'affiliate_protip': 'Pro tip: use a comparison tool (like {link}) and then come back to use the links below',
         'restore_btn': 'Restore',
         'save_btn': 'Save',
         'notifications_legend': 'Notifications',
@@ -86,16 +87,15 @@ var HESTIA_I18N = {
         'saving_label': 'Saving\u2026',
         'saving_error': "Couldn\u2019t save changes. Click to try again.",
         'saving_error_tap': "Couldn\u2019t save changes. Tap to try again.",
-        'cost_link': 'Hestia is free, but costs \u20ac68/month to run',
+        'cost_link': 'Hestia is free, but costs \u20ac79/month to run',
         'cost_modal_title': 'Running costs',
-        'cost_hosting': 'Hosting (main + backup)',
+        'cost_hosting': 'Hosting',
         'cost_email': 'E-mail API',
-        'cost_domain': 'Domain name (hestia.bot)',
-        'cost_claude': 'Claude Pro (yes, the entire web portal is vibe-coded)',
-        'cost_coffee': 'Caffeinated beverages (to support a 6-hour coding bender on a random Friday night because I also have a full-time job)',
+        'cost_domain': 'Domain name',
+        'cost_appstore': 'Apple App Store',
+        'cost_claude': 'Claude Code',
+        'cost_coffee': 'Coffee',
         'cost_total': 'Total',
-        'cost_donate_text': "Hestia is a passion project and will always be free. Similar services will cost you at least \u20ac20/month.<br>If you'd like to help keep Hestia running, consider",
-        'cost_donate_link': 'making a donation with this open Tikkie',
         'contact_email': 'E-mail:',
         'contact_email_login_required': 'E-mail: only visible after logging in',
         'contact_telegram': 'Telegram (the guy who made this):',
@@ -158,7 +158,8 @@ var HESTIA_I18N = {
         'logout_confirm': 'Weet je zeker dat je wilt uitloggen?',
         'settings_title': 'Instellingen en filters',
         'affiliate_title': 'Steun Hestia',
-        'affiliate_intro': 'Hestia is gratis en zal altijd zo blijven. Maar ik heb wel je hulp nodig: als je stroom of internet voor je nieuwe woning afsluit via een van de onderstaande links dan dek je ongeveer twee weken aan kosten van Hestia, en het kost je helemaal niets!\n\nHeel erg bedankt!',
+        'affiliate_intro': 'Ik wil vragen of je kunt helpen: als je stroom of internet voor je nieuwe woning afsluit via een van de onderstaande links dan krijgt Hestia een kleine bonus. Hiermee dek je ongeveer een week aan kosten van Hestia, en het kost je helemaal niets!\n\nHeb je dat niet nodig maar wil je toch bijdragen? Dat kan met <a id="affiliate-tikkie-link" href="#" target="_blank" rel="noopener noreferrer">dit open Tikkie</a>!\n\nHeel erg bedankt!',
+        'affiliate_protip': 'Pro tip: check een vergelijker (zoals {link}) en kom daarna terug om de links hier te gebruiken',
         'restore_btn': 'Herstel',
         'save_btn': 'Opslaan',
         'notifications_legend': 'Meldingen',
@@ -183,16 +184,15 @@ var HESTIA_I18N = {
         'saving_label': 'Opslaan\u2026',
         'saving_error': 'Opslaan mislukt. Klik om opnieuw te proberen.',
         'saving_error_tap': 'Opslaan mislukt. Tik om opnieuw te proberen.',
-        'cost_link': 'Hestia is gratis, maar kost \u20ac68/maand om draaiende te houden',
+        'cost_link': 'Hestia is gratis, maar kost €79/maand om draaiende te houden',
         'cost_modal_title': 'Kostenoverzicht',
-        'cost_hosting': 'Hosting (main + backup)',
+        'cost_hosting': 'Hosting',
         'cost_email': 'E-mail API',
-        'cost_domain': 'Domeinnaam (hestia.bot)',
-        'cost_claude': 'Claude Pro (ja, bespaart een hoop tijd)',
-        'cost_coffee': 'Cafe\u00efnehoudende dranken (om een 6-uur durende programmeersessie op een willekeurige vrijdagavond te faciliteren omdat ik ook gewoon een fulltime baan heb)',
+        'cost_domain': 'Domeinnaam',
+        'cost_appstore': 'Apple App Store',
+        'cost_claude': 'Claude Code',
+        'cost_coffee': 'Koffie',
         'cost_total': 'Totaal',
-        'cost_donate_text': 'Hestia is een "passieproject" en zal altijd gratis blijven. Vergelijkbare diensten kosten minimaal \u20ac20/maand.<br>Wil je helpen Hestia online te houden, dan kun je',
-        'cost_donate_link': 'met dit open Tikkie daaraan bijdragen',
         'contact_email': 'E-mail:',
         'contact_email_login_required': 'E-mail: alleen zichtbaar na inloggen',
         'contact_telegram': 'Telegram (van de chef):',
@@ -325,7 +325,6 @@ document.addEventListener('click', function(event) {
 var contactModal = null;
 var costModal = null;
 var statsModal = null;
-var donateLink = null;
 var statsContent = null;
 
 /* ---- Login form submit guard ---- */
@@ -370,18 +369,6 @@ function closeContactModal() {
 function openCostModal() {
     if (!costModal) return;
     costModal.classList.add('visible');
-    fetch('/api/donation-link').then(function(r) { return r.json(); }).then(function(data) {
-        if (data.url && donateLink) {
-            try {
-                var parsed = new URL(data.url);
-                if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
-                    donateLink.href = data.url;
-                }
-            } catch (e) {
-                // Ignore invalid URLs
-            }
-        }
-    });
 }
 function closeCostModal() {
     if (!costModal) return;
@@ -486,7 +473,6 @@ document.addEventListener('DOMContentLoaded', function() {
     contactModal = document.getElementById('contact-modal');
     costModal = document.getElementById('cost-modal');
     statsModal = document.getElementById('stats-modal');
-    donateLink = document.getElementById('donate-link');
     statsContent = document.getElementById('stats-content');
 
     if (contactModal) {
@@ -519,8 +505,8 @@ document.addEventListener('DOMContentLoaded', function() {
         themeToggle.addEventListener('click', toggleTheme);
     }
 
-    // Attach footer icon and avatar modal triggers
-    document.querySelectorAll('.footer-icon[data-modal], img[data-modal]').forEach(function(icon) {
+    // Attach footer icon, avatar and other modal triggers
+    document.querySelectorAll('[data-modal]').forEach(function(icon) {
         icon.addEventListener('click', function() {
             var modal = this.getAttribute('data-modal');
             if (modal === 'contact') openContactModal();

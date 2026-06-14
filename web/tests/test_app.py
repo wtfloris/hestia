@@ -1114,10 +1114,11 @@ class TestAffiliateLinks:
          "title_nl": "Groene stroom", "blurb_en": "Clean", "blurb_nl": "Schoon", "logo": "vdb.png"},
     ]
 
-    def _conn_with_auth(self, mock_get_db):
+    def _conn_with_auth(self, mock_get_db, comparison=None):
         auth_cur = make_mock_cursor(fetchone_value={"id": 33, "email_address": "user@example.com"})
         data_cur = make_mock_cursor()
         data_cur.fetchall.side_effect = [self.AFF_CATS, self.AFF_LINKS]
+        data_cur.fetchone.return_value = comparison
         conn = MagicMock()
         conn.__enter__ = MagicMock(return_value=conn)
         conn.__exit__ = MagicMock(return_value=False)
@@ -1141,6 +1142,19 @@ class TestAffiliateLinks:
         assert link["go_url"].endswith("/go/10")
         # Raw affiliate URL must never be exposed
         assert "url" not in link
+        # No comparison entry configured
+        assert resp.get_json()["comparison"] is None
+
+    @patch("hestia_web.app.get_db")
+    def test_returns_comparison_entry(self, mock_get_db, client):
+        set_session(client, email="user@example.com")
+        self._conn_with_auth(mock_get_db, comparison={"id": 99, "provider": "Pricewise"})
+
+        resp = client.get("/api/affiliate-links", follow_redirects=False)
+        assert resp.status_code == 200
+        comparison = resp.get_json()["comparison"]
+        assert comparison["provider"] == "Pricewise"
+        assert comparison["go_url"].endswith("/go/99")
 
     def test_requires_auth(self, client):
         resp = client.get("/api/affiliate-links", follow_redirects=False)

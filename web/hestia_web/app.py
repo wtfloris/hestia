@@ -64,6 +64,9 @@ RECENT_LOGIN_MAX_ENTRIES = 10000
 SESSION_MAX_AGE = 365 * 24 * 60 * 60  # 1 year
 SESSION_COOKIE_NAME = "hestia_session"
 DEVICE_ID_HEADER = "X-Device-Id"
+# Slug marking the affiliate link surfaced inline in the support "Pro tip"
+# (a comparison tool such as Pricewise). Kept out of the regular link cards.
+COMPARISON_LINK_SLUG = "comparison"
 
 serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
 
@@ -1970,9 +1973,15 @@ def affiliate_links():
                 )
                 categories = cur.fetchall()
                 cur.execute(
-                    "SELECT id, category_id, provider, title_en, title_nl, blurb_en, blurb_nl, logo FROM hestia.affiliate_links WHERE enabled = true ORDER BY sort_order, id"
+                    "SELECT id, category_id, provider, title_en, title_nl, blurb_en, blurb_nl, logo FROM hestia.affiliate_links WHERE enabled = true AND slug IS DISTINCT FROM %s ORDER BY sort_order, id",
+                    [COMPARISON_LINK_SLUG],
                 )
                 links = cur.fetchall()
+                cur.execute(
+                    "SELECT id, provider FROM hestia.affiliate_links WHERE enabled = true AND slug = %s LIMIT 1",
+                    [COMPARISON_LINK_SLUG],
+                )
+                comparison_row = cur.fetchone()
     except psycopg2.Error as e:
         logger.error(
             "Database error fetching affiliate links",
@@ -2003,7 +2012,14 @@ def affiliate_links():
             "icon": cat["icon"],
             "links": cat_links,
         })
-    return jsonify({"categories": result})
+
+    comparison = None
+    if comparison_row:
+        comparison = {
+            "provider": comparison_row["provider"],
+            "go_url": f"{base_url}/go/{comparison_row['id']}",
+        }
+    return jsonify({"categories": result, "comparison": comparison})
 
 
 @app.route("/go/<int:link_id>")
