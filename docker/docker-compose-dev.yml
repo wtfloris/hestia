@@ -194,6 +194,7 @@ services:
       - HESTIA_DB_HOST=127.0.0.1
       - HESTIA_DB_PORT=54321
       - HESTIA_CRON_SCHEDULE=*/5 7-22 * * *
+      - TZ=Europe/Amsterdam
 
   hestia-scraper-krk-dev:
     <<: *scraper-dev-base
