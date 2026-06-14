@@ -9,7 +9,7 @@ from asyncio import run
 from collections import Counter
 from functools import lru_cache
 from telegram.error import Forbidden
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 try:
     from hestia_utils.pararius_scraper import scrape_pararius
@@ -294,7 +294,7 @@ async def scrape_site(target: dict) -> None:
             if home not in prev_homes:
                 new_homes.append(home)
         for home in new_homes:
-            db.add_home(home.url, home.address, home.city, home.price, home.agency, datetime.now().isoformat(), home.sqm)
+            db.add_home(home.url, home.address, home.city, home.price, home.agency, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), home.sqm)
         await broadcast(new_homes)
 
     elif target["agency"] == "pararius":
@@ -310,7 +310,7 @@ async def scrape_site(target: dict) -> None:
             if home not in prev_homes:
                 new_homes.append(home)
         for home in new_homes:
-            db.add_home(home.url, home.address, home.city, home.price, home.agency, datetime.now().isoformat(), home.sqm)
+            db.add_home(home.url, home.address, home.city, home.price, home.agency, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), home.sqm)
         await broadcast(new_homes)
 
     else:
@@ -342,7 +342,7 @@ async def scrape_site(target: dict) -> None:
                             home.city,
                             home.price,
                             home.agency,
-                            datetime.now().isoformat(),
+                            datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                             home.sqm)
 
             await broadcast(new_homes)
