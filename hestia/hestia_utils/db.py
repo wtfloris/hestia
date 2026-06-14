@@ -221,10 +221,10 @@ def set_filter_minprice(telegram_chat: Chat, min_price: int) -> None:
     _write("UPDATE hestia.subscribers SET filter_min_price = %s WHERE telegram_id = %s", [str(min_price), str(telegram_chat.id)])
 def set_filter_maxprice(telegram_chat: Chat, max_price: int) -> None:
     _write("UPDATE hestia.subscribers SET filter_max_price = %s WHERE telegram_id = %s", [str(max_price), str(telegram_chat.id)])
-def set_filter_cities(telegram_chat: Chat, cities: str) -> None:
-    _write("UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", [str(cities).replace("'", '"'), str(telegram_chat.id)])
+def set_filter_cities(telegram_chat: Chat, cities: list[str]) -> None:
+    _write("UPDATE hestia.subscribers SET filter_cities = %s WHERE telegram_id = %s", [json.dumps(list(cities)), str(telegram_chat.id)])
 def set_filter_agencies(telegram_chat: Chat, agencies: set[str]) -> None:
-    _write("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", [str(list(agencies)).replace("'", '"'), str(telegram_chat.id)])
+    _write("UPDATE hestia.subscribers SET filter_agencies = %s WHERE telegram_id = %s", [json.dumps(list(agencies)), str(telegram_chat.id)])
 def set_filter_minsqm(telegram_chat: Chat, min_sqm: int) -> None:
     _write("UPDATE hestia.subscribers SET filter_min_sqm = %s WHERE telegram_id = %s", [str(min_sqm), str(telegram_chat.id)])
 
