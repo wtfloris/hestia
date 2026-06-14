@@ -176,10 +176,25 @@ services:
       - HESTIA_TARGET=hoekstra
 
   hestia-scraper-ikwilhuren:
-    <<: *scraper-base
     container_name: hestia-scraper-ikwilhuren
+    healthcheck:
+      test: pgrep cron || exit 1
+      start_period: 5s
+    image: wtfloris/hestia-scraper:latest
+    init: true
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    volumes:
+      - /root/hestia/data:/data
+    working_dir: /scraper
     environment:
       - HESTIA_TARGET=ikwilhuren
+      - HESTIA_DB_HOST=127.0.0.1
+      - HESTIA_DB_PORT=5432
+      - HESTIA_CRON_SCHEDULE=*/5 6-22 * * *
+      - TZ=Europe/Amsterdam
 
   hestia-scraper-krk:
     <<: *scraper-base
