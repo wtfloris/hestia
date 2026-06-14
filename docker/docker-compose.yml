@@ -225,6 +225,7 @@ services:
     container_name: hestia-scraper-pararius
     environment:
       - HESTIA_TARGET=pararius
+      - HESTIA_CRON_SCHEDULE=*/10 * * * *
 
   hestia-scraper-rebo:
     <<: *scraper-base
