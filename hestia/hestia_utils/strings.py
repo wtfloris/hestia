@@ -274,7 +274,7 @@ In ieder geval\: bedankt en succes met de zoektocht\!"""
 /filter - Show and modify your personal filters
 /websites - Show info about the websites Hestia checks
 /donate - Get an open Tikkie link to show your appreciation for Hestia
-/support - Support Hestia by signing up for services through partner links
+/support - See how you can support Hestia at no cost
 /link - Link your website account to Telegram
 
 /nl - Gebruik Hestia in het Nederlands
@@ -288,7 +288,7 @@ In ieder geval\: bedankt en succes met de zoektocht\!"""
 /filter - Bekijk en wijzig je persoonlijke filters
 /websites - Bekijk welke websites Hestia checkt
 /donate - Ontvang een open Tikkie link en waardeer Hestia met een biertje voor de maker
-/steun - Steun Hestia door je via partnerlinks aan te melden voor diensten
+/steun - Bekijk hoe je Hestia gratis kunt steunen
 /link - Koppel je website-account aan Telegram
 
 /nl - Gebruik Hestia in het Nederlands
