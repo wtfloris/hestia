@@ -145,6 +145,8 @@ class HomeResults:
             self.parse_easylease(raw)
         elif source == "beumer":
             self.parse_beumer(raw)
+        elif source == "nederwoon":
+            self.parse_nederwoon(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -1033,6 +1035,49 @@ class HomeResults:
                         sqm_i = int(m.group(1))
                         if 0 < sqm_i < 2000:
                             home.sqm = sqm_i
+            self.homes.append(home)
+
+    def parse_nederwoon(self, r: requests.models.Response):
+        results = BeautifulSoup(r.content, "html.parser").select(".location")
+        for res in results:
+            link_tag = res.select_one("a.see-page-button[href]")
+            price_tag = res.select_one(".heading-md.color-primary")
+            city_tag = res.select_one(".color-medium.fixed-lh")
+            if not link_tag or not price_tag or not city_tag:
+                continue
+
+            price_digits = ''.join(ch for ch in price_tag.get_text(" ", strip=True).split(",")[0] if ch.isdigit())
+            if not price_digits:
+                continue
+            home = Home(agency="nederwoon")
+            home.price = int(price_digits)
+
+            address = link_tag.get_text(" ", strip=True)
+            if not address:
+                continue
+            # Nederwoon usually has no house number — fall back to price like pararius does.
+            if not re.search(r"\d", address):
+                address += f" [€{home.price}]"
+            home.address = address
+
+            city_text = city_tag.get_text(" ", strip=True)
+            home.city = re.sub(r"^\d{4}\s?[A-Za-z]{2}\s+", "", city_text).strip()
+            if not home.city:
+                continue
+
+            href = str(link_tag["href"])
+            home.url = href if href.startswith("http") else "https://www.nederwoon.nl" + href
+
+            for li in res.select("ul li"):
+                txt = li.get_text(" ", strip=True)
+                if "Woonoppervlakte" in txt or "m²" in txt:
+                    m = re.search(r"(\d{1,4})\s*m", txt)
+                    if m:
+                        sqm_i = int(m.group(1))
+                        if 0 < sqm_i < 2000:
+                            home.sqm = sqm_i
+                    break
+
             self.homes.append(home)
 
     def parse_maxxhuren(self, r: requests.models.Response):

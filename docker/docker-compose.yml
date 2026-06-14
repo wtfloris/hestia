@@ -208,6 +208,12 @@ services:
     environment:
       - HESTIA_TARGET=maxxhuren
 
+  hestia-scraper-nederwoon:
+    <<: *scraper-base
+    container_name: hestia-scraper-nederwoon
+    environment:
+      - HESTIA_TARGET=nederwoon
+
   hestia-scraper-nmg:
     <<: *scraper-base
     container_name: hestia-scraper-nmg
