@@ -43,12 +43,12 @@ class TestSupportStrings:
     @patch('hestia_utils.strings.get_user_lang', return_value="en")
     def test_support_intro_english(self, mock_lang):
         result = get("support_intro", telegram_id=123)
-        assert "always be free" in result
+        assert "Hestia is free" in result
 
     @patch('hestia_utils.strings.get_user_lang', return_value="nl")
     def test_support_intro_dutch(self, mock_lang):
         result = get("support_intro", telegram_id=123)
-        assert "altijd zo blijven" in result
+        assert "Hestia is gratis" in result
 
 
 class TestGetInvalidKey:
@@ -77,7 +77,8 @@ class TestAllStringsValid:
                       "filter_city_invalid", "filter_city_already_in",
                       "filter_city_added", "filter_city_not_in",
                       "filter_city_removed", "filter_invalid_number",
-                      "donate", "faq", "website_info", "weekly_reminder"}
+                      "donate", "faq", "website_info", "weekly_reminder",
+                      "support_protip"}
         for key in _STRINGS:
             if key not in param_keys:
                 result = get(key)
