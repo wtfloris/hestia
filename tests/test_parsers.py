@@ -1524,6 +1524,52 @@ class TestParseBeumer:
         assert len(results.homes) == 0
 
 
+class TestParseNederwoon:
+    def test_basic_parsing_appends_price_when_no_house_number(self, mock_response):
+        html = """
+        <div class="location" data-marker-id="38288">
+            <div class="col-lg-4 col-md-3 click-see-page-button">
+                <h2 class="heading-sm">
+                    <a class="see-page-button" href="/huurwoning/den-haag/38288/appartement-leyweg">Leyweg</a>
+                </h2>
+                <p class="color-medium fixed-lh">2545CG Den Haag</p>
+                <p class="color-primary fixed-lh">Appartement</p>
+                <ul>
+                    <li>Woonoppervlakte 95 m²</li>
+                    <li>3 kamers</li>
+                </ul>
+            </div>
+            <div class="col-lg-4 col-md-3 vertical-items start-items click-see-page-button">
+                <p class="heading-md text-regular color-primary">&euro; 1.850,00</p>
+            </div>
+        </div>
+        """
+        r = mock_response(html)
+        results = HomeResults("nederwoon", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "nederwoon"
+        assert results[0].address == "Leyweg [€1850]"
+        assert results[0].city == "Den Haag"
+        assert results[0].price == 1850
+        assert results[0].sqm == 95
+        assert results[0].url == "https://www.nederwoon.nl/huurwoning/den-haag/38288/appartement-leyweg"
+
+    def test_keeps_house_number_when_present(self, mock_response):
+        html = """
+        <div class="location">
+            <a class="see-page-button" href="/huurwoning/x/1/y">Hoofdstraat 12</a>
+            <p class="color-medium fixed-lh">1011AA Amsterdam</p>
+            <p class="heading-md text-regular color-primary">&euro; 1.200,00</p>
+        </div>
+        """
+        r = mock_response(html)
+        results = HomeResults("nederwoon", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Hoofdstraat 12"
+        assert results[0].city == "Amsterdam"
+        assert results[0].price == 1200
+
+
 class TestParseMaxxhuren:
     def test_basic_parsing(self, mock_response):
         html = """
