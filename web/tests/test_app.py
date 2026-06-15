@@ -142,7 +142,7 @@ class TestLandingPage:
     def test_get_index_contains_login_form(self, client):
         resp = client.get("/")
         html = resp.data.decode()
-        assert '<form method="post" action="/login">' in html
+        assert 'action="/login"' in html
         assert 'type="email"' in html
         assert "Hestia" in html
 
@@ -957,7 +957,7 @@ class TestApiPreviewImageAuthParity:
         assert "Location" not in resp.headers
 
 
-class TestApiStatisticsAndDonationAuth:
+class TestApiStatisticsAndDonationPublic:
     @patch("hestia_web.app.get_db")
     def test_api_statistics_with_valid_cookie_returns_200_json(self, mock_get_db, client):
         set_session(client, email="user@example.com")
@@ -985,7 +985,7 @@ class TestApiStatisticsAndDonationAuth:
         conn = MagicMock()
         conn.__enter__ = MagicMock(return_value=conn)
         conn.__exit__ = MagicMock(return_value=False)
-        conn.cursor.side_effect = [auth_cur, stats_cur]
+        conn.cursor.return_value = stats_cur
         mock_get_db.return_value = conn
 
         resp = client.get("/api/statistics", follow_redirects=False)
@@ -1024,7 +1024,7 @@ class TestApiStatisticsAndDonationAuth:
         conn = MagicMock()
         conn.__enter__ = MagicMock(return_value=conn)
         conn.__exit__ = MagicMock(return_value=False)
-        conn.cursor.side_effect = [auth_cur, stats_cur]
+        conn.cursor.return_value = stats_cur
         mock_get_db.return_value = conn
 
         resp = client.get("/api/statistics", headers={"X-Device-Id": VALID_DEVICE_ID}, follow_redirects=False)
@@ -1032,18 +1032,31 @@ class TestApiStatisticsAndDonationAuth:
         assert resp.is_json
         assert resp.get_json()["total_homes"] == 42
 
-    def test_api_statistics_without_auth_returns_401_json(self, client):
-        resp = client.get("/api/statistics", follow_redirects=False)
-        assert resp.status_code == 401
-        assert resp.is_json
-        assert resp.get_json() == {"error": "unauthorized"}
-        assert "Location" not in resp.headers
+    @patch("hestia_web.app.get_db")
+    def test_api_statistics_without_auth_is_public(self, mock_get_db, client):
+        stats_cur = MagicMock()
+        stats_cur.__enter__ = MagicMock(return_value=stats_cur)
+        stats_cur.__exit__ = MagicMock(return_value=False)
+        stats_cur.fetchone.side_effect = [
+            {"cnt": 7},
+            {"cnt": 1},
+            {"cnt": 3},
+            {"cnt": 2},
+        ]
+        stats_cur.fetchall.side_effect = [
+            [{"city": "Amsterdam", "count": 5}],
+            [{"agency": "rebo", "count": 4}],
+        ]
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.return_value = stats_cur
+        mock_get_db.return_value = conn
 
-    def test_api_statistics_with_invalid_device_id_returns_401_json(self, client):
-        resp = client.get("/api/statistics", headers={"X-Device-Id": "not-a-uuid"}, follow_redirects=False)
-        assert resp.status_code == 401
+        resp = client.get("/api/statistics", follow_redirects=False)
+        assert resp.status_code == 200
         assert resp.is_json
-        assert resp.get_json() == {"error": "unauthorized"}
+        assert resp.get_json()["total_homes"] == 7
         assert "Location" not in resp.headers
 
     @patch("hestia_web.app.get_db")
@@ -1061,7 +1074,7 @@ class TestApiStatisticsAndDonationAuth:
         conn = MagicMock()
         conn.__enter__ = MagicMock(return_value=conn)
         conn.__exit__ = MagicMock(return_value=False)
-        conn.cursor.side_effect = [auth_cur, donation_cur]
+        conn.cursor.return_value = donation_cur
         mock_get_db.return_value = conn
 
         resp = client.get("/api/donation-link", follow_redirects=False)
@@ -1082,7 +1095,7 @@ class TestApiStatisticsAndDonationAuth:
         conn = MagicMock()
         conn.__enter__ = MagicMock(return_value=conn)
         conn.__exit__ = MagicMock(return_value=False)
-        conn.cursor.side_effect = [auth_cur, donation_cur]
+        conn.cursor.return_value = donation_cur
         mock_get_db.return_value = conn
 
         resp = client.get("/api/donation-link", headers={"X-Device-Id": VALID_DEVICE_ID}, follow_redirects=False)
@@ -1090,18 +1103,19 @@ class TestApiStatisticsAndDonationAuth:
         assert resp.is_json
         assert resp.get_json() == {"url": "https://example.com/donate"}
 
-    def test_api_donation_link_without_auth_returns_401_json(self, client):
-        resp = client.get("/api/donation-link", follow_redirects=False)
-        assert resp.status_code == 401
-        assert resp.is_json
-        assert resp.get_json() == {"error": "unauthorized"}
-        assert "Location" not in resp.headers
+    @patch("hestia_web.app.get_db")
+    def test_api_donation_link_without_auth_is_public(self, mock_get_db, client):
+        donation_cur = make_mock_cursor(fetchone_value={"donation_link": "https://example.com/donate"})
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.return_value = donation_cur
+        mock_get_db.return_value = conn
 
-    def test_api_donation_link_with_invalid_device_id_returns_401_json(self, client):
-        resp = client.get("/api/donation-link", headers={"X-Device-Id": "not-a-uuid"}, follow_redirects=False)
-        assert resp.status_code == 401
+        resp = client.get("/api/donation-link", follow_redirects=False)
+        assert resp.status_code == 200
         assert resp.is_json
-        assert resp.get_json() == {"error": "unauthorized"}
+        assert resp.get_json() == {"url": "https://example.com/donate"}
         assert "Location" not in resp.headers
 
 @pytest.mark.parametrize(
