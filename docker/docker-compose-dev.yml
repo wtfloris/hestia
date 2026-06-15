@@ -353,6 +353,12 @@ services:
     environment:
       - HESTIA_TARGET=woonmatchwaterland
 
+  hestia-scraper-yourhouse-dev:
+    <<: *scraper-dev-base
+    container_name: hestia-scraper-yourhouse-dev
+    environment:
+      - HESTIA_TARGET=yourhouse
+
   hestia-database-dev:
     container_name: hestia-database-dev
     healthcheck:
