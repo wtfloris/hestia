@@ -112,7 +112,7 @@ var HESTIA_I18N = {
         'faq_q_free': 'Hestia is free?',
         'faq_a_free': 'Yes. I built Hestia for myself and once we found a home, I thought it would be nice to share it with others!',
         'faq_q_speed': 'How quick is Hestia?',
-        'faq_a_speed': "It checks most websites every few minutes, and some users have reported Hestia is faster than paid services! I can't test that, but I suspect the paid services aren't honest about their speed and just assume people choose whoever claims to be fastest.",
+        'faq_a_speed': "Hestia checks most websites every few minutes, and some users have reported Hestia is faster than paid services! I can't test that, but I suspect the paid services aren't honest about their speed and just assume people choose whoever claims to be fastest.",
         'faq_q_filters': 'Can you add a filter for amount of rooms or postal code?',
         'faq_a_filters': 'In short: no, because it makes Hestia less reliable. Please see <a href="https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778" target="_blank" rel="noopener noreferrer">this comment</a> for the full explanation, and feel free to discuss if you disagree!',
         'faq_q_buy': 'Does this work if I want to buy a home?',
