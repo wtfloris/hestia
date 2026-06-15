@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="apple-itunes-app" content="app-id=6760269825">
-    <title>{% block title %}Hestia – {{ title }}{% endblock %}</title>
+    <title{% if title_i18n %} data-i18n="{{ title_i18n }}"{% endif %}>{% block title %}Hestia – {{ title }}{% endblock %}</title>
     <link rel="apple-touch-icon" sizes="57x57" href="/static/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="/static/apple-icon-60x60.png">
     <link rel="apple-touch-icon" sizes="72x72" href="/static/apple-icon-72x72.png">
@@ -60,7 +60,7 @@
             {% else %}
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_email">E-mail:</span> <a href="mailto:hestia@flori.sh">hestia@flori.sh</a></p>
             {% endif %}
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_telegram">Telegram (the guy who made this):</span> <a href="https://t.me/wtfloris" target="_blank">@wtfloris</a></p>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_telegram">Telegram:</span> <a href="https://t.me/wtfloris" target="_blank">@wtfloris</a></p>
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_github">GitHub (source code):</span> <a href="https://github.com/wtfloris/hestia">github.com/wtfloris/hestia</a></p>
             {% if not landing %}
             <hr style="border:0;border-top:1px solid var(--hr);margin:1.5rem 0">

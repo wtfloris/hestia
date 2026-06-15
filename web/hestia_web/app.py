@@ -690,6 +690,7 @@ def index():
     return render_template(
         "landing.html",
         title="Free rental-home alerts for the Netherlands",
+        title_i18n="landing_page_title",
         message=message,
         landing=True,
         base_url=app.config["BASE_URL"],
