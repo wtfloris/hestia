@@ -682,7 +682,7 @@ def index():
     """Public landing page (shopfront). Logged-in users go straight to the tool.
 
     The hero contains the email signup form, which remains the only entry point
-    into the gated dashboard — the landing layer sits in front of that gate.
+    into the gated dashboard. The landing layer sits in front of that gate.
     """
     if get_current_email() is not None:
         return redirect(url_for("dashboard"))
@@ -1948,8 +1948,7 @@ def api_statistics():
 def donation_link():
     """Return the donation link from the database.
 
-    Public (no auth) so the landing page footer can link to the donation page.
-    Only returns a single public donation URL.
+    Public (no auth); returns only a single public, non-sensitive donation URL.
     """
     try:
         with get_db() as conn:

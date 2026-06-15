@@ -62,6 +62,7 @@
             {% endif %}
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_telegram">Telegram (the guy who made this):</span> <a href="https://t.me/wtfloris" target="_blank">@wtfloris</a></p>
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_github">GitHub (source code):</span> <a href="https://github.com/wtfloris/hestia">github.com/wtfloris/hestia</a></p>
+            {% if not landing %}
             <hr style="border:0;border-top:1px solid var(--hr);margin:1.5rem 0">
             <h3 style="margin:0.5rem 0 0.25rem">FAQ</h3>
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_what">What is Hestia?</strong><br><span data-i18n="faq_a_what">Hestia is a home-finding service that monitors websites and notifies you about new matches within your filters.</span></p>
@@ -72,6 +73,7 @@
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_pararius">I saw this listing on Pararius and I did not get a message from Hestia. Why?</strong><br><span data-i18n="faq_a_pararius">Pararius does not list a house number for all homes, so Hestia cannot check if it has already seen the listing on another website. To avoid duplicates, those listings are skipped.</span></p>
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_app">Is there an app?</strong><br><span data-i18n-html="faq_a_app">Yes! Hestia is available as an <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">iPhone app</a>.</span></p>
             <p style="font-size:0.9rem;margin-bottom:0.5rem"><strong data-i18n="faq_q_thanks">Can I thank you for building and sharing Hestia for free?</strong><br><span data-i18n="faq_a_thanks">Yes! Click the euro icon below the settings panel. Thanks!</span></p>
+            {% endif %}
             <p style="font-size:0.85rem;margin-top:0.75rem;color:var(--subtitle)">
                 <span data-i18n="contact_avatar_credit">Hestia artwork courtesy of Elisa Tulli</span>
                 <a href="https://instagram.com/elisa_tulli" target="_blank" rel="noopener noreferrer">@elisa_tulli</a>
