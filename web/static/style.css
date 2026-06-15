@@ -1167,3 +1167,320 @@ footer {
 .dashboard-filters .settings-grid {
     grid-template-columns: 1fr;
 }
+
+/* ===========================================================================
+   Public landing page (served at "/" for logged-out visitors)
+   Reuses the shared design tokens above; works in both light and dark themes.
+   =========================================================================== */
+.landing-body { padding: 0; }
+.landing-main,
+.landing-header,
+.landing-footer-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+
+/* Header */
+.landing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--hr);
+}
+@supports not (backdrop-filter: blur(8px)) {
+    .landing-header { background: var(--bg); }
+}
+.landing-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-decoration: none;
+    color: var(--fg);
+}
+.landing-brand-logo {
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.landing-brand-name {
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: 0.01em;
+}
+.landing-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.landing-login-btn {
+    padding: 0.45rem 1.1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 999px;
+}
+
+/* Generic section rhythm */
+.landing-section {
+    padding-top: 3rem;
+    padding-bottom: 1rem;
+}
+.landing-section-title {
+    font-size: 1.5rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: var(--fg);
+}
+.landing-prose {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+    color: var(--subtitle);
+    font-size: 1.02rem;
+    line-height: 1.7;
+}
+/* Demo listings feed: keep the cards at a readable width like the real feed */
+.landing-demo-list {
+    max-width: 600px;
+    margin: 1.5rem auto 0;
+}
+.landing-demo-list .home-card-link { cursor: default; }
+
+/* Hero */
+.landing-hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    align-items: center;
+    padding-top: 2.5rem;
+    padding-bottom: 1.5rem;
+}
+.landing-hero h1 {
+    font-size: 2.1rem;
+    line-height: 1.15;
+    margin-bottom: 0.9rem;
+}
+.landing-hl { color: var(--primary); white-space: nowrap; }
+.landing-hero-sub {
+    font-size: 1.08rem;
+    color: var(--subtitle);
+    line-height: 1.6;
+    max-width: 36rem;
+    margin-bottom: 1.5rem;
+}
+.landing-signup { margin-bottom: 1rem; max-width: 26rem; }
+.landing-signup .input-arrow-wrap input {
+    padding: 0.7rem 2.75rem 0.7rem 0.9rem;
+}
+.landing-cta-note {
+    margin-top: 0.6rem;
+    margin-bottom: 0;
+    font-size: 0.82rem;
+    color: var(--subtitle);
+}
+.landing-ios-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.92rem;
+    text-decoration: none;
+    color: var(--link);
+}
+.landing-ios-link:hover { color: var(--link-hover); text-decoration: underline; }
+.landing-ios-link svg { width: 18px; height: 18px; }
+/* Hide iOS-app links on Android (app is iOS-only). Set in <head>, no flash. */
+html.is-android [data-ios-link] { display: none; }
+.landing-hero-art {
+    display: none; /* hidden on mobile; shown once the hero is two-column */
+    justify-content: center;
+}
+.landing-hero-avatar {
+    width: min(220px, 60vw);
+    height: auto;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 12px 40px var(--glow), 0 0 0 1px var(--card-border);
+}
+
+/* Stats strip */
+.landing-stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding: 1.25rem 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+}
+.landing-stat {
+    flex: 1 1 8rem;
+    text-align: center;
+    min-width: 7rem;
+}
+.landing-stat-value {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1.1;
+}
+.landing-stat-label {
+    font-size: 0.8rem;
+    color: var(--subtitle);
+}
+
+/* How it works */
+.landing-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+}
+.landing-step {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+}
+.landing-step-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--msg-bg);
+    color: var(--primary);
+    margin-bottom: 0.9rem;
+}
+.landing-step-icon svg { width: 24px; height: 24px; }
+.landing-step h3 { font-size: 1.1rem; margin-bottom: 0.4rem; color: var(--fg); }
+.landing-step p { color: var(--subtitle); margin-bottom: 0; font-size: 0.95rem; }
+
+/* FAQ */
+.landing-faq { max-width: 720px; margin-left: auto; margin-right: auto; }
+.landing-faq-item {
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    margin-bottom: 0.6rem;
+    overflow: hidden;
+}
+.landing-faq-item summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 0.9rem 1.1rem;
+    font-weight: 600;
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.landing-faq-item summary::-webkit-details-marker { display: none; }
+.landing-faq-item summary::after {
+    content: "+";
+    color: var(--primary);
+    font-size: 1.25rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.landing-faq-item[open] summary::after { content: "\2212"; }
+.landing-faq-item p {
+    padding: 0 1.1rem 1rem;
+    margin: 0;
+    color: var(--subtitle);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+.landing-faq-item a { color: var(--link); }
+
+/* Final CTA */
+.landing-final-cta {
+    text-align: center;
+    margin: 3.5rem auto 1rem;
+    padding: 2.5rem 1.5rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+}
+.landing-final-cta h2 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+.landing-final-cta p { color: var(--subtitle); margin-bottom: 1.25rem; }
+.landing-final-btn {
+    padding: 0.7rem 1.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 999px;
+}
+
+/* Footer */
+.landing-footer {
+    margin-top: 3rem;
+    border-top: 1px solid var(--hr);
+    background: var(--card-bg);
+    padding: 2rem 0 2.5rem;
+}
+.landing-footer-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.landing-footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.landing-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+}
+.landing-footer-links a {
+    color: var(--subtitle);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+.landing-footer-links a:hover { color: var(--link); text-decoration: underline; }
+.landing-footer-credit {
+    max-width: 1080px;
+    margin: 1.25rem auto 0;
+    padding: 0 1.25rem;
+    font-size: 0.78rem;
+    color: var(--subtitle);
+    opacity: 0.8;
+}
+.landing-footer-credit a { color: var(--link); }
+
+/* Tablet / desktop */
+@media (min-width: 720px) {
+    .landing-hero h1 { font-size: 2.6rem; }
+    .landing-steps { grid-template-columns: repeat(3, 1fr); }
+    .landing-footer-inner { flex-direction: row; align-items: center; }
+}
+@media (min-width: 900px) {
+    .landing-hero {
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 2.5rem;
+        padding-top: 3.5rem;
+    }
+    .landing-hero h1 { font-size: 3rem; }
+    .landing-section-title { font-size: 1.75rem; }
+    .landing-hero-art { display: flex; }
+}

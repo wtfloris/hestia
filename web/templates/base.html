@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="apple-itunes-app" content="app-id=6760269825">
-    <title>Hestia – {{ title }}</title>
+    <title>{% block title %}Hestia – {{ title }}{% endblock %}</title>
     <link rel="apple-touch-icon" sizes="57x57" href="/static/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="/static/apple-icon-60x60.png">
     <link rel="apple-touch-icon" sizes="72x72" href="/static/apple-icon-72x72.png">
@@ -27,9 +27,11 @@
     <script src="https://unpkg.com/lucide@0.563.0/dist/umd/lucide.min.js"
             integrity="sha384-aRB6X3zBuyu5EQF6GZFp0RCYdOwxYAOdFk4nViPfqSXYxc+MrZlqbM+nUYRwDQn1"
             crossorigin="anonymous"></script>
+    {% block extra_head %}{% endblock %}
 </head>
-<body class="{% if contact_only %}contact-only{% endif %}">
+<body class="{% if contact_only %}contact-only{% endif %}{% if landing %} landing-body{% endif %}">
     {% block content %}{% endblock %}
+    {% if not landing %}
     <div class="toolbar-buttons">
         <button type="button" class="lang-toggle" aria-label="Switch language" title="Switch language">
             <span class="lang-label"></span>
@@ -47,6 +49,7 @@
             {% endif %}
         </div>
     </footer>
+    {% endif %}
     <div class="modal-overlay" id="contact-modal">
         <div class="modal">
             <button class="modal-close" data-close-modal="contact">&times;</button>

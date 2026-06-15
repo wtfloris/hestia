@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of a modern apartment building">
+  <defs>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#efe6d4"/>
+      <stop offset="1" stop-color="#dcc8a6"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="120" fill="url(#sky2)"/>
+  <!-- low block left -->
+  <rect x="14" y="62" width="40" height="58" fill="#b58a5c"/>
+  <g fill="#fcf5e8">
+    <rect x="20" y="70" width="11" height="9"/><rect x="37" y="70" width="11" height="9"/>
+    <rect x="20" y="86" width="11" height="9"/><rect x="37" y="86" width="11" height="9"/>
+    <rect x="20" y="102" width="11" height="9"/><rect x="37" y="102" width="11" height="9"/>
+  </g>
+  <!-- tall tower center -->
+  <rect x="58" y="30" width="44" height="90" fill="#9c7546"/>
+  <g fill="#fff7ea">
+    <rect x="64" y="38" width="12" height="10"/><rect x="84" y="38" width="12" height="10"/>
+    <rect x="64" y="54" width="12" height="10"/><rect x="84" y="54" width="12" height="10"/>
+    <rect x="64" y="70" width="12" height="10"/><rect x="84" y="70" width="12" height="10"/>
+    <rect x="64" y="86" width="12" height="10"/><rect x="84" y="86" width="12" height="10"/>
+  </g>
+  <rect x="74" y="104" width="14" height="16" fill="#6f4f2a"/>
+  <!-- mid block right -->
+  <rect x="106" y="48" width="40" height="72" fill="#c39a68"/>
+  <g fill="#fcf5e8">
+    <rect x="112" y="56" width="11" height="9"/><rect x="129" y="56" width="11" height="9"/>
+    <rect x="112" y="72" width="11" height="9"/><rect x="129" y="72" width="11" height="9"/>
+    <rect x="112" y="88" width="11" height="9"/><rect x="129" y="88" width="11" height="9"/>
+  </g>
+</svg>
