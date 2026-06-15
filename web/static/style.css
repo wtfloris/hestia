@@ -795,6 +795,8 @@ footer {
 .modal .donate-text a:hover { color: var(--link-hover); }
 .modal-close {
     float: right;
+    position: relative;
+    z-index: 1;
     background: none;
     border: none;
     border-radius: 0;
@@ -1467,6 +1469,7 @@ html.is-android [data-ios-link] { display: none; }
     opacity: 0.8;
 }
 .landing-footer-credit a { color: var(--link); }
+.landing-footer-version { margin-top: 0.35rem; opacity: 0.7; }
 
 /* Tablet / desktop */
 @media (min-width: 720px) {

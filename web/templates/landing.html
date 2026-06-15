@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Hestia – Free rental-home alerts for the Netherlands{% endblock %}
+{% block title %}Hestia: free rental-home alerts for the Netherlands{% endblock %}
 {% block extra_head %}
     <meta name="description" content="Hestia monitors the major Dutch rental sites and notifies you within minutes when a new listing matches your filters. Free, fast, and built to help you be first in a tight market.">
     <link rel="canonical" href="{{ base_url }}/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Hestia">
-    <meta property="og:title" content="Hestia – Free rental-home alerts for the Netherlands">
+    <meta property="og:title" content="Hestia: free rental-home alerts for the Netherlands">
     <meta property="og:description" content="Hestia watches the major Dutch rental sites for you and sends a notification within minutes of a new match. Free, fast, no account needed.">
     <meta property="og:url" content="{{ base_url }}/">
     <meta property="og:image" content="{{ base_url }}/avatar">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Hestia – Free rental-home alerts for the Netherlands">
+    <meta name="twitter:title" content="Hestia: free rental-home alerts for the Netherlands">
     <meta name="twitter:description" content="Get notified within minutes of a new Dutch rental listing that matches your filters. Free.">
     <meta name="twitter:image" content="{{ base_url }}/avatar">
 {% endblock %}
@@ -187,7 +187,7 @@
         </details>
         <details class="landing-faq-item">
             <summary data-i18n="faq_q_speed">How quick is Hestia?</summary>
-            <p data-i18n="faq_a_speed">Notifications should arrive within 10 minutes.</p>
+            <p data-i18n-html="faq_a_speed">Hestia checks most websites every few minutes, and some users have reported Hestia is faster than paid services!<br><br>I can't verify that, but I suspect some paid services aren't 100% honest about their speed because they assume people choose the service that claims to be fastest.<br><br>I don't have any incentive to be dishonest about that because Hestia is free!</p>
         </details>
         <details class="landing-faq-item">
             <summary data-i18n="faq_q_buy">Does this work if I want to buy a home?</summary>
@@ -226,6 +226,9 @@
         <span data-i18n="contact_avatar_credit">Hestia artwork courtesy of </span>
         <a href="https://instagram.com/elisa_tulli" target="_blank" rel="noopener noreferrer">@elisa_tulli</a>
     </p>
+    {% if app_version %}
+    <p class="landing-footer-credit landing-footer-version">Version: {{ app_version }}{% if app_version_date %} ({{ app_version_date }}){% endif %}</p>
+    {% endif %}
 </footer>
 
 <div class="modal-overlay" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">

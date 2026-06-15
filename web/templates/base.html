@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="apple-itunes-app" content="app-id=6760269825">
-    <title>{% block title %}Hestia – {{ title }}{% endblock %}</title>
+    <title{% if title_i18n %} data-i18n="{{ title_i18n }}"{% endif %}>{% block title %}Hestia – {{ title }}{% endblock %}</title>
     <link rel="apple-touch-icon" sizes="57x57" href="/static/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="/static/apple-icon-60x60.png">
     <link rel="apple-touch-icon" sizes="72x72" href="/static/apple-icon-72x72.png">
@@ -53,29 +53,58 @@
     <div class="modal-overlay" id="contact-modal">
         <div class="modal">
             <button class="modal-close" data-close-modal="contact">&times;</button>
-            <p style="font-size:0.75rem;margin:0 0 0.75rem;opacity:0.4" data-i18n="experimental_warning">Hestia is still a work in progress — you may experience some instability here and there!</p>
+            <p style="font-size:0.75rem;margin:0 0 0.75rem;opacity:0.4" data-i18n="experimental_warning">Hestia is still a work in progress, so you may experience some instability here and there!</p>
             <h3 style="margin:0.5rem 0 0.25rem">Contact</h3>
             {% if contact_only %}
             <p style="font-size:0.9rem;margin-bottom:0.75rem" data-i18n="contact_email_login_required">E-mail: visible after logging in</p>
             {% else %}
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_email">E-mail:</span> <a href="mailto:hestia@flori.sh">hestia@flori.sh</a></p>
             {% endif %}
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_telegram">Telegram (the guy who made this):</span> <a href="https://t.me/wtfloris" target="_blank">@wtfloris</a></p>
+            <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_telegram">Telegram:</span> <a href="https://t.me/wtfloris" target="_blank">@wtfloris</a></p>
             <p style="font-size:0.9rem;margin-bottom:0.75rem"><span data-i18n="contact_github">GitHub (source code):</span> <a href="https://github.com/wtfloris/hestia">github.com/wtfloris/hestia</a></p>
+            {% if not landing %}
             <hr style="border:0;border-top:1px solid var(--hr);margin:1.5rem 0">
             <h3 style="margin:0.5rem 0 0.25rem">FAQ</h3>
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_what">What is Hestia?</strong><br><span data-i18n="faq_a_what">Hestia is a home-finding service that monitors websites and notifies you about new matches within your filters.</span></p>
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_free">Hestia is free?</strong><br><span data-i18n="faq_a_free">Yes. I built Hestia for myself and once we found a home, I thought it would be nice to share it with others!</span></p>
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_speed">How quick is Hestia?</strong><br><span data-i18n="faq_a_speed">Notifications should arrive within 10 minutes.</span></p>
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_filters">Can you add a filter for amount of rooms or postal code?</strong><br><span data-i18n-html="faq_a_filters">In short: no, because it makes Hestia less reliable. Please see <a href="https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778" target="_blank" rel="noopener noreferrer">this comment</a> for the full explanation, and feel free to discuss if you disagree!</span></p>
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_buy">Does this work if I want to buy a home?</strong><br><span data-i18n="faq_a_buy">Not yet, but who knows what I might build when I am looking to buy something myself!</span></p>
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_pararius">I saw this listing on Pararius and I did not get a message from Hestia. Why?</strong><br><span data-i18n="faq_a_pararius">Pararius does not list a house number for all homes, so Hestia cannot check if it has already seen the listing on another website. To avoid duplicates, those listings are skipped.</span></p>
-            <p style="font-size:0.9rem;margin-bottom:0.75rem"><strong data-i18n="faq_q_app">Is there an app?</strong><br><span data-i18n-html="faq_a_app">Yes! Hestia is available as an <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">iPhone app</a>.</span></p>
-            <p style="font-size:0.9rem;margin-bottom:0.5rem"><strong data-i18n="faq_q_thanks">Can I thank you for building and sharing Hestia for free?</strong><br><span data-i18n="faq_a_thanks">Yes! Click the euro icon below the settings panel. Thanks!</span></p>
+            <details class="landing-faq-item">
+                <summary data-i18n="faq_q_what">What is Hestia?</summary>
+                <p data-i18n="faq_a_what">Hestia is a home-finding service that monitors websites and notifies you about new matches within your filters.</p>
+            </details>
+            <details class="landing-faq-item">
+                <summary data-i18n="faq_q_free">Hestia is free?</summary>
+                <p data-i18n="faq_a_free">Yes. I built Hestia for myself and once we found a home, I thought it would be nice to share it with others!</p>
+            </details>
+            <details class="landing-faq-item">
+                <summary data-i18n="faq_q_speed">How quick is Hestia?</summary>
+                <p data-i18n-html="faq_a_speed">Hestia checks most websites every few minutes, and some users have reported Hestia is faster than paid services!<br><br>I can't verify that, but I suspect some paid services aren't 100% honest about their speed because they assume people choose the service that claims to be fastest.<br><br>I don't have any incentive to be dishonest about that because Hestia is free!</p>
+            </details>
+            <details class="landing-faq-item">
+                <summary data-i18n="faq_q_filters">Can you add a filter for amount of rooms or postal code?</summary>
+                <p data-i18n-html="faq_a_filters">In short: no, because it makes Hestia less reliable. Please see <a href="https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778" target="_blank" rel="noopener noreferrer">this comment</a> for the full explanation, and feel free to discuss if you disagree!</p>
+            </details>
+            <details class="landing-faq-item">
+                <summary data-i18n="faq_q_buy">Does this work if I want to buy a home?</summary>
+                <p data-i18n="faq_a_buy">Not yet, but who knows what I might build when I am looking to buy something myself!</p>
+            </details>
+            <details class="landing-faq-item">
+                <summary data-i18n="faq_q_pararius">I saw this listing on Pararius and I did not get a message from Hestia. Why?</summary>
+                <p data-i18n="faq_a_pararius">Pararius does not list a house number for all homes, so Hestia cannot check if it has already seen the listing on another website. To avoid duplicates, those listings are skipped.</p>
+            </details>
+            <details class="landing-faq-item">
+                <summary data-i18n="faq_q_app">Is there an app?</summary>
+                <p data-i18n-html="faq_a_app">Yes! Hestia is available as an <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">iPhone app</a>.</p>
+            </details>
+            <details class="landing-faq-item">
+                <summary data-i18n="faq_q_thanks">Can I thank you for building and sharing Hestia for free?</summary>
+                <p data-i18n="faq_a_thanks">Yes! Click the euro icon below the settings panel. Thanks!</p>
+            </details>
+            {% endif %}
             <p style="font-size:0.85rem;margin-top:0.75rem;color:var(--subtitle)">
                 <span data-i18n="contact_avatar_credit">Hestia artwork courtesy of Elisa Tulli</span>
                 <a href="https://instagram.com/elisa_tulli" target="_blank" rel="noopener noreferrer">@elisa_tulli</a>
             </p>
+            {% if app_version and logged_in %}
+            <p style="font-size:0.75rem;margin-top:0.75rem;color:var(--subtitle);opacity:0.6">Version: {{ app_version }}{% if app_version_date %} ({{ app_version_date }}){% endif %}</p>
+            {% endif %}
         </div>
     </div>
     {% if not contact_only %}

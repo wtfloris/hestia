@@ -633,6 +633,16 @@ def inject_csrf_token():
     """Make CSRF token available to all templates."""
     return {"csrf_token": generate_csrf_token}
 
+
+@app.context_processor
+def inject_version():
+    """Expose build metadata (commit + date) and auth state to all templates."""
+    return {
+        "app_version": os.environ.get("APP_VERSION"),
+        "app_version_date": os.environ.get("APP_VERSION_DATE"),
+        "logged_in": get_current_email() is not None,
+    }
+
 # ---------------------------------------------------------------------------
 # Security Headers
 # ---------------------------------------------------------------------------
@@ -682,7 +692,7 @@ def index():
     """Public landing page (shopfront). Logged-in users go straight to the tool.
 
     The hero contains the email signup form, which remains the only entry point
-    into the gated dashboard — the landing layer sits in front of that gate.
+    into the gated dashboard. The landing layer sits in front of that gate.
     """
     if get_current_email() is not None:
         return redirect(url_for("dashboard"))
@@ -690,6 +700,7 @@ def index():
     return render_template(
         "landing.html",
         title="Free rental-home alerts for the Netherlands",
+        title_i18n="landing_page_title",
         message=message,
         landing=True,
         base_url=app.config["BASE_URL"],
@@ -1948,8 +1959,7 @@ def api_statistics():
 def donation_link():
     """Return the donation link from the database.
 
-    Public (no auth) so the landing page footer can link to the donation page.
-    Only returns a single public donation URL.
+    Public (no auth); returns only a single public, non-sensitive donation URL.
     """
     try:
         with get_db() as conn:

@@ -2038,7 +2038,7 @@ class TestTemplates:
     def test_base_template_has_title(self, client):
         resp = client.get("/")
         html = resp.data.decode()
-        assert "<title>" in html
+        assert "<title" in html
         assert "Hestia" in html
 
     def test_css_styles_present(self, client):
