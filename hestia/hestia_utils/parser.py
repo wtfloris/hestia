@@ -147,6 +147,8 @@ class HomeResults:
             self.parse_beumer(raw)
         elif source == "nederwoon":
             self.parse_nederwoon(raw)
+        elif source == "huurportaal":
+            self.parse_huurportaal(raw)
         elif source == "yourhouse":
             self.parse_yourhouse(raw)
         else:
@@ -1080,6 +1082,71 @@ class HomeResults:
                             home.sqm = sqm_i
                     break
 
+            self.homes.append(home)
+
+    def parse_huurportaal(self, r: requests.models.Response):
+        # The listing page embeds a schema.org ItemList in a JSON-LD script,
+        # which is more stable than the rendered Next.js HTML.
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        items = []
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string or "")
+            except (json.JSONDecodeError, TypeError):
+                continue
+            main_entity = data.get("mainEntity", {})
+            if main_entity.get("@type") == "ItemList":
+                items = main_entity.get("itemListElement", [])
+                break
+
+        seen: set[tuple[str, str]] = set()
+        for element in items:
+            item = element.get("item", {})
+            offer = item.get("offers", {})
+
+            # Only currently available listings
+            if not str(offer.get("availability", "")).endswith("InStock"):
+                continue
+
+            offered = offer.get("itemOffered", {})
+            address_info = offered.get("address", {})
+            street_address = address_info.get("streetAddress", "")
+            city = address_info.get("addressLocality", "")
+            url = item.get("url") or offer.get("url")
+            if not street_address or not city or not url:
+                continue
+
+            # streetAddress is "<street> <number>, <postcode> <city>, Netherlands";
+            # the first segment is the street and house number.
+            address = street_address.split(",")[0].strip()
+            if not re.search(r"\d", address):
+                continue
+
+            price = offer.get("price")
+            try:
+                price = int(float(price))
+            except (TypeError, ValueError):
+                continue
+
+            home = Home(agency="huurportaal")
+            home.address = address
+            home.city = city
+            home.url = url
+            home.price = price
+
+            floor_size = offered.get("floorSize", {})
+            try:
+                sqm = int(float(floor_size.get("value")))
+                if 0 < sqm < 2000:
+                    home.sqm = sqm
+            except (TypeError, ValueError):
+                pass
+
+            key = (home.address.lower(), home.city.lower())
+            if key in seen:
+                continue
+            seen.add(key)
             self.homes.append(home)
 
     def parse_maxxhuren(self, r: requests.models.Response):
