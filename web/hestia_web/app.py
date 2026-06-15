@@ -633,6 +633,15 @@ def inject_csrf_token():
     """Make CSRF token available to all templates."""
     return {"csrf_token": generate_csrf_token}
 
+
+@app.context_processor
+def inject_version():
+    """Expose build metadata (commit + date) to all templates."""
+    return {
+        "app_version": os.environ.get("APP_VERSION"),
+        "app_version_date": os.environ.get("APP_VERSION_DATE"),
+    }
+
 # ---------------------------------------------------------------------------
 # Security Headers
 # ---------------------------------------------------------------------------
@@ -694,8 +703,6 @@ def index():
         message=message,
         landing=True,
         base_url=app.config["BASE_URL"],
-        app_version=os.environ.get("APP_VERSION"),
-        app_version_date=os.environ.get("APP_VERSION_DATE"),
     )
 
 
