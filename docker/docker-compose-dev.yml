@@ -175,6 +175,12 @@ services:
     environment:
       - HESTIA_TARGET=hoekstra
 
+  hestia-scraper-huurportaal-dev:
+    <<: *scraper-dev-base
+    container_name: hestia-scraper-huurportaal-dev
+    environment:
+      - HESTIA_TARGET=huurportaal
+
   hestia-scraper-ikwilhuren-dev:
     container_name: hestia-scraper-ikwilhuren-dev
     healthcheck:
@@ -352,6 +358,12 @@ services:
     container_name: hestia-scraper-woonmatchwaterland-dev
     environment:
       - HESTIA_TARGET=woonmatchwaterland
+
+  hestia-scraper-yourhouse-dev:
+    <<: *scraper-dev-base
+    container_name: hestia-scraper-yourhouse-dev
+    environment:
+      - HESTIA_TARGET=yourhouse
 
   hestia-database-dev:
     container_name: hestia-database-dev
