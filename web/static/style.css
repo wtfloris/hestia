@@ -1468,13 +1468,6 @@ html.is-android [data-ios-link] { display: none; }
 }
 .landing-footer-credit a { color: var(--link); }
 .landing-footer-version { margin-top: 0.35rem; opacity: 0.7; }
-.settings-version {
-    text-align: center;
-    font-size: 0.78rem;
-    color: var(--subtitle);
-    opacity: 0.7;
-    margin: 0.75rem 0 0;
-}
 
 /* Tablet / desktop */
 @media (min-width: 720px) {

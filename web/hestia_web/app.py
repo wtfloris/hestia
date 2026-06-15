@@ -636,10 +636,11 @@ def inject_csrf_token():
 
 @app.context_processor
 def inject_version():
-    """Expose build metadata (commit + date) to all templates."""
+    """Expose build metadata (commit + date) and auth state to all templates."""
     return {
         "app_version": os.environ.get("APP_VERSION"),
         "app_version_date": os.environ.get("APP_VERSION_DATE"),
+        "logged_in": get_current_email() is not None,
     }
 
 # ---------------------------------------------------------------------------
