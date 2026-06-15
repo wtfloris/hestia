@@ -202,6 +202,12 @@ services:
     environment:
       - HESTIA_TARGET=krk
 
+  hestia-scraper-livresidential:
+    <<: *scraper-base
+    container_name: hestia-scraper-livresidential
+    environment:
+      - HESTIA_TARGET=livresidential
+
   hestia-scraper-maxxhuren:
     <<: *scraper-base
     container_name: hestia-scraper-maxxhuren
