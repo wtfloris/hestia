@@ -795,6 +795,8 @@ footer {
 .modal .donate-text a:hover { color: var(--link-hover); }
 .modal-close {
     float: right;
+    position: relative;
+    z-index: 1;
     background: none;
     border: none;
     border-radius: 0;
