@@ -1570,6 +1570,50 @@ class TestParseNederwoon:
         assert results[0].price == 1200
 
 
+class TestParseHuurportaal:
+    def _page(self, items):
+        ld = {
+            "@context": "https://schema.org",
+            "@type": "SearchResultsPage",
+            "mainEntity": {"@type": "ItemList", "itemListElement": items},
+        }
+        return f'<html><head><script type="application/ld+json">{json.dumps(ld)}</script></head><body></body></html>'
+
+    def _item(self, street_address, locality, price, url, sqm=None, availability="https://schema.org/InStock"):
+        offered = {"@type": "Apartment", "address": {"@type": "PostalAddress", "streetAddress": street_address, "addressLocality": locality}}
+        if sqm is not None:
+            offered["floorSize"] = {"@type": "QuantitativeValue", "value": sqm}
+        return {"@type": "ListItem", "url": url, "item": {"@type": "RealEstateListing", "url": url,
+                "offers": {"@type": "Offer", "availability": availability, "price": price, "priceCurrency": "EUR", "itemOffered": offered}}}
+
+    def test_basic_parsing(self, mock_response):
+        page = self._page([self._item("Asingaborg 3, 1082 SC Amsterdam, Netherlands", "Amsterdam", 2500, "https://huurportaal.nl/en/listings/x-p1", sqm=71)])
+        results = HomeResults("huurportaal", mock_response(page))
+        assert len(results.homes) == 1
+        assert results[0].agency == "huurportaal"
+        assert results[0].address == "Asingaborg 3"
+        assert results[0].city == "Amsterdam"
+        assert results[0].price == 2500
+        assert results[0].sqm == 71
+        assert results[0].url == "https://huurportaal.nl/en/listings/x-p1"
+
+    def test_filters_unavailable(self, mock_response):
+        page = self._page([self._item("Teststraat 10, 1000 AA Amsterdam, Netherlands", "Amsterdam", 1500, "https://huurportaal.nl/en/listings/x-p2", availability="https://schema.org/SoldOut")])
+        results = HomeResults("huurportaal", mock_response(page))
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_house_number(self, mock_response):
+        page = self._page([self._item("Venneperweg, 2152 MD Nieuw-Vennep, Netherlands", "Nieuw-Vennep", 825, "https://huurportaal.nl/en/listings/x-p3")])
+        results = HomeResults("huurportaal", mock_response(page))
+        assert len(results.homes) == 0
+
+    def test_dedupes_repeated_listing(self, mock_response):
+        item = self._item("Asingaborg 3, 1082 SC Amsterdam, Netherlands", "Amsterdam", 2500, "https://huurportaal.nl/en/listings/x-p1", sqm=71)
+        page = self._page([item, item])
+        results = HomeResults("huurportaal", mock_response(page))
+        assert len(results.homes) == 1
+
+
 class TestParseMaxxhuren:
     def test_basic_parsing(self, mock_response):
         html = """
