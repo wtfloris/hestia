@@ -149,6 +149,8 @@ class HomeResults:
             self.parse_nederwoon(raw)
         elif source == "huurportaal":
             self.parse_huurportaal(raw)
+        elif source == "grunoverhuur":
+            self.parse_grunoverhuur(raw)
         elif source == "yourhouse":
             self.parse_yourhouse(raw)
         else:
@@ -1147,6 +1149,82 @@ class HomeResults:
             if key in seen:
                 continue
             seen.add(key)
+            self.homes.append(home)
+
+    def parse_grunoverhuur(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        base_url = "https://www.grunoverhuur.nl"
+
+        unavailable_keywords = [
+            "verhuurd",
+            "onder optie",
+            "onder voorbehoud",
+            "verkocht",
+            "rented",
+            "withdrawn",
+            "niet beschikbaar",
+            "gereserveerd",
+        ]
+
+        for card in soup.select("article.objectcontainer"):
+            obj = card.select_one("div.object")
+            obj_classes = " ".join(obj.get("class", [])).lower() if obj else ""
+
+            status_tag = card.select_one(".object_status")
+            status_text = status_tag.get_text(" ", strip=True).lower() if status_tag else ""
+            if any(kw in status_text for kw in unavailable_keywords) or "rented" in obj_classes:
+                continue
+
+            link = card.select_one("a.sys-property-link[href]") or card.select_one(".datacontainer a[href]")
+            if not link:
+                continue
+            url = parse.urljoin(base_url, str(link["href"]).split("?")[0])
+
+            # The address sits in ".obj_sub_address" ("<street> <nr>, <postcode> <city>");
+            # some cards omit it and carry the same string in the title behind a "Te huur:" prefix.
+            addr_tag = card.select_one(".obj_sub_address")
+            if addr_tag:
+                full_address = addr_tag.get_text(" ", strip=True)
+            else:
+                title_tag = card.select_one(".obj_address")
+                full_address = title_tag.get_text(" ", strip=True) if title_tag else ""
+                full_address = re.sub(r"(?i)^te\s+(?:huur|koop)\s*:\s*", "", full_address)
+
+            segments = [seg.strip() for seg in full_address.split(",") if seg.strip()]
+            if len(segments) < 2:
+                continue
+            address = " ".join(segments[0].split())
+            if not re.search(r"\d", address):
+                continue
+            # Strip the leading Dutch postcode (e.g. "9718CA" / "9718 CA") to get the city.
+            city = re.sub(r"^\s*\d{4}\s*[A-Za-z]{2}\s*", "", segments[1]).strip()
+            if not city:
+                continue
+
+            price_tag = card.select_one(".obj_price")
+            if not price_tag:
+                continue
+            amount_match = re.search(r"(\d[\d\.,]*)", price_tag.get_text(" ", strip=True))
+            if not amount_match:
+                continue
+            euros = amount_match.group(1).split(",")[0].replace(".", "")
+            if not euros.isdigit():
+                continue
+
+            home = Home(agency="grunoverhuur")
+            home.address = address
+            home.city = city
+            home.url = url
+            home.price = int(euros)
+
+            sqm_tag = card.select_one('.object_sqfeet span[title="Woonoppervlakte"]')
+            if sqm_tag:
+                sqm_match = re.search(r"(\d{1,4})", sqm_tag.get_text(" ", strip=True))
+                if sqm_match:
+                    sqm = int(sqm_match.group(1))
+                    if 0 < sqm < 2000:
+                        home.sqm = sqm
+
             self.homes.append(home)
 
     def parse_maxxhuren(self, r: requests.models.Response):

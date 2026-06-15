@@ -1614,6 +1614,102 @@ class TestParseHuurportaal:
         assert len(results.homes) == 1
 
 
+class TestParseGrunoverhuur:
+    def _card(self, href, title, price, sub_address=None, sqm=None, status="Nieuw in verhuur", obj_class="object thumbnail new_forrent"):
+        status_html = f'<span class="object_status"><span>{status}</span></span>' if status else ""
+        sub_html = f'<span class="obj_sub_address">{sub_address}</span>' if sub_address else ""
+        sqm_html = ""
+        if sqm is not None:
+            sqm_html = f'<span class="object_label object_sqfeet"><span><span title="Woonoppervlakte">{sqm} m²</span></span></span>'
+        price_html = f'<span class="obj_price">{price}</span>' if price else ""
+        return f"""
+        <article class="col-xs-12 col-md-6 objectcontainer">
+            <div class="{obj_class}">
+                <div class="imagecontainer">
+                    <a class="sys-property-link" href="{href}" title="{title}"></a>
+                    {status_html}
+                </div>
+                <div class="datacontainer">
+                    <a href="{href}">
+                        <div class="object_data">
+                            <div class="obj_address_container">
+                                <h3 class="obj_address title">{title}</h3>
+                                {sub_html}
+                            </div>
+                            <span class="obj_type_price">{price_html}</span>
+                            <div class="object_data_labels">{sqm_html}</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </article>
+        """
+
+    def _page(self, *cards):
+        return f"<html><body><div class='object_list'>{''.join(cards)}</div></body></html>"
+
+    def test_basic_parsing(self, mock_response):
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/westersingel/19-a?take=10",
+            "Te huur: 2 kamers aan de Westersingel!",
+            "€ 1.135,- /mnd",
+            sub_address="Smaragdstraat 23, 9743KS Groningen",
+            sqm=27,
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 1
+        assert results[0].agency == "grunoverhuur"
+        assert results[0].address == "Smaragdstraat 23"
+        assert results[0].city == "Groningen"
+        assert results[0].price == 1135
+        assert results[0].sqm == 27
+        assert results[0].url == "https://www.grunoverhuur.nl/woningaanbod/huur/groningen/westersingel/19-a"
+
+    def test_falls_back_to_title_address(self, mock_response):
+        # Some cards omit the sub-address and carry it in the title behind a "Te huur:" prefix.
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/siriusstraat/51?take=10",
+            "Te huur: Siriusstraat 51, 9742KV Groningen",
+            "€ 740,- /mnd",
+            sqm=16,
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 1
+        assert results[0].address == "Siriusstraat 51"
+        assert results[0].city == "Groningen"
+
+    def test_filters_unavailable_status(self, mock_response):
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/teststraat/10?take=10",
+            "Te huur: Teststraat 10",
+            "€ 1.000,- /mnd",
+            sub_address="Teststraat 10, 1000 AA Amsterdam",
+            status="Verhuurd",
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_house_number(self, mock_response):
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/nieuwbouwproject?take=10",
+            "Te huur: Nieuwbouwproject Centrum",
+            "€ 950,- /mnd",
+            sub_address="Nieuwbouwproject Centrum, 9700 AA Groningen",
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 0
+
+    def test_skips_listing_without_price(self, mock_response):
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/prijsloos/1?take=10",
+            "Te huur: Prijsloos 1",
+            "",
+            sub_address="Prijsloos 1, 9700 AA Groningen",
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 0
+
+
 class TestParseMaxxhuren:
     def test_basic_parsing(self, mock_response):
         html = """

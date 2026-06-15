@@ -79,6 +79,12 @@ services:
     environment:
       - HESTIA_TARGET=funda
 
+  hestia-scraper-grunoverhuur:
+    <<: *scraper-base
+    container_name: hestia-scraper-grunoverhuur
+    environment:
+      - HESTIA_TARGET=grunoverhuur
+
   hestia-scraper-hexia-dewoningzoeker:
     <<: *scraper-base
     container_name: hestia-scraper-hexia-dewoningzoeker
