@@ -1570,6 +1570,61 @@ class TestParseNederwoon:
         assert results[0].price == 1200
 
 
+class TestParseLivresidential:
+    def _card(self, path, full_address, postcode_city, price, sqm=None):
+        sqm_html = f'<div class="ml-2 text-c-500">{sqm} m2</div>' if sqm is not None else ""
+        return f'''
+        <a class="flex flex-col" href="https://livresidential.nl{path}">
+            <div class="flex-1 bg-white p-5">
+                <h3 class="font-semibold text-c-800">{full_address}</h3>
+                <p class="text-base text-c-500">{postcode_city}</p>
+                <p class="mt-3 text-base font-medium text-c-700">{price}</p>
+            </div>
+            <div class="flex">{sqm_html}</div>
+        </a>'''
+
+    def _page(self, cards):
+        return f'<html><body><div class="ais-Hits">{"".join(cards)}</div></body></html>'
+
+    def test_basic_parsing(self, mock_response):
+        page = self._page([self._card(
+            "/huurwoningen/amsterdam/amsterdam/karspeldreef-4-c39-1101cj-amsterdam",
+            "Karspeldreef 4 C39 1101CJ Amsterdam", "1101CJ Amsterdam",
+            "€ 1.358 per maand (excl.)", sqm=58)])
+        results = HomeResults("livresidential", mock_response(page))
+        assert len(results.homes) == 1
+        assert results[0].agency == "livresidential"
+        assert results[0].address == "Karspeldreef 4 C39"
+        assert results[0].city == "Amsterdam"
+        assert results[0].price == 1358
+        assert results[0].sqm == 58
+        assert results[0].url == "https://livresidential.nl/huurwoningen/amsterdam/amsterdam/karspeldreef-4-c39-1101cj-amsterdam"
+
+    def test_filters_address_without_house_number(self, mock_response):
+        page = self._page([self._card(
+            "/huurwoningen/utrecht/utrecht/venneperweg-2152md-utrecht",
+            "Venneperweg 2152MD Utrecht", "2152MD Utrecht",
+            "€ 825 per maand (excl.)")])
+        results = HomeResults("livresidential", mock_response(page))
+        assert len(results.homes) == 0
+
+    def test_dedupes_repeated_listing(self, mock_response):
+        card = self._card(
+            "/huurwoningen/amsterdam/amsterdam/karspeldreef-4-c39-1101cj-amsterdam",
+            "Karspeldreef 4 C39 1101CJ Amsterdam", "1101CJ Amsterdam",
+            "€ 1.358 per maand (excl.)", sqm=58)
+        results = HomeResults("livresidential", mock_response(self._page([card, card])))
+        assert len(results.homes) == 1
+
+    def test_parses_without_sqm(self, mock_response):
+        page = self._page([self._card(
+            "/huurwoningen/rotterdam/rotterdam/spoorsingel-70-a-3033gp-rotterdam",
+            "Spoorsingel 70 A 3033GP Rotterdam", "3033GP Rotterdam",
+            "€ 1.295 per maand (excl.)")])
+        results = HomeResults("livresidential", mock_response(page))
+        assert len(results.homes) == 1
+        assert results[0].address == "Spoorsingel 70 A"
+        assert results[0].sqm == -1
 class TestParseHuurportaal:
     def _page(self, items):
         ld = {

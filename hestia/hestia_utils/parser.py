@@ -147,6 +147,8 @@ class HomeResults:
             self.parse_beumer(raw)
         elif source == "nederwoon":
             self.parse_nederwoon(raw)
+        elif source == "livresidential":
+            self.parse_livresidential(raw)
         elif source == "huurportaal":
             self.parse_huurportaal(raw)
         elif source == "grunoverhuur":
@@ -1285,6 +1287,61 @@ class HomeResults:
                             home.sqm = sqm
             except Exception:
                 pass
+            self.homes.append(home)
+
+    def parse_livresidential(self, r: requests.models.Response):
+        # Listings are server-rendered; only available homes appear on the
+        # overview page, so there is no rented status to filter out.
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        seen: set[tuple[str, str]] = set()
+        for card in soup.find_all("a", href=re.compile(r"/huurwoningen/[^/]+/[^/]+/[^/]+$")):
+            url = card.get("href")
+            address_tag = card.find("h3")
+            if not url or not address_tag:
+                continue
+
+            # The <h3> reads "<street> <number> <postcode> <city>"; drop the
+            # postcode and everything after it to keep just street + number.
+            full_address = " ".join(address_tag.get_text(" ", strip=True).split())
+            address = re.sub(r"\s*\d{4}\s?[A-Z]{2}\b.*$", "", full_address).strip()
+            if not address or not re.search(r"\d", address):
+                continue
+
+            # The <p> under the address holds "<postcode> <city>".
+            city = ""
+            for p in card.find_all("p"):
+                m = re.match(r"^\d{4}\s?[A-Z]{2}\s+(.+)$", p.get_text(" ", strip=True))
+                if m:
+                    city = m.group(1).strip()
+                    break
+
+            price = None
+            for p in card.find_all("p"):
+                if "€" in p.get_text():
+                    m = re.search(r"(\d[\d.]*)", p.get_text())
+                    if m:
+                        price = int(m.group(1).replace(".", ""))
+                    break
+            if not city or price is None:
+                continue
+
+            home = Home(agency="livresidential")
+            home.address = address
+            home.city = city
+            home.url = parse.urljoin("https://livresidential.nl", str(url))
+            home.price = price
+
+            m = re.search(r"(\d{1,4})\s*m2", card.get_text())
+            if m:
+                sqm = int(m.group(1))
+                if 0 < sqm < 2000:
+                    home.sqm = sqm
+
+            key = (home.address.lower(), home.city.lower())
+            if key in seen:
+                continue
+            seen.add(key)
             self.homes.append(home)
 
     def parse_hoekstra(self, r: requests.models.Response):
