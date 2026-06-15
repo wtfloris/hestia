@@ -694,6 +694,8 @@ def index():
         message=message,
         landing=True,
         base_url=app.config["BASE_URL"],
+        app_version=os.environ.get("APP_VERSION"),
+        app_version_date=os.environ.get("APP_VERSION_DATE"),
     )
 
 

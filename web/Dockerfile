@@ -23,6 +23,12 @@ COPY --chown=hestia:hestia hestia_web/ hestia_web/
 COPY --chown=hestia:hestia templates/ templates/
 COPY --chown=hestia:hestia static/ static/
 
+# Build metadata (passed by build.sh), surfaced in the landing page footer.
+ARG APP_VERSION=dev
+ARG APP_VERSION_DATE=""
+ENV APP_VERSION=$APP_VERSION \
+    APP_VERSION_DATE=$APP_VERSION_DATE
+
 USER hestia
 EXPOSE 5050
 

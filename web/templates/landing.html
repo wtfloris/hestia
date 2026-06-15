@@ -226,6 +226,9 @@
         <span data-i18n="contact_avatar_credit">Hestia artwork courtesy of </span>
         <a href="https://instagram.com/elisa_tulli" target="_blank" rel="noopener noreferrer">@elisa_tulli</a>
     </p>
+    {% if app_version %}
+    <p class="landing-footer-credit landing-footer-version">Version: {{ app_version }}{% if app_version_date %} ({{ app_version_date }}){% endif %}</p>
+    {% endif %}
 </footer>
 
 <div class="modal-overlay" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">

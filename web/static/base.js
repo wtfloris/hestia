@@ -239,7 +239,7 @@ var HESTIA_I18N = {
         'faq_q_free': 'Is Hestia gratis?',
         'faq_a_free': 'Ja! Ik had Hestia voor gebouwd mezelf en toen we een huis hadden gevonden heb ik het online gegooid en is het doorgegroeid.',
         'faq_q_speed': 'Hoe snel is Hestia?',
-        'faq_a_speed': 'Hestia controleert de meeste websites elke paar minuten, en sommige gebruikers melden zelfs dat Hestia sneller is dan betaalde diensten!<br><br>Ik kan dat niet verifiëren, maar ik vermoed dat sommige betaalde diensten niet 100% eerlijk zijn over hun snelheid, omdat ze ervan uitgaan dat mensen kiezen voor de dienst die beweert het snelst te zijn.<br><br>Ik heb geen enkele reden om daar oneerlijk over te zijn, want Hestia is gratis!',
+        'faq_a_speed': 'Hestia controleert de meeste websites elke paar minuten, en sommige gebruikers melden zelfs dat Hestia sneller is dan betaalde diensten!<br><br>Ik kan dat niet bevestigen, maar ik vermoed dat sommige betaalde diensten niet 100% eerlijk zijn over hun snelheid, omdat ze ervan uitgaan dat mensen kiezen voor de dienst die zegt het snelst te zijn.<br><br>Ik heb geen enkele reden om daar oneerlijk over te zijn, want Hestia is gratis!',
         'faq_q_filters': 'Kun je een filter toevoegen voor aantal kamers of postcode?',
         'faq_a_filters': 'Kort gezegd: nee, omdat dit Hestia minder betrouwbaar maakt. Zie <a href="https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778" target="_blank" rel="noopener noreferrer">deze uitleg</a> voor de volledige motivatie, en reageer gerust als je het er niet mee eens bent!',
         'faq_q_buy': 'Werkt dit ook als ik een huis wil kopen?',
