@@ -26,6 +26,7 @@ except ImportError:
     HAS_IKWILHUREN_SCRAPER = False
 
 import hestia_utils.db as db
+import hestia_utils.geocode as geocode
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
 import hestia_utils.apns as apns
@@ -206,11 +207,33 @@ async def broadcast(homes: list[Home]) -> None:
         subs = db.fetch_all("SELECT * FROM hestia.subscribers WHERE telegram_enabled = true OR apns_token IS NOT NULL")
     
     for home in homes:
+        # Populate lat/lon from the geocode cache (add_home just wrote it).
+        # This is a cheap DB read; no PDOK call unless the row is missing entirely.
+        if home.lat is None or home.lon is None:
+            try:
+                geo = geocode.geocode(home.address, home.city)
+            except Exception as e:
+                logger.warning(f"Geocode lookup failed during broadcast for {home.address!r}, {home.city!r}: {repr(e)}")
+                geo = None
+            if geo is not None:
+                home.lat, home.lon, _ = geo
+
         for sub in subs:
             # Apply filters
             price_ok = (home.price >= sub["filter_min_price"] and home.price <= sub["filter_max_price"])
             sqm_ok = (sub["filter_min_sqm"] == 0) or (home.sqm == -1) or (home.sqm >= sub["filter_min_sqm"])
-            if price_ok and sqm_ok and home.city.lower() in sub["filter_cities"] and home.agency in sub["filter_agencies"]:
+            # Radius filter: skip if sub has no location set, or if the home has no coords.
+            # We intentionally do not drop homes without coords — geocoding is best-effort.
+            radius_ok = True
+            if sub.get("filter_radius_km") is not None and home.lat is not None and home.lon is not None:
+                distance_km = geocode.haversine_km(
+                    float(sub["filter_center_lat"]),
+                    float(sub["filter_center_lon"]),
+                    float(home.lat),
+                    float(home.lon),
+                )
+                radius_ok = distance_km <= float(sub["filter_radius_km"])
+            if price_ok and sqm_ok and radius_ok and home.city.lower() in sub["filter_cities"] and home.agency in sub["filter_agencies"]:
                 display_address = apns.DEDUP_SUFFIX_RE.sub("", home.address)
                 message = f"{meta.HOUSE_EMOJI} {display_address}, {home.city}\n"
                 message += f"{meta.EURO_EMOJI} €{home.price}/m\n"

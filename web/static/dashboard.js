@@ -1415,3 +1415,60 @@ if (telegramModal) {
         regenerateBtn.addEventListener('click', regenerateLinkCode);
     }
 }
+
+
+// =====================================================================
+// Location radius filter — place name lookup
+// =====================================================================
+(function() {
+    var btn = document.getElementById("location-place-lookup");
+    var input = document.getElementById("location-place-input");
+    if (!btn || !input) return;
+    var errEl = document.getElementById("location-place-error");
+    var latEl = document.getElementById("filter_center_lat");
+    var lonEl = document.getElementById("filter_center_lon");
+
+    function showError(msg) {
+        if (!errEl) return;
+        errEl.textContent = msg;
+        errEl.style.display = "";
+    }
+    function clearError() {
+        if (!errEl) return;
+        errEl.textContent = "";
+        errEl.style.display = "none";
+    }
+
+    function lookup() {
+        var query = (input.value || "").trim();
+        if (!query) return;
+        clearError();
+        btn.disabled = true;
+        var csrfInput = document.querySelector("input[name=\"csrf_token\"]");
+        var body = new URLSearchParams();
+        body.append("csrf_token", csrfInput ? csrfInput.value : "");
+        body.append("q", query);
+        fetch("/api/geocode", { method: "POST", body: body, headers: { "Accept": "application/json" } })
+            .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+            .then(function(res) {
+                btn.disabled = false;
+                if (!res.ok || !res.data || res.data.ok === false) {
+                    showError("Could not find that place. Try a more specific address.");
+                    return;
+                }
+                if (latEl) latEl.value = res.data.lat.toFixed(5);
+                if (lonEl) lonEl.value = res.data.lon.toFixed(5);
+                if (latEl) latEl.dispatchEvent(new Event("change", { bubbles: true }));
+                if (lonEl) lonEl.dispatchEvent(new Event("change", { bubbles: true }));
+            })
+            .catch(function() {
+                btn.disabled = false;
+                showError("Lookup failed. Please try again.");
+            });
+    }
+
+    btn.addEventListener("click", lookup);
+    input.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") { e.preventDefault(); lookup(); }
+    });
+})();

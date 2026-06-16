@@ -9,13 +9,15 @@ from bs4 import BeautifulSoup, NavigableString
 
 
 class Home:
-    def __init__(self, address: str = '', city: str = '', url: str = '', agency: str = '', price: int = -1, sqm: int = -1):
+    def __init__(self, address: str = '', city: str = '', url: str = '', agency: str = '', price: int = -1, sqm: int = -1, lat: float = None, lon: float = None):
         self.address = address
         self.city = city
         self.url = url
         self.agency = agency
         self.price = price
         self.sqm = sqm
+        self.lat = lat
+        self.lon = lon
         
     def __repr__(self) -> str:
         return str(self)

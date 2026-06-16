@@ -32,7 +32,26 @@ CREATE TABLE hestia.homes (
   price int4 DEFAULT '-1'::integer NOT NULL,
   sqm int4 DEFAULT '-1'::integer NOT NULL,
   agency varchar NULL,
-  date_added timestamp NOT NULL
+  date_added timestamp NOT NULL,
+  lat double precision NULL,
+  lon double precision NULL,
+  geocode_confidence real NULL
+);
+CREATE INDEX homes_latlon_idx ON hestia.homes USING btree (lat, lon);
+
+
+-- hestia.geocode_cache definition
+
+-- DROP TABLE hestia.geocode_cache;
+
+CREATE TABLE hestia.geocode_cache (
+  address varchar NOT NULL,
+  city varchar NOT NULL,
+  lat double precision NULL,
+  lon double precision NULL,
+  confidence real NULL,
+  fetched_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  CONSTRAINT geocode_cache_pkey PRIMARY KEY (address, city)
 );
 
 
@@ -127,6 +146,9 @@ CREATE TABLE hestia.subscribers (
   email_address varchar NULL,
   device_id varchar(36) NULL,
   apns_token text NULL,
+  filter_center_lat double precision NULL,
+  filter_center_lon double precision NULL,
+  filter_radius_km real NULL,
   CONSTRAINT subscribers_device_id_key UNIQUE (device_id)
 );
 CREATE INDEX idx_subscribers_email_address ON hestia.subscribers USING btree (email_address);

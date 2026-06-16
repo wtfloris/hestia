@@ -102,6 +102,37 @@
                             </div>
                         </fieldset>
                         <fieldset>
+                            <legend><span data-i18n="location_legend">Location radius</span> <button type="button" class="info-btn" data-info-key="location_info" data-info="Only show homes within this many kilometres of a center point. Type a place (street + city) and click Find to geocode, or enter coordinates directly. Leave radius empty to disable."><span>i</span><span class="info-bubble"></span></button></legend>
+                            <div class="unit-row">
+                                <label>
+                                    <span data-i18n="location_radius_label">Radius</span>
+                                    <div class="unit-input">
+                                        <input type="number" name="filter_radius_km" id="filter_radius_km" value="{{ subscriber.filter_radius_km if subscriber.filter_radius_km is not none else '' }}" placeholder="" min="0" max="500" step="0.1" inputmode="decimal">
+                                        <span class="unit-suffix">km</span>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="unit-row">
+                                <label style="flex:1">
+                                    <span data-i18n="location_lat_label">Latitude</span>
+                                    <div class="unit-input">
+                                        <input type="number" name="filter_center_lat" id="filter_center_lat" value="{{ subscriber.filter_center_lat if subscriber.filter_center_lat is not none else '' }}" placeholder="52.3676" min="-90" max="90" step="0.00001" inputmode="decimal">
+                                    </div>
+                                </label>
+                                <label style="flex:1">
+                                    <span data-i18n="location_lon_label">Longitude</span>
+                                    <div class="unit-input">
+                                        <input type="number" name="filter_center_lon" id="filter_center_lon" value="{{ subscriber.filter_center_lon if subscriber.filter_center_lon is not none else '' }}" placeholder="4.9041" min="-180" max="180" step="0.00001" inputmode="decimal">
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="add-item-container" style="margin-top:0.5rem">
+                                <input type="text" class="add-item-input" id="location-place-input" placeholder="Search place (street, city)…" autocomplete="off" spellcheck="false">
+                                <button type="button" class="btn-pill" id="location-place-lookup" data-i18n="location_find_btn">Find</button>
+                            </div>
+                            <p id="location-place-error" class="settings-status-error" style="display:none;margin-top:0.25rem"></p>
+                        </fieldset>
+                        <fieldset>
                             <legend><span data-i18n="cities_legend">Cities</span> <button type="button" class="info-btn" data-info-key="cities_info" data-info="Hestia will only send you homes within these cities.&lt;br&gt;&lt;br&gt;City missing? These are all cities Hestia has seen so far online. Newly seen cities will be added automatically."><span>i</span><span class="info-bubble"></span></button></legend>
 
                             <!-- Selected cities as chips -->
