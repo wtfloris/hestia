@@ -636,6 +636,16 @@ def inject_csrf_token():
     """Make CSRF token available to all templates."""
     return {"csrf_token": generate_csrf_token}
 
+
+@app.context_processor
+def inject_version():
+    """Expose build metadata (commit + date) and auth state to all templates."""
+    return {
+        "app_version": os.environ.get("APP_VERSION"),
+        "app_version_date": os.environ.get("APP_VERSION_DATE"),
+        "logged_in": get_current_email() is not None,
+    }
+
 # ---------------------------------------------------------------------------
 # Security Headers
 # ---------------------------------------------------------------------------
@@ -682,11 +692,22 @@ def add_security_headers(response):
 
 @app.route("/")
 def index():
-    """Landing page with email input form."""
+    """Public landing page (shopfront). Logged-in users go straight to the tool.
+
+    The hero contains the email signup form, which remains the only entry point
+    into the gated dashboard. The landing layer sits in front of that gate.
+    """
     if get_current_email() is not None:
         return redirect(url_for("dashboard"))
     message = request.args.get("message")
-    return render_template("index.html", title="Login", message=message, contact_only=True)
+    return render_template(
+        "landing.html",
+        title="Free rental-home alerts for the Netherlands",
+        title_i18n="landing_page_title",
+        message=message,
+        landing=True,
+        base_url=app.config["BASE_URL"],
+    )
 
 
 @app.route("/login", methods=["POST"])
@@ -1884,9 +1905,12 @@ def avatar():
 
 @app.route("/api/statistics")
 @limiter.limit("30 per minute")
-@api_client_auth_required
 def api_statistics():
-    """Return public statistics about homes and subscribers."""
+    """Return public statistics about homes and subscribers.
+
+    Public (no auth) so the landing page can show aggregate trust numbers.
+    Only exposes non-sensitive counts, never any per-user data.
+    """
     try:
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -1934,9 +1958,12 @@ def api_statistics():
 
 
 @app.route("/api/donation-link")
-@api_client_auth_required
+@limiter.limit("30 per minute")
 def donation_link():
-    """Return the donation link from the database."""
+    """Return the donation link from the database.
+
+    Public (no auth); returns only a single public, non-sensitive donation URL.
+    """
     try:
         with get_db() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

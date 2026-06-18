@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of brick townhouses">
+  <defs>
+    <linearGradient id="sky3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5dcbd"/>
+      <stop offset="1" stop-color="#e6b885"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="120" fill="url(#sky3)"/>
+  <!-- townhouse 1 -->
+  <g>
+    <rect x="18" y="52" width="40" height="68" fill="#a8501f"/>
+    <polygon points="14,52 38,38 62,52" fill="#7f3a14"/>
+    <rect x="25" y="62" width="11" height="12" fill="#fbeede"/>
+    <rect x="40" y="62" width="11" height="12" fill="#fbeede"/>
+    <rect x="25" y="82" width="11" height="12" fill="#fbeede"/>
+    <rect x="40" y="82" width="11" height="12" fill="#fbeede"/>
+    <rect x="32" y="102" width="13" height="18" fill="#5e2c0f"/>
+  </g>
+  <!-- townhouse 2 (taller) -->
+  <g>
+    <rect x="62" y="42" width="40" height="78" fill="#c0703a"/>
+    <polygon points="58,42 82,28 106,42" fill="#94521f"/>
+    <rect x="69" y="52" width="11" height="12" fill="#fff4e6"/>
+    <rect x="84" y="52" width="11" height="12" fill="#fff4e6"/>
+    <rect x="69" y="72" width="11" height="12" fill="#fff4e6"/>
+    <rect x="84" y="72" width="11" height="12" fill="#fff4e6"/>
+    <rect x="76" y="98" width="13" height="22" fill="#6e3a16"/>
+  </g>
+  <!-- townhouse 3 -->
+  <g>
+    <rect x="106" y="56" width="40" height="64" fill="#9a481c"/>
+    <polygon points="102,56 126,42 150,56" fill="#763611"/>
+    <rect x="113" y="66" width="11" height="12" fill="#fbeede"/>
+    <rect x="128" y="66" width="11" height="12" fill="#fbeede"/>
+    <rect x="113" y="86" width="11" height="12" fill="#fbeede"/>
+    <rect x="128" y="86" width="11" height="12" fill="#fbeede"/>
+    <rect x="120" y="104" width="13" height="16" fill="#55280d"/>
+  </g>
+</svg>

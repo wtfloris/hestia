@@ -1570,6 +1570,201 @@ class TestParseNederwoon:
         assert results[0].price == 1200
 
 
+class TestParseLivresidential:
+    def _card(self, path, full_address, postcode_city, price, sqm=None):
+        sqm_html = f'<div class="ml-2 text-c-500">{sqm} m2</div>' if sqm is not None else ""
+        return f'''
+        <a class="flex flex-col" href="https://livresidential.nl{path}">
+            <div class="flex-1 bg-white p-5">
+                <h3 class="font-semibold text-c-800">{full_address}</h3>
+                <p class="text-base text-c-500">{postcode_city}</p>
+                <p class="mt-3 text-base font-medium text-c-700">{price}</p>
+            </div>
+            <div class="flex">{sqm_html}</div>
+        </a>'''
+
+    def _page(self, cards):
+        return f'<html><body><div class="ais-Hits">{"".join(cards)}</div></body></html>'
+
+    def test_basic_parsing(self, mock_response):
+        page = self._page([self._card(
+            "/huurwoningen/amsterdam/amsterdam/karspeldreef-4-c39-1101cj-amsterdam",
+            "Karspeldreef 4 C39 1101CJ Amsterdam", "1101CJ Amsterdam",
+            "€ 1.358 per maand (excl.)", sqm=58)])
+        results = HomeResults("livresidential", mock_response(page))
+        assert len(results.homes) == 1
+        assert results[0].agency == "livresidential"
+        assert results[0].address == "Karspeldreef 4 C39"
+        assert results[0].city == "Amsterdam"
+        assert results[0].price == 1358
+        assert results[0].sqm == 58
+        assert results[0].url == "https://livresidential.nl/huurwoningen/amsterdam/amsterdam/karspeldreef-4-c39-1101cj-amsterdam"
+
+    def test_filters_address_without_house_number(self, mock_response):
+        page = self._page([self._card(
+            "/huurwoningen/utrecht/utrecht/venneperweg-2152md-utrecht",
+            "Venneperweg 2152MD Utrecht", "2152MD Utrecht",
+            "€ 825 per maand (excl.)")])
+        results = HomeResults("livresidential", mock_response(page))
+        assert len(results.homes) == 0
+
+    def test_dedupes_repeated_listing(self, mock_response):
+        card = self._card(
+            "/huurwoningen/amsterdam/amsterdam/karspeldreef-4-c39-1101cj-amsterdam",
+            "Karspeldreef 4 C39 1101CJ Amsterdam", "1101CJ Amsterdam",
+            "€ 1.358 per maand (excl.)", sqm=58)
+        results = HomeResults("livresidential", mock_response(self._page([card, card])))
+        assert len(results.homes) == 1
+
+    def test_parses_without_sqm(self, mock_response):
+        page = self._page([self._card(
+            "/huurwoningen/rotterdam/rotterdam/spoorsingel-70-a-3033gp-rotterdam",
+            "Spoorsingel 70 A 3033GP Rotterdam", "3033GP Rotterdam",
+            "€ 1.295 per maand (excl.)")])
+        results = HomeResults("livresidential", mock_response(page))
+        assert len(results.homes) == 1
+        assert results[0].address == "Spoorsingel 70 A"
+        assert results[0].sqm == -1
+class TestParseHuurportaal:
+    def _page(self, items):
+        ld = {
+            "@context": "https://schema.org",
+            "@type": "SearchResultsPage",
+            "mainEntity": {"@type": "ItemList", "itemListElement": items},
+        }
+        return f'<html><head><script type="application/ld+json">{json.dumps(ld)}</script></head><body></body></html>'
+
+    def _item(self, street_address, locality, price, url, sqm=None, availability="https://schema.org/InStock"):
+        offered = {"@type": "Apartment", "address": {"@type": "PostalAddress", "streetAddress": street_address, "addressLocality": locality}}
+        if sqm is not None:
+            offered["floorSize"] = {"@type": "QuantitativeValue", "value": sqm}
+        return {"@type": "ListItem", "url": url, "item": {"@type": "RealEstateListing", "url": url,
+                "offers": {"@type": "Offer", "availability": availability, "price": price, "priceCurrency": "EUR", "itemOffered": offered}}}
+
+    def test_basic_parsing(self, mock_response):
+        page = self._page([self._item("Asingaborg 3, 1082 SC Amsterdam, Netherlands", "Amsterdam", 2500, "https://huurportaal.nl/en/listings/x-p1", sqm=71)])
+        results = HomeResults("huurportaal", mock_response(page))
+        assert len(results.homes) == 1
+        assert results[0].agency == "huurportaal"
+        assert results[0].address == "Asingaborg 3"
+        assert results[0].city == "Amsterdam"
+        assert results[0].price == 2500
+        assert results[0].sqm == 71
+        assert results[0].url == "https://huurportaal.nl/en/listings/x-p1"
+
+    def test_filters_unavailable(self, mock_response):
+        page = self._page([self._item("Teststraat 10, 1000 AA Amsterdam, Netherlands", "Amsterdam", 1500, "https://huurportaal.nl/en/listings/x-p2", availability="https://schema.org/SoldOut")])
+        results = HomeResults("huurportaal", mock_response(page))
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_house_number(self, mock_response):
+        page = self._page([self._item("Venneperweg, 2152 MD Nieuw-Vennep, Netherlands", "Nieuw-Vennep", 825, "https://huurportaal.nl/en/listings/x-p3")])
+        results = HomeResults("huurportaal", mock_response(page))
+        assert len(results.homes) == 0
+
+    def test_dedupes_repeated_listing(self, mock_response):
+        item = self._item("Asingaborg 3, 1082 SC Amsterdam, Netherlands", "Amsterdam", 2500, "https://huurportaal.nl/en/listings/x-p1", sqm=71)
+        page = self._page([item, item])
+        results = HomeResults("huurportaal", mock_response(page))
+        assert len(results.homes) == 1
+
+
+class TestParseGrunoverhuur:
+    def _card(self, href, title, price, sub_address=None, sqm=None, status="Nieuw in verhuur", obj_class="object thumbnail new_forrent"):
+        status_html = f'<span class="object_status"><span>{status}</span></span>' if status else ""
+        sub_html = f'<span class="obj_sub_address">{sub_address}</span>' if sub_address else ""
+        sqm_html = ""
+        if sqm is not None:
+            sqm_html = f'<span class="object_label object_sqfeet"><span><span title="Woonoppervlakte">{sqm} m²</span></span></span>'
+        price_html = f'<span class="obj_price">{price}</span>' if price else ""
+        return f"""
+        <article class="col-xs-12 col-md-6 objectcontainer">
+            <div class="{obj_class}">
+                <div class="imagecontainer">
+                    <a class="sys-property-link" href="{href}" title="{title}"></a>
+                    {status_html}
+                </div>
+                <div class="datacontainer">
+                    <a href="{href}">
+                        <div class="object_data">
+                            <div class="obj_address_container">
+                                <h3 class="obj_address title">{title}</h3>
+                                {sub_html}
+                            </div>
+                            <span class="obj_type_price">{price_html}</span>
+                            <div class="object_data_labels">{sqm_html}</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </article>
+        """
+
+    def _page(self, *cards):
+        return f"<html><body><div class='object_list'>{''.join(cards)}</div></body></html>"
+
+    def test_basic_parsing(self, mock_response):
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/westersingel/19-a?take=10",
+            "Te huur: 2 kamers aan de Westersingel!",
+            "€ 1.135,- /mnd",
+            sub_address="Smaragdstraat 23, 9743KS Groningen",
+            sqm=27,
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 1
+        assert results[0].agency == "grunoverhuur"
+        assert results[0].address == "Smaragdstraat 23"
+        assert results[0].city == "Groningen"
+        assert results[0].price == 1135
+        assert results[0].sqm == 27
+        assert results[0].url == "https://www.grunoverhuur.nl/woningaanbod/huur/groningen/westersingel/19-a"
+
+    def test_falls_back_to_title_address(self, mock_response):
+        # Some cards omit the sub-address and carry it in the title behind a "Te huur:" prefix.
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/siriusstraat/51?take=10",
+            "Te huur: Siriusstraat 51, 9742KV Groningen",
+            "€ 740,- /mnd",
+            sqm=16,
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 1
+        assert results[0].address == "Siriusstraat 51"
+        assert results[0].city == "Groningen"
+
+    def test_filters_unavailable_status(self, mock_response):
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/teststraat/10?take=10",
+            "Te huur: Teststraat 10",
+            "€ 1.000,- /mnd",
+            sub_address="Teststraat 10, 1000 AA Amsterdam",
+            status="Verhuurd",
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_house_number(self, mock_response):
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/nieuwbouwproject?take=10",
+            "Te huur: Nieuwbouwproject Centrum",
+            "€ 950,- /mnd",
+            sub_address="Nieuwbouwproject Centrum, 9700 AA Groningen",
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 0
+
+    def test_skips_listing_without_price(self, mock_response):
+        html = self._page(self._card(
+            "/woningaanbod/huur/groningen/prijsloos/1?take=10",
+            "Te huur: Prijsloos 1",
+            "",
+            sub_address="Prijsloos 1, 9700 AA Groningen",
+        ))
+        results = HomeResults("grunoverhuur", mock_response(html))
+        assert len(results.homes) == 0
+
+
 class TestParseMaxxhuren:
     def test_basic_parsing(self, mock_response):
         html = """
@@ -1615,6 +1810,70 @@ class TestParseMaxxhuren:
         """
         r = mock_response(html)
         results = HomeResults("maxxhuren", r)
+        assert len(results.homes) == 0
+
+
+class TestParseYourhouse:
+    def _card(self, status, heading, price, ppm="", kind="huur", city_slug="utrecht", slug="koekoekstraat/35-e"):
+        ppm_html = f'<span class="obj_pricepersquaremeter">{ppm}</span>' if ppm else ""
+        return f"""
+        <article class="object clearfix">
+            <a class="sys-property-link" href="/woningaanbod/{kind}/{city_slug}/{slug}?take=12">
+                <span class="object_status">{status}</span>
+            </a>
+            <div class="object_address">
+                <a class="sys-property-link object_header" href="/woningaanbod/{kind}/{city_slug}/{slug}?take=12">
+                    <h2>{heading}</h2>
+                </a>
+            </div>
+            <div class="object_data">
+                <span class="obj_price">{price}</span>
+                {ppm_html}
+            </div>
+        </article>
+        """
+
+    def test_basic_parsing(self, mock_response):
+        r = mock_response(self._card("Nieuw in verhuur", "Te huur: Koekoekstraat 35E, 3514CT Utrecht", "€ 946,- /mnd", ppm="€ 47,30/m2/mnd"))
+        results = HomeResults("yourhouse", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "yourhouse"
+        assert results[0].address == "Koekoekstraat 35E"
+        assert results[0].city == "Utrecht"
+        assert results[0].price == 946
+        assert results[0].sqm == 20  # derived from price / price-per-m²
+        assert results[0].url == "https://your-house.nl/woningaanbod/huur/utrecht/koekoekstraat/35-e"
+
+    def test_sqm_absent_when_no_price_per_sqm(self, mock_response):
+        r = mock_response(self._card("Nieuw in verhuur", "Te huur: Koekoekstraat 35E, 3514CT Utrecht", "€ 946,- /mnd"))
+        results = HomeResults("yourhouse", r)
+        assert len(results.homes) == 1
+        assert results[0].sqm == -1
+
+    def test_parses_thousands_separator(self, mock_response):
+        r = mock_response(self._card("Nieuw in verhuur", "Te huur: Albatrosstraat 32, 3582EX Utrecht", "€ 2.095,- /mnd"))
+        results = HomeResults("yourhouse", r)
+        assert len(results.homes) == 1
+        assert results[0].price == 2095
+
+    def test_filters_rented(self, mock_response):
+        r = mock_response(self._card("Verhuurd", "Verhuurd: Koekoekstraat 35E, 3514CT Utrecht", "€ 946,- /mnd"))
+        results = HomeResults("yourhouse", r)
+        assert len(results.homes) == 0
+
+    def test_filters_under_option(self, mock_response):
+        r = mock_response(self._card("Onder optie", "Onder optie: Van Weerden Poelmanlaan 60-1, 3527KP Utrecht", "€ 620,- /mnd"))
+        results = HomeResults("yourhouse", r)
+        assert len(results.homes) == 0
+
+    def test_filters_koop(self, mock_response):
+        r = mock_response(self._card("Nieuw", "Te koop: Pieter Nieuwlandstraat 86, 3514HL Utrecht", "€ 450.000,- k.k.", kind="koop"))
+        results = HomeResults("yourhouse", r)
+        assert len(results.homes) == 0
+
+    def test_filters_address_without_house_number(self, mock_response):
+        r = mock_response(self._card("Nieuw in verhuur", "Te huur: Nieuwbouwproject Centrum, 3514CT Utrecht", "€ 946,- /mnd"))
+        results = HomeResults("yourhouse", r)
         assert len(results.homes) == 0
 
 

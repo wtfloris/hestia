@@ -147,6 +147,14 @@ class HomeResults:
             self.parse_beumer(raw)
         elif source == "nederwoon":
             self.parse_nederwoon(raw)
+        elif source == "livresidential":
+            self.parse_livresidential(raw)
+        elif source == "huurportaal":
+            self.parse_huurportaal(raw)
+        elif source == "grunoverhuur":
+            self.parse_grunoverhuur(raw)
+        elif source == "yourhouse":
+            self.parse_yourhouse(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -1080,6 +1088,147 @@ class HomeResults:
 
             self.homes.append(home)
 
+    def parse_huurportaal(self, r: requests.models.Response):
+        # The listing page embeds a schema.org ItemList in a JSON-LD script,
+        # which is more stable than the rendered Next.js HTML.
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        items = []
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string or "")
+            except (json.JSONDecodeError, TypeError):
+                continue
+            main_entity = data.get("mainEntity", {})
+            if main_entity.get("@type") == "ItemList":
+                items = main_entity.get("itemListElement", [])
+                break
+
+        seen: set[tuple[str, str]] = set()
+        for element in items:
+            item = element.get("item", {})
+            offer = item.get("offers", {})
+
+            # Only currently available listings
+            if not str(offer.get("availability", "")).endswith("InStock"):
+                continue
+
+            offered = offer.get("itemOffered", {})
+            address_info = offered.get("address", {})
+            street_address = address_info.get("streetAddress", "")
+            city = address_info.get("addressLocality", "")
+            url = item.get("url") or offer.get("url")
+            if not street_address or not city or not url:
+                continue
+
+            # streetAddress is "<street> <number>, <postcode> <city>, Netherlands";
+            # the first segment is the street and house number.
+            address = street_address.split(",")[0].strip()
+            if not re.search(r"\d", address):
+                continue
+
+            price = offer.get("price")
+            try:
+                price = int(float(price))
+            except (TypeError, ValueError):
+                continue
+
+            home = Home(agency="huurportaal")
+            home.address = address
+            home.city = city
+            home.url = url
+            home.price = price
+
+            floor_size = offered.get("floorSize", {})
+            try:
+                sqm = int(float(floor_size.get("value")))
+                if 0 < sqm < 2000:
+                    home.sqm = sqm
+            except (TypeError, ValueError):
+                pass
+
+            key = (home.address.lower(), home.city.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            self.homes.append(home)
+
+    def parse_grunoverhuur(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        base_url = "https://www.grunoverhuur.nl"
+
+        unavailable_keywords = [
+            "verhuurd",
+            "onder optie",
+            "onder voorbehoud",
+            "verkocht",
+            "rented",
+            "withdrawn",
+            "niet beschikbaar",
+            "gereserveerd",
+        ]
+
+        for card in soup.select("article.objectcontainer"):
+            obj = card.select_one("div.object")
+            obj_classes = " ".join(obj.get("class", [])).lower() if obj else ""
+
+            status_tag = card.select_one(".object_status")
+            status_text = status_tag.get_text(" ", strip=True).lower() if status_tag else ""
+            if any(kw in status_text for kw in unavailable_keywords) or "rented" in obj_classes:
+                continue
+
+            link = card.select_one("a.sys-property-link[href]") or card.select_one(".datacontainer a[href]")
+            if not link:
+                continue
+            url = parse.urljoin(base_url, str(link["href"]).split("?")[0])
+
+            # The address sits in ".obj_sub_address" ("<street> <nr>, <postcode> <city>");
+            # some cards omit it and carry the same string in the title behind a "Te huur:" prefix.
+            addr_tag = card.select_one(".obj_sub_address")
+            if addr_tag:
+                full_address = addr_tag.get_text(" ", strip=True)
+            else:
+                title_tag = card.select_one(".obj_address")
+                full_address = title_tag.get_text(" ", strip=True) if title_tag else ""
+                full_address = re.sub(r"(?i)^te\s+(?:huur|koop)\s*:\s*", "", full_address)
+
+            segments = [seg.strip() for seg in full_address.split(",") if seg.strip()]
+            if len(segments) < 2:
+                continue
+            address = " ".join(segments[0].split())
+            if not re.search(r"\d", address):
+                continue
+            # Strip the leading Dutch postcode (e.g. "9718CA" / "9718 CA") to get the city.
+            city = re.sub(r"^\s*\d{4}\s*[A-Za-z]{2}\s*", "", segments[1]).strip()
+            if not city:
+                continue
+
+            price_tag = card.select_one(".obj_price")
+            if not price_tag:
+                continue
+            amount_match = re.search(r"(\d[\d\.,]*)", price_tag.get_text(" ", strip=True))
+            if not amount_match:
+                continue
+            euros = amount_match.group(1).split(",")[0].replace(".", "")
+            if not euros.isdigit():
+                continue
+
+            home = Home(agency="grunoverhuur")
+            home.address = address
+            home.city = city
+            home.url = url
+            home.price = int(euros)
+
+            sqm_tag = card.select_one('.object_sqfeet span[title="Woonoppervlakte"]')
+            if sqm_tag:
+                sqm_match = re.search(r"(\d{1,4})", sqm_tag.get_text(" ", strip=True))
+                if sqm_match:
+                    sqm = int(sqm_match.group(1))
+                    if 0 < sqm < 2000:
+                        home.sqm = sqm
+
+            self.homes.append(home)
+
     def parse_maxxhuren(self, r: requests.models.Response):
         soup = BeautifulSoup(r.content, "html.parser")
         results = soup.select("a.object[href]")
@@ -1138,6 +1287,61 @@ class HomeResults:
                             home.sqm = sqm
             except Exception:
                 pass
+            self.homes.append(home)
+
+    def parse_livresidential(self, r: requests.models.Response):
+        # Listings are server-rendered; only available homes appear on the
+        # overview page, so there is no rented status to filter out.
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        seen: set[tuple[str, str]] = set()
+        for card in soup.find_all("a", href=re.compile(r"/huurwoningen/[^/]+/[^/]+/[^/]+$")):
+            url = card.get("href")
+            address_tag = card.find("h3")
+            if not url or not address_tag:
+                continue
+
+            # The <h3> reads "<street> <number> <postcode> <city>"; drop the
+            # postcode and everything after it to keep just street + number.
+            full_address = " ".join(address_tag.get_text(" ", strip=True).split())
+            address = re.sub(r"\s*\d{4}\s?[A-Z]{2}\b.*$", "", full_address).strip()
+            if not address or not re.search(r"\d", address):
+                continue
+
+            # The <p> under the address holds "<postcode> <city>".
+            city = ""
+            for p in card.find_all("p"):
+                m = re.match(r"^\d{4}\s?[A-Z]{2}\s+(.+)$", p.get_text(" ", strip=True))
+                if m:
+                    city = m.group(1).strip()
+                    break
+
+            price = None
+            for p in card.find_all("p"):
+                if "€" in p.get_text():
+                    m = re.search(r"(\d[\d.]*)", p.get_text())
+                    if m:
+                        price = int(m.group(1).replace(".", ""))
+                    break
+            if not city or price is None:
+                continue
+
+            home = Home(agency="livresidential")
+            home.address = address
+            home.city = city
+            home.url = parse.urljoin("https://livresidential.nl", str(url))
+            home.price = price
+
+            m = re.search(r"(\d{1,4})\s*m2", card.get_text())
+            if m:
+                sqm = int(m.group(1))
+                if 0 < sqm < 2000:
+                    home.sqm = sqm
+
+            key = (home.address.lower(), home.city.lower())
+            if key in seen:
+                continue
+            seen.add(key)
             self.homes.append(home)
 
     def parse_hoekstra(self, r: requests.models.Response):
@@ -1375,3 +1579,68 @@ class HomeResults:
                         continue
 
                     add_home(address, city, link.get("href", ""), price_match.group(1), card_text)
+
+    def parse_yourhouse(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        for res in soup.select("article.object"):
+            link = res.select_one("a.sys-property-link[href]")
+            heading = res.select_one("h2")
+            if not link or not heading:
+                continue
+
+            href = str(link["href"])
+            # Only rental listings (skip /woningaanbod/koop/...)
+            if "/huur/" not in href:
+                continue
+
+            # The heading is prefixed with the listing status, e.g.
+            # "Te huur: ...", "Verhuurd: ...", "Onder optie: ...". Only the
+            # "Te huur" listings are actually available.
+            heading_text = " ".join(heading.get_text(" ", strip=True).split())
+            if ":" not in heading_text:
+                continue
+            status, _, location = heading_text.partition(":")
+            if status.strip().lower() != "te huur":
+                continue
+
+            # location is "<street> <number>, <postcode> <city>"
+            if "," not in location:
+                continue
+            address, _, city = location.partition(",")
+            address = address.strip()
+            if not re.search(r"\d", address):
+                continue
+            city = re.sub(r"^\d{4}\s?[A-Za-z]{2}\s+", "", city.strip()).strip()
+            if not city:
+                continue
+
+            price_tag = res.select_one(".obj_price")
+            if not price_tag:
+                continue
+            amount_match = re.search(r"(\d[\d\.]*)", price_tag.get_text(" ", strip=True))
+            if not amount_match:
+                continue
+            price = amount_match.group(1).replace(".", "")
+            if not price.isdigit():
+                continue
+
+            home = Home(agency="yourhouse")
+            home.address = address
+            home.city = city
+            home.url = parse.urljoin("https://your-house.nl", href.split("?")[0])
+            home.price = int(price)
+
+            # The card has no floor area, but it lists the price per m², so the
+            # surface area can be recovered as price / price-per-m².
+            ppm_tag = res.select_one(".obj_pricepersquaremeter")
+            if ppm_tag:
+                ppm_match = re.search(r"(\d+(?:,\d+)?)", ppm_tag.get_text(" ", strip=True))
+                if ppm_match:
+                    ppm = float(ppm_match.group(1).replace(",", "."))
+                    if ppm > 0:
+                        sqm = round(home.price / ppm)
+                        if 0 < sqm < 2000:
+                            home.sqm = sqm
+
+            self.homes.append(home)

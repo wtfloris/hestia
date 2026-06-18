@@ -19,6 +19,14 @@
     var resolved = stored || (preferred.toLowerCase().startsWith('nl') ? 'nl' : 'en');
     document.documentElement.setAttribute('lang', resolved);
 })();
+(function() {
+    // Hide iOS-app links on Android (the app is iOS-only). Runs in <head>
+    // before render so the link never flashes. Fails open if detection misses.
+    var ua = navigator.userAgent || '';
+    var isAndroid = /Android/i.test(ua) ||
+        (navigator.userAgentData && navigator.userAgentData.platform === 'Android');
+    if (isAndroid) document.documentElement.classList.add('is-android');
+})();
 
 function toggleTheme() {
     var current = document.documentElement.getAttribute('data-theme');
@@ -99,7 +107,7 @@ var HESTIA_I18N = {
         'cost_total': 'Total',
         'contact_email': 'E-mail:',
         'contact_email_login_required': 'E-mail: only visible after logging in',
-        'contact_telegram': 'Telegram (the guy who made this):',
+        'contact_telegram': 'Telegram:',
         'contact_github': 'GitHub (source code):',
         'contact_avatar_credit': 'Hestia artwork courtesy of ',
         'faq_q_what': 'What is Hestia?',
@@ -107,7 +115,7 @@ var HESTIA_I18N = {
         'faq_q_free': 'Hestia is free?',
         'faq_a_free': 'Yes. I built Hestia for myself and once we found a home, I thought it would be nice to share it with others!',
         'faq_q_speed': 'How quick is Hestia?',
-        'faq_a_speed': 'Notifications should arrive within 10 minutes.',
+        'faq_a_speed': "Hestia checks most websites every few minutes, and some users have reported Hestia is faster than paid services!<br><br>I can't verify that, but I suspect some paid services aren't 100% honest about their speed because they assume people choose the service that claims to be fastest.<br><br>I don't have any incentive to be dishonest about that because Hestia is free!",
         'faq_q_filters': 'Can you add a filter for amount of rooms or postal code?',
         'faq_a_filters': 'In short: no, because it makes Hestia less reliable. Please see <a href="https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778" target="_blank" rel="noopener noreferrer">this comment</a> for the full explanation, and feel free to discuss if you disagree!',
         'faq_q_buy': 'Does this work if I want to buy a home?',
@@ -142,7 +150,39 @@ var HESTIA_I18N = {
         'browser_notif_new_one': '1 new home has been found',
         'browser_notif_new_many': '{count} new homes have been found',
         'browser_notif_ios_info': 'Browser notifications are not available due to iOS restrictions. Download the <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">Hestia app for iPhone</a> to get notifications on your phone!',
-        'experimental_warning': 'Hestia is still a work in progress \u2014 you may experience some instability here and there!'
+        'experimental_warning': 'Hestia is still a work in progress, so you may experience some instability here and there!',
+        'landing_page_title': 'Hestia: free rental-home alerts for the Netherlands',
+        'landing_login': 'Log in',
+        'landing_login_title': 'Log in or sign up',
+        'landing_login_desc': "Enter your email and we'll send you a login link. No password needed.",
+        'landing_hero_title': 'Find your next rental home, <span class="landing-hl">for free</span>',
+        'landing_hero_sub': 'Hestia watches Dutch rental sites for you and sends a notification within minutes of a new listing that matches your filters. Be the first to respond!',
+        'landing_cta_note': 'Enter your email to get started. We only use it to save your preferences.',
+        'landing_ios': 'Or get the iOS app',
+        'landing_how_title': 'How it works',
+        'landing_step1_title': 'Set your filters',
+        'landing_step1_text': 'Choose your cities, price range and minimum size. Adjust them anytime.',
+        'landing_step2_title': 'Get notified in minutes',
+        'landing_step2_text': 'The moment a matching home appears on any monitored site, Hestia lets you know.',
+        'landing_step3_title': 'Be first to respond',
+        'landing_step3_text': 'In a tight market, minutes matter. Reach out before the crowd does.',
+        'landing_demo_title': 'A preview of your feed',
+        'landing_demo_sub': 'Set your filters and real matches appear within minutes of going online.',
+        'landing_demo_time1': '1 minute ago',
+        'landing_demo_time2': '6 minutes ago',
+        'landing_demo_time3': '7 minutes ago',
+        'landing_coverage_title': 'Broad, deduplicated coverage',
+        'landing_coverage_text': 'Hestia continuously monitors a wide range of major Dutch rental platforms and housing agencies, and removes duplicate listings across sources, so you see each home only once.',
+        'landing_story_title': 'Why Hestia exists',
+        'landing_story_text': "I built Hestia for myself while looking for a place after my studies: I'm lazy and like to automate as much as I can. Once I'd found something I forwarded it to a few friends, who forwarded it to theirs, and on it went until today: by now I've helped thousands of people find a home!",
+        'landing_faq_title': 'Frequently Asked Questions',
+        'landing_final_title': 'Ready to find your new home?',
+        'landing_final_sub': "Did I mention it's free? Enter your email and find your new home!",
+        'landing_final_btn': 'Get started',
+        'landing_footer_contact': 'Contact',
+        'landing_footer_privacy': 'Privacy & cookies',
+        'landing_footer_source': 'GitHub',
+        'landing_footer_ios': 'iOS app'
     },
     nl: {
         'welcome_title': 'Welkom bij Hestia',
@@ -197,7 +237,7 @@ var HESTIA_I18N = {
         'cost_total': 'Totaal',
         'contact_email': 'E-mail:',
         'contact_email_login_required': 'E-mail: alleen zichtbaar na inloggen',
-        'contact_telegram': 'Telegram (van de chef):',
+        'contact_telegram': 'Telegram:',
         'contact_github': 'GitHub (source code):',
         'contact_avatar_credit': 'Hestia artwork met dank aan ',
         'faq_q_what': 'Wat is Hestia?',
@@ -205,7 +245,7 @@ var HESTIA_I18N = {
         'faq_q_free': 'Is Hestia gratis?',
         'faq_a_free': 'Ja! Ik had Hestia voor gebouwd mezelf en toen we een huis hadden gevonden heb ik het online gegooid en is het doorgegroeid.',
         'faq_q_speed': 'Hoe snel is Hestia?',
-        'faq_a_speed': 'Meldingen zouden binnen 10 minuten moeten doorkomen.',
+        'faq_a_speed': 'Hestia controleert de meeste websites elke paar minuten, en sommige gebruikers melden zelfs dat Hestia sneller is dan betaalde diensten!<br><br>Ik kan dat niet bevestigen, maar ik vermoed dat sommige betaalde diensten niet 100% eerlijk zijn over hun snelheid, omdat ze ervan uitgaan dat mensen kiezen voor de dienst die zegt het snelst te zijn.<br><br>Ik heb geen enkele reden om daar oneerlijk over te zijn, want Hestia is gratis!',
         'faq_q_filters': 'Kun je een filter toevoegen voor aantal kamers of postcode?',
         'faq_a_filters': 'Kort gezegd: nee, omdat dit Hestia minder betrouwbaar maakt. Zie <a href="https://github.com/wtfloris/hestia/issues/55#issuecomment-2453400778" target="_blank" rel="noopener noreferrer">deze uitleg</a> voor de volledige motivatie, en reageer gerust als je het er niet mee eens bent!',
         'faq_q_buy': 'Werkt dit ook als ik een huis wil kopen?',
@@ -240,7 +280,39 @@ var HESTIA_I18N = {
         'browser_notif_new_one': '1 nieuwe woning gevonden',
         'browser_notif_new_many': '{count} nieuwe woningen gevonden',
         'browser_notif_ios_info': 'Notificaties in de browser werken niet door beperkingen binnen iOS. Download de <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">Hestia-app voor iPhone</a> om notificaties op je telefoon te ontvangen!',
-        'experimental_warning': 'Hestia is nog volop in ontwikkeling \u2014 het kan zijn dat er soms iets stuk gaat!'
+        'experimental_warning': 'Hestia is nog volop in ontwikkeling, dus het kan zijn dat er soms iets stuk gaat!',
+        'landing_page_title': 'Hestia: gratis meldingen voor huurwoningen in Nederland',
+        'landing_login': 'Inloggen',
+        'landing_login_title': 'Inloggen of aanmelden',
+        'landing_login_desc': 'Vul je e-mailadres in, dan sturen we je een inloglink. Geen wachtwoord nodig.',
+        'landing_hero_title': 'Vind je volgende huurwoning, <span class="landing-hl">gratis</span>',
+        'landing_hero_sub': 'Hestia speurt Nederlandse huursites voor je af en stuurt je binnen een paar minuten een melding als er een nieuwe woning opduikt die bij je filters past. Zo ben jij er als eerste bij!',
+        'landing_cta_note': 'Vul je e-mailadres in om te beginnen. We gebruiken ’m alleen om je voorkeuren te bewaren.',
+        'landing_ios': 'Of download de iOS-app',
+        'landing_how_title': 'Hoe het werkt',
+        'landing_step1_title': 'Stel je filters in',
+        'landing_step1_text': 'Kies je steden, prijsklasse en minimale oppervlakte. Aanpassen kan altijd.',
+        'landing_step2_title': 'Binnen minuten een melding',
+        'landing_step2_text': 'Zodra er op een van de sites een woning verschijnt die past, krijg je meteen bericht van Hestia.',
+        'landing_step3_title': 'Wees als eerste',
+        'landing_step3_text': 'Op een krappe woningmarkt telt elke minuut. Reageer voordat de rest het doorheeft.',
+        'landing_demo_title': 'Een voorproefje van je overzicht',
+        'landing_demo_sub': 'Stel je filters in en echte matches verschijnen binnen enkele minuten nadat ze online staan.',
+        'landing_demo_time1': '1 minuut geleden',
+        'landing_demo_time2': '6 minuten geleden',
+        'landing_demo_time3': '7 minuten geleden',
+        'landing_coverage_title': 'Breed bereik, zonder dubbele woningen',
+        'landing_coverage_text': 'Hestia houdt de hele dag talloze websites van grote Nederlandse huurplatforms en woningcorporaties in de gaten, en haalt dezelfde woning bij verschillende bronnen eruit, zodat je elke woning maar \u00e9\u00e9n keer voorbij ziet komen.',
+        'landing_story_title': 'Waarom Hestia bestaat',
+        'landing_story_text': 'Ik bouwde Hestia voor mezelf toen ik na mijn studie op zoek was naar een woning: ik ben namelijk lui en wil graag zoveel mogelijk automatiseren. Toen ik eenmaal iets had gevonden heb ik het naar vrienden doorgestuurd, en die weer naar hun vrienden, en zo door tot vandaag: inmiddels heb ik duizenden mensen aan een huis kunnen helpen!',
+        'landing_faq_title': 'Veelgestelde vragen',
+        'landing_final_title': 'Klaar om je nieuwe woning te vinden?',
+        'landing_final_sub': 'Had ik al gezegd dat het gratis was? Vul je e-mailadres in en vind je nieuwe woning!',
+        'landing_final_btn': 'Aan de slag',
+        'landing_footer_contact': 'Contact',
+        'landing_footer_privacy': 'Privacy & cookies',
+        'landing_footer_source': 'GitHub',
+        'landing_footer_ios': 'iOS-app'
     }
 };
 function hestiaGetLang() {
@@ -329,35 +401,36 @@ var costModal = null;
 var statsModal = null;
 var statsContent = null;
 
-/* ---- Login form submit guard ---- */
+/* ---- Login form submit guard (covers every /login form on the page) ---- */
 (function() {
-    var loginForm = document.querySelector('form[action="/login"]');
-    if (!loginForm) return;
-    var submitBtn = loginForm.querySelector('.btn-arrow');
-    if (!submitBtn) return;
-    function lockSubmit() {
-        if (loginForm.dataset.submitting === 'true') return false;
-        loginForm.dataset.submitting = 'true';
-        submitBtn.disabled = true;
-        submitBtn.classList.add('is-loading');
-        submitBtn.setAttribute('aria-busy', 'true');
-        var emailInput = loginForm.querySelector('input[type="email"]');
-        if (emailInput) emailInput.disabled = true;
-        return true;
-    }
-
-    submitBtn.addEventListener('click', function(e) {
-        if (!lockSubmit()) {
-            e.preventDefault();
-            e.stopPropagation();
+    var loginForms = document.querySelectorAll('form[action="/login"]');
+    loginForms.forEach(function(loginForm) {
+        var submitBtn = loginForm.querySelector('.btn-arrow');
+        if (!submitBtn) return;
+        function lockSubmit() {
+            if (loginForm.dataset.submitting === 'true') return false;
+            loginForm.dataset.submitting = 'true';
+            submitBtn.disabled = true;
+            submitBtn.classList.add('is-loading');
+            submitBtn.setAttribute('aria-busy', 'true');
+            var emailInput = loginForm.querySelector('input[type="email"]');
+            if (emailInput) emailInput.disabled = true;
+            return true;
         }
-    });
 
-    loginForm.addEventListener('submit', function(e) {
-        if (!lockSubmit()) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
+        submitBtn.addEventListener('click', function(e) {
+            if (!lockSubmit()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+
+        loginForm.addEventListener('submit', function(e) {
+            if (!lockSubmit()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
     });
 })();
 function openContactModal() {
@@ -507,9 +580,10 @@ document.addEventListener('DOMContentLoaded', function() {
         themeToggle.addEventListener('click', toggleTheme);
     }
 
-    // Attach footer icon, avatar and other modal triggers
+    // Attach modal triggers (footer icons, avatar, and any [data-modal] element)
     document.querySelectorAll('[data-modal]').forEach(function(icon) {
-        icon.addEventListener('click', function() {
+        icon.addEventListener('click', function(e) {
+            e.preventDefault();
             var modal = this.getAttribute('data-modal');
             if (modal === 'contact') openContactModal();
             else if (modal === 'cost') openCostModal();

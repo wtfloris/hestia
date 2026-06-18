@@ -79,6 +79,12 @@ services:
     environment:
       - HESTIA_TARGET=funda
 
+  hestia-scraper-grunoverhuur:
+    <<: *scraper-base
+    container_name: hestia-scraper-grunoverhuur
+    environment:
+      - HESTIA_TARGET=grunoverhuur
+
   hestia-scraper-hexia-dewoningzoeker:
     <<: *scraper-base
     container_name: hestia-scraper-hexia-dewoningzoeker
@@ -175,6 +181,12 @@ services:
     environment:
       - HESTIA_TARGET=hoekstra
 
+  hestia-scraper-huurportaal:
+    <<: *scraper-base
+    container_name: hestia-scraper-huurportaal
+    environment:
+      - HESTIA_TARGET=huurportaal
+
   hestia-scraper-ikwilhuren:
     container_name: hestia-scraper-ikwilhuren
     healthcheck:
@@ -201,6 +213,12 @@ services:
     container_name: hestia-scraper-krk
     environment:
       - HESTIA_TARGET=krk
+
+  hestia-scraper-livresidential:
+    <<: *scraper-base
+    container_name: hestia-scraper-livresidential
+    environment:
+      - HESTIA_TARGET=livresidential
 
   hestia-scraper-maxxhuren:
     <<: *scraper-base
@@ -346,6 +364,12 @@ services:
     container_name: hestia-scraper-woonmatchwaterland
     environment:
       - HESTIA_TARGET=woonmatchwaterland
+
+  hestia-scraper-yourhouse:
+    <<: *scraper-base
+    container_name: hestia-scraper-yourhouse
+    environment:
+      - HESTIA_TARGET=yourhouse
 
   hestia-database:
     container_name: hestia-database

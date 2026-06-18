@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of Amsterdam canal houses">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6e2c2"/>
+      <stop offset="1" stop-color="#eec190"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="120" fill="url(#sky)"/>
+  <!-- canal house 1 (stepped gable) -->
+  <g>
+    <rect x="16" y="44" width="34" height="76" fill="#b86e30"/>
+    <path d="M16 44 h34 v-6 h-7 v-6 h-7 v-6 h-6 v6 h-7 v6 h-7 z" fill="#9c5a20"/>
+    <rect x="22" y="54" width="9" height="12" fill="#fbf1dd"/>
+    <rect x="35" y="54" width="9" height="12" fill="#fbf1dd"/>
+    <rect x="22" y="74" width="9" height="12" fill="#fbf1dd"/>
+    <rect x="35" y="74" width="9" height="12" fill="#fbf1dd"/>
+    <rect x="28" y="98" width="11" height="22" fill="#6f3f1c"/>
+  </g>
+  <!-- canal house 2 (bell gable) -->
+  <g>
+    <rect x="54" y="34" width="40" height="86" fill="#cf9152"/>
+    <path d="M54 34 q20 -20 40 0 z" fill="#a8703a"/>
+    <rect x="61" y="44" width="11" height="13" fill="#fff6e6"/>
+    <rect x="77" y="44" width="11" height="13" fill="#fff6e6"/>
+    <rect x="61" y="66" width="11" height="13" fill="#fff6e6"/>
+    <rect x="77" y="66" width="11" height="13" fill="#fff6e6"/>
+    <rect x="61" y="88" width="11" height="13" fill="#fff6e6"/>
+    <rect x="77" y="88" width="11" height="13" fill="#fff6e6"/>
+    <rect x="67" y="104" width="14" height="16" fill="#7c4a22"/>
+  </g>
+  <!-- canal house 3 (triangular gable) -->
+  <g>
+    <rect x="98" y="50" width="36" height="70" fill="#a8581f"/>
+    <polygon points="98,50 116,36 134,50" fill="#8a4717"/>
+    <rect x="104" y="60" width="10" height="12" fill="#fbf1dd"/>
+    <rect x="118" y="60" width="10" height="12" fill="#fbf1dd"/>
+    <rect x="104" y="80" width="10" height="12" fill="#fbf1dd"/>
+    <rect x="118" y="80" width="10" height="12" fill="#fbf1dd"/>
+    <rect x="110" y="100" width="12" height="20" fill="#67380f"/>
+  </g>
+</svg>

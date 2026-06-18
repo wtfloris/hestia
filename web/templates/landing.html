@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Hestia: free rental-home alerts for the Netherlands{% endblock %}
+{% block extra_head %}
+    <meta name="description" content="Hestia monitors the major Dutch rental sites and notifies you within minutes when a new listing matches your filters. Free, fast, and built to help you be first in a tight market.">
+    <link rel="canonical" href="{{ base_url }}/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Hestia">
+    <meta property="og:title" content="Hestia: free rental-home alerts for the Netherlands">
+    <meta property="og:description" content="Hestia watches the major Dutch rental sites for you and sends a notification within minutes of a new match. Free, fast, no account needed.">
+    <meta property="og:url" content="{{ base_url }}/">
+    <meta property="og:image" content="{{ base_url }}/avatar">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Hestia: free rental-home alerts for the Netherlands">
+    <meta name="twitter:description" content="Get notified within minutes of a new Dutch rental listing that matches your filters. Free.">
+    <meta name="twitter:image" content="{{ base_url }}/avatar">
+{% endblock %}
+{% block content %}
+<header class="landing-header">
+    <a class="landing-brand" href="/" aria-label="Hestia home">
+        <img src="/avatar" alt="" class="landing-brand-logo" width="40" height="40">
+        <span class="landing-brand-name">Hestia</span>
+    </a>
+    <nav class="landing-nav" aria-label="Primary">
+        <button type="button" class="lang-toggle" aria-label="Switch language" title="Switch language">
+            <span class="lang-label"></span>
+        </button>
+        <button type="button" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+            <span class="theme-icon"></span>
+        </button>
+        <button type="button" class="btn landing-login-btn" data-open-login data-i18n="landing_login">Log in</button>
+    </nav>
+</header>
+
+<main class="landing-main">
+    <!-- Hero -->
+    <section class="landing-hero" aria-labelledby="landing-hero-title">
+        <div class="landing-hero-text">
+            <h1 id="landing-hero-title" data-i18n-html="landing_hero_title">Find your next rental home, <span class="landing-hl">for free</span></h1>
+            <p class="landing-hero-sub" data-i18n="landing_hero_sub">Hestia watches Dutch rental sites for you and sends a notification within minutes of a new listing that matches your filters. Be the first to respond!</p>
+            <form method="post" action="/login" class="landing-signup" id="signup">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if message %}<div class="message">{{ message }}</div>{% endif %}
+                <div class="input-arrow-wrap">
+                    <input type="email" name="email" id="email" placeholder="hello@hestia.bot" aria-label="Email address" required>
+                    <button type="submit" class="btn-arrow" aria-label="Continue" data-i18n-title="continue_aria">&#x2192;</button>
+                </div>
+                <p class="landing-cta-note" data-i18n="landing_cta_note">Enter your email to get started. We only use it to save your preferences.</p>
+            </form>
+            <a class="landing-ios-link" data-ios-link href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">
+                <i data-lucide="smartphone" aria-hidden="true"></i>
+                <span data-i18n="landing_ios">Or get the iOS app</span>
+            </a>
+        </div>
+        <div class="landing-hero-art" aria-hidden="true">
+            <img src="/avatar" alt="" class="landing-hero-avatar" width="220" height="220">
+        </div>
+    </section>
+
+    <!-- Trust / stats strip -->
+    <section class="landing-stats" aria-label="Hestia at a glance">
+        <div class="landing-stat">
+            <span class="landing-stat-value" id="landing-stat-homes">…</span>
+            <span class="landing-stat-label" data-i18n="stats_total_homes">Homes found</span>
+        </div>
+        <div class="landing-stat">
+            <span class="landing-stat-value" id="landing-stat-users">…</span>
+            <span class="landing-stat-label" data-i18n="stats_total_subscribers">Users</span>
+        </div>
+        <div class="landing-stat">
+            <span class="landing-stat-value" id="landing-stat-today">…</span>
+            <span class="landing-stat-label" data-i18n="stats_homes_today">Homes found today</span>
+        </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="landing-section" aria-labelledby="landing-how-title">
+        <h2 id="landing-how-title" class="landing-section-title" data-i18n="landing_how_title">How it works</h2>
+        <ol class="landing-steps">
+            <li class="landing-step">
+                <span class="landing-step-icon"><i data-lucide="sliders-horizontal" aria-hidden="true"></i></span>
+                <h3 data-i18n="landing_step1_title">Set your filters</h3>
+                <p data-i18n="landing_step1_text">Choose your cities, price range and minimum size. Adjust them anytime.</p>
+            </li>
+            <li class="landing-step">
+                <span class="landing-step-icon"><i data-lucide="bell-ring" aria-hidden="true"></i></span>
+                <h3 data-i18n="landing_step2_title">Get notified in minutes</h3>
+                <p data-i18n="landing_step2_text">The moment a matching home appears on any monitored site, Hestia lets you know.</p>
+            </li>
+            <li class="landing-step">
+                <span class="landing-step-icon"><i data-lucide="rocket" aria-hidden="true"></i></span>
+                <h3 data-i18n="landing_step3_title">Be first to respond</h3>
+                <p data-i18n="landing_step3_text">In a tight market, minutes matter. Reach out before the crowd does.</p>
+            </li>
+        </ol>
+    </section>
+
+
+    <!-- Demo listings feed -->
+    <section class="landing-section" aria-labelledby="landing-demo-title">
+        <h2 id="landing-demo-title" class="landing-section-title" data-i18n="landing_demo_title">A preview of your feed</h2>
+        <p class="landing-prose" data-i18n="landing_demo_sub">Set your filters and real matches appear within minutes of going online.</p>
+        <div class="landing-demo-list">
+            <div class="homes-list">
+                <div class="home-card">
+                    <div class="home-card-link">
+                        <div class="home-card-media has-image">
+                            <img class="home-card-image" src="/static/demo-amsterdam.svg" alt="" width="144" height="108">
+                            <div class="home-card-placeholder"><i data-lucide="home" style="width:28px;height:28px"></i></div>
+                        </div>
+                        <div class="home-card-body">
+                            <div class="home-card-address">Prinsengracht 1012</div>
+                            <div class="home-card-city">Amsterdam</div>
+                            <div class="home-card-meta">
+                                <span class="home-card-meta-left">
+                                    <span class="home-card-price">€1750</span>
+                                    <span class="home-card-sqm">62 m2</span>
+                                </span>
+                            </div>
+                            <div class="home-card-date" data-i18n="landing_demo_time1">1 minute ago</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="home-card">
+                    <div class="home-card-link">
+                        <div class="home-card-media has-image">
+                            <img class="home-card-image" src="/static/demo-utrecht.svg" alt="" width="144" height="108">
+                            <div class="home-card-placeholder"><i data-lucide="home" style="width:28px;height:28px"></i></div>
+                        </div>
+                        <div class="home-card-body">
+                            <div class="home-card-address">Lange Nieuwstraat 88</div>
+                            <div class="home-card-city">Utrecht</div>
+                            <div class="home-card-meta">
+                                <span class="home-card-meta-left">
+                                    <span class="home-card-price">€1395</span>
+                                    <span class="home-card-sqm">55 m2</span>
+                                </span>
+                            </div>
+                            <div class="home-card-date" data-i18n="landing_demo_time2">6 minutes ago</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="home-card">
+                    <div class="home-card-link">
+                        <div class="home-card-media has-image">
+                            <img class="home-card-image" src="/static/demo-rotterdam.svg" alt="" width="144" height="108">
+                            <div class="home-card-placeholder"><i data-lucide="home" style="width:28px;height:28px"></i></div>
+                        </div>
+                        <div class="home-card-body">
+                            <div class="home-card-address">Witte de Withstraat 24</div>
+                            <div class="home-card-city">Rotterdam</div>
+                            <div class="home-card-meta">
+                                <span class="home-card-meta-left">
+                                    <span class="home-card-price">€1520</span>
+                                    <span class="home-card-sqm">70 m2</span>
+                                </span>
+                            </div>
+                            <div class="home-card-date" data-i18n="landing_demo_time3">7 minutes ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Coverage & trust -->
+    <section class="landing-section landing-coverage" aria-labelledby="landing-coverage-title">
+        <h2 id="landing-coverage-title" class="landing-section-title" data-i18n="landing_coverage_title">Broad, deduplicated coverage</h2>
+        <p class="landing-prose" data-i18n="landing_coverage_text">Hestia continuously monitors a wide range of major Dutch rental platforms and housing agencies, and removes duplicate listings across sources, so you see each home only once.</p>
+    </section>
+
+    <!-- Story -->
+    <section class="landing-section landing-story" aria-labelledby="landing-story-title">
+        <h2 id="landing-story-title" class="landing-section-title" data-i18n="landing_story_title">Why Hestia exists</h2>
+        <p class="landing-prose" data-i18n="landing_story_text">I built Hestia for myself while looking for a place after my studies: I'm lazy and like to automate as much as I can. Once I'd found something I forwarded it to a few friends, who forwarded it to theirs, and on it went until today: by now I've helped thousands of people find a home!</p>
+    </section>
+
+    <!-- FAQ -->
+    <section class="landing-section landing-faq" aria-labelledby="landing-faq-title">
+        <h2 id="landing-faq-title" class="landing-section-title" data-i18n="landing_faq_title">Frequently Asked Questions</h2>
+        <details class="landing-faq-item">
+            <summary data-i18n="faq_q_what">What is Hestia?</summary>
+            <p data-i18n="faq_a_what">Hestia is a home-finding service that monitors websites and notifies you about new matches within your filters.</p>
+        </details>
+        <details class="landing-faq-item">
+            <summary data-i18n="faq_q_free">Hestia is free?</summary>
+            <p data-i18n="faq_a_free">Yes. I built Hestia for myself and once we found a home, I thought it would be nice to share it with others!</p>
+        </details>
+        <details class="landing-faq-item">
+            <summary data-i18n="faq_q_speed">How quick is Hestia?</summary>
+            <p data-i18n-html="faq_a_speed">Hestia checks most websites every few minutes, and some users have reported Hestia is faster than paid services!<br><br>I can't verify that, but I suspect some paid services aren't 100% honest about their speed because they assume people choose the service that claims to be fastest.<br><br>I don't have any incentive to be dishonest about that because Hestia is free!</p>
+        </details>
+        <details class="landing-faq-item">
+            <summary data-i18n="faq_q_buy">Does this work if I want to buy a home?</summary>
+            <p data-i18n="faq_a_buy">Not yet, but who knows what I might build when I am looking to buy something myself!</p>
+        </details>
+        <details class="landing-faq-item">
+            <summary data-i18n="faq_q_app">Is there an app?</summary>
+            <p data-i18n-html="faq_a_app">Yes! Hestia is available as an <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer">iPhone app</a>.</p>
+        </details>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="landing-final-cta" aria-labelledby="landing-final-title">
+        <h2 id="landing-final-title" data-i18n="landing_final_title">Ready to find your new home?</h2>
+        <p data-i18n="landing_final_sub">Did I mention it's free? Enter your email and find your new home!</p>
+        <button type="button" class="btn landing-final-btn" data-open-login data-i18n="landing_final_btn">Get started</button>
+    </section>
+</main>
+
+<footer class="landing-footer">
+    <div class="landing-footer-inner">
+        <div class="landing-footer-brand">
+            <img src="/avatar" alt="" class="landing-brand-logo" width="32" height="32">
+            <div>
+                <span class="landing-brand-name">Hestia</span>
+            </div>
+        </div>
+        <nav class="landing-footer-links" aria-label="Footer">
+            <a href="#" data-modal="contact" data-i18n="landing_footer_contact">Contact</a>
+            <a href="/privacy" data-i18n="landing_footer_privacy">Privacy &amp; cookies</a>
+            <a href="https://github.com/wtfloris/hestia" target="_blank" rel="noopener noreferrer" data-i18n="landing_footer_source">GitHub</a>
+            <a href="https://apps.apple.com/app/id6760269825" target="_blank" rel="noopener noreferrer" data-ios-link data-i18n="landing_footer_ios">iOS app</a>
+        </nav>
+    </div>
+    <p class="landing-footer-credit">
+        <span data-i18n="contact_avatar_credit">Hestia artwork courtesy of </span>
+        <a href="https://instagram.com/elisa_tulli" target="_blank" rel="noopener noreferrer">@elisa_tulli</a>
+    </p>
+    {% if app_version %}
+    <p class="landing-footer-credit landing-footer-version">Version: {{ app_version }}{% if app_version_date %} ({{ app_version_date }}){% endif %}</p>
+    {% endif %}
+</footer>
+
+<div class="modal-overlay" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
+    <div class="modal">
+        <button class="modal-close" type="button" data-close-login aria-label="Close">&times;</button>
+        <h2 id="login-modal-title" data-i18n="landing_login_title">Log in or sign up</h2>
+        <p class="subtitle" data-i18n="landing_login_desc">Enter your email and we'll send you a login link. No password needed.</p>
+        <form method="post" action="/login" id="login-form-modal">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="input-arrow-wrap">
+                <input type="email" name="email" id="login-email" placeholder="hello@hestia.bot" aria-label="Email address" required>
+                <button type="submit" class="btn-arrow" aria-label="Continue" data-i18n-title="continue_aria">&#x2192;</button>
+            </div>
+            <p class="landing-cta-note" data-i18n="landing_cta_note">Enter your email to get started. We only use it to save your preferences.</p>
+        </form>
+    </div>
+</div>
+
+<script nonce="{{ g.csp_nonce }}">
+(function() {
+    // Populate the trust strip from the public statistics endpoint.
+    function fmt(n) {
+        try { return Number(n).toLocaleString(); } catch (e) { return String(n); }
+    }
+    fetch('/api/statistics')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || data.error) return;
+            var homes = document.getElementById('landing-stat-homes');
+            var users = document.getElementById('landing-stat-users');
+            var today = document.getElementById('landing-stat-today');
+            if (homes && typeof data.total_homes === 'number') homes.textContent = fmt(data.total_homes);
+            if (users && typeof data.total_subscribers === 'number') users.textContent = fmt(data.total_subscribers);
+            if (today && typeof data.homes_today === 'number') today.textContent = fmt(data.homes_today);
+        })
+        .catch(function() { /* leave placeholders */ });
+
+    // Login modal: opened by the header button and the final CTA.
+    var loginModal = document.getElementById('login-modal');
+    function openLogin() {
+        if (!loginModal) return;
+        loginModal.classList.add('visible');
+        var input = document.getElementById('login-email');
+        if (input) setTimeout(function() { input.focus(); }, 50);
+    }
+    function closeLogin() {
+        if (loginModal) loginModal.classList.remove('visible');
+    }
+    document.querySelectorAll('[data-open-login]').forEach(function(btn) {
+        btn.addEventListener('click', openLogin);
+    });
+    document.querySelectorAll('[data-close-login]').forEach(function(btn) {
+        btn.addEventListener('click', closeLogin);
+    });
+    if (loginModal) {
+        loginModal.addEventListener('click', function(e) {
+            if (e.target === loginModal) closeLogin();
+        });
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && loginModal && loginModal.classList.contains('visible')) closeLogin();
+    });
+})();
+</script>
+{% endblock %}
