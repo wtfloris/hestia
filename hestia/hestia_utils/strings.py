@@ -154,15 +154,19 @@ Succes met je zoektocht\!"""
 
 Don\'t need any of that but still want to contribute? You can use /donate to get an open Tikkie link\!
 
-Thank you so much\!""",
+Thank you so much\!
+
+More partnerships will be added in the next few days\!""",
         "nl": rf"""Hestia is gratis, maar kost ongeveer €79/maand om draaiende te houden\. Ik wil vragen of je kunt helpen\: als je stroom of internet voor je nieuwe woning afsluit via een van de onderstaande links dan krijgt Hestia een kleine bonus\. Hiermee dek je ongeveer een week aan kosten van Hestia, en het kost je helemaal niets\!
 
 Heb je dat niet nodig maar wil je toch bijdragen? Zeg /donate om een link naar een open Tikkie te krijgen\!
 
-Heel erg bedankt\!"""
+Heel erg bedankt\!
+
+Er komen meer samenwerkingen bij in de komende dagen\!"""
     },
     "support_protip": {
-        "en": r"""Pro tip\: use a comparison tool and then come back to use the links below""",
+        "en": r"""Pro tip\: use a comparison website and then come back to use the links below""",
         "nl": r"""Pro tip\: check een vergelijker en kom daarna terug om de links hier te gebruiken"""
     },
     "support_empty": {
