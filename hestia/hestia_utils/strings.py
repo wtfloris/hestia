@@ -162,8 +162,8 @@ Heb je dat niet nodig maar wil je toch bijdragen? Zeg /donate om een link naar e
 Heel erg bedankt\!"""
     },
     "support_protip": {
-        "en": r"""Pro tip\: use a comparison tool \(like {}\) and then come back to use the links below""",
-        "nl": r"""Pro tip\: check een vergelijker \(zoals {}\) en kom daarna terug om de links hier te gebruiken"""
+        "en": r"""Pro tip\: use a comparison tool and then come back to use the links below""",
+        "nl": r"""Pro tip\: check een vergelijker en kom daarna terug om de links hier te gebruiken"""
     },
     "support_empty": {
         "en": r"""There are no partner links available right now\. You can still support Hestia via /donate\!""",

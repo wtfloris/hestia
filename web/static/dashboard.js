@@ -145,22 +145,13 @@ function renderAffiliateProtip(comparison) {
     var el = document.getElementById('affiliate-protip');
     if (!el) return;
     el.textContent = '';
-    if (!comparison || !comparison.go_url || !comparison.provider) {
+    if (!comparison) {
         el.hidden = true;
         return;
     }
     var lang = (typeof hestiaGetLang === 'function') ? hestiaGetLang() : 'en';
     var dict = HESTIA_I18N[lang] || HESTIA_I18N['en'] || {};
-    var template = dict['affiliate_protip'] || '';
-    var parts = template.split('{link}');
-    el.appendChild(document.createTextNode(parts[0] || ''));
-    var a = document.createElement('a');
-    a.href = comparison.go_url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer sponsored';
-    a.textContent = comparison.provider;
-    el.appendChild(a);
-    el.appendChild(document.createTextNode(parts.length > 1 ? parts.slice(1).join('{link}') : ''));
+    el.textContent = dict['affiliate_protip'] || '';
     el.hidden = false;
 }
 
