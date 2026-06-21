@@ -1877,6 +1877,69 @@ class TestParseYourhouse:
         assert len(results.homes) == 0
 
 
+class TestParseAthome:
+    def _listing(self, street="Honingerdijk", city="Rotterdam", price="2850,00",
+                 status="Actief", status_en="Active", area=141,
+                 url="https://www.athomevastgoed.nl/woningaanbod/huren-appartement-rotterdam-honingerdijk-te-huur-5462"):
+        return {
+            "street": street,
+            "ah_price": price,
+            "area": area,
+            "url": url,
+            "location": {"name": city},
+            "status": {"value": status, "value_lang": {"en": status_en, "nl": status}},
+        }
+
+    def _page(self, listings):
+        payload = {"current_page": 1, "data": listings, "last_page": 1, "total": len(listings)}
+        return "<html><body><script>store.commit('SET_PROPERTIES_COLLECTION', " + json.dumps(payload) + ");</script></body></html>"
+
+    def test_basic_parsing(self, mock_response):
+        r = mock_response(self._page([self._listing()]))
+        results = HomeResults("athome", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "athome"
+        # No house number is ever listed; price is appended for uniqueness.
+        assert results[0].address == "Honingerdijk [€2850]"
+        assert results[0].city == "Rotterdam"
+        assert results[0].price == 2850
+        assert results[0].sqm == 141
+        assert results[0].url == "https://www.athomevastgoed.nl/woningaanbod/huren-appartement-rotterdam-honingerdijk-te-huur-5462"
+
+    def test_parses_decimal_price(self, mock_response):
+        r = mock_response(self._page([self._listing(street="Sternstraat", price="807,50")]))
+        results = HomeResults("athome", r)
+        assert len(results.homes) == 1
+        assert results[0].price == 807
+        assert results[0].address == "Sternstraat [€807]"
+
+    def test_filters_rented(self, mock_response):
+        r = mock_response(self._page([self._listing(status="Verhuurd", status_en="Rented")]))
+        results = HomeResults("athome", r)
+        assert len(results.homes) == 0
+
+    def test_skips_missing_street(self, mock_response):
+        r = mock_response(self._page([self._listing(street="")]))
+        results = HomeResults("athome", r)
+        assert len(results.homes) == 0
+
+    def test_skips_zero_price(self, mock_response):
+        r = mock_response(self._page([self._listing(price="0,00")]))
+        results = HomeResults("athome", r)
+        assert len(results.homes) == 0
+
+    def test_resolves_relative_url(self, mock_response):
+        r = mock_response(self._page([self._listing(url="/woningaanbod/huren-studio-rotterdam-foo")]))
+        results = HomeResults("athome", r)
+        assert len(results.homes) == 1
+        assert results[0].url == "https://www.athomevastgoed.nl/woningaanbod/huren-studio-rotterdam-foo"
+
+    def test_no_blob_returns_empty(self, mock_response):
+        r = mock_response("<html><body>no listings here</body></html>")
+        results = HomeResults("athome", r)
+        assert len(results.homes) == 0
+
+
 class TestParseEasylease:
     def test_basic_parsing(self, mock_response):
         data = {

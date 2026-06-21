@@ -25,6 +25,12 @@ try:
 except ImportError:
     HAS_IKWILHUREN_SCRAPER = False
 
+try:
+    from hestia_utils.athome_scraper import scrape_athome
+    HAS_ATHOME_SCRAPER = True
+except ImportError:
+    HAS_ATHOME_SCRAPER = False
+
 import hestia_utils.db as db
 import hestia_utils.meta as meta
 import hestia_utils.secrets as secrets
@@ -307,6 +313,22 @@ async def scrape_site(target: dict) -> None:
             for home in db.fetch_all("SELECT address, city FROM hestia.homes WHERE date_added > now() - interval '180 day'")
         ]
         for home in scrape_pararius(target):
+            if home not in prev_homes:
+                new_homes.append(home)
+        for home in new_homes:
+            db.add_home(home.url, home.address, home.city, home.price, home.agency, datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), home.sqm)
+        await broadcast(new_homes)
+
+    elif target["agency"] == "athome":
+        if not HAS_ATHOME_SCRAPER:
+            logger.warning("At Home scraper module not found, skipping")
+            return
+        new_homes = []
+        prev_homes = [
+            Home(home["address"], home["city"])
+            for home in db.fetch_all("SELECT address, city FROM hestia.homes WHERE date_added > now() - interval '180 day'")
+        ]
+        for home in scrape_athome(target):
             if home not in prev_homes:
                 new_homes.append(home)
         for home in new_homes:
