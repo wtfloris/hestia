@@ -147,7 +147,8 @@ CREATE TABLE hestia.targets (
   user_info jsonb NOT NULL,
   post_data jsonb DEFAULT '{}'::json NOT NULL,
   headers json DEFAULT '{}'::json NOT NULL,
-  enabled bool DEFAULT false NOT NULL
+  enabled bool DEFAULT false NOT NULL,
+  alert_threshold_days int4
 );
 
 

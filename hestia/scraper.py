@@ -89,13 +89,13 @@ def _build_daily_error_digest() -> str:
 
 
 def _build_zero_results_digest() -> str:
-    rows = db.get_enabled_targets_without_recent_homes(days=7)
+    rows = db.get_enabled_targets_without_recent_homes(default_days=7)
     if not rows:
         return ""
 
-    message = "\n\nEnabled targets with 0 listings in the past 7 days:"
+    message = "\n\nEnabled targets with 0 listings within their alert window:"
     for row in rows:
-        message += f"\n- {row['agency']} ({row['id']})"
+        message += f"\n- {row['agency']} ({row['id']}): 0 in past {row['threshold_days']} days"
     return message
 
 
