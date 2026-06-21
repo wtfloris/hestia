@@ -49,6 +49,12 @@ services:
     environment:
       - HESTIA_TARGET=alliantie
 
+  hestia-scraper-athome:
+    <<: *scraper-base
+    container_name: hestia-scraper-athome
+    environment:
+      - HESTIA_TARGET=athome
+
   hestia-scraper-atta:
     <<: *scraper-base
     container_name: hestia-scraper-atta

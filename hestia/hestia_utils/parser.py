@@ -155,6 +155,8 @@ class HomeResults:
             self.parse_grunoverhuur(raw)
         elif source == "yourhouse":
             self.parse_yourhouse(raw)
+        elif source == "athome":
+            self.parse_athome(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -1226,6 +1228,79 @@ class HomeResults:
                     sqm = int(sqm_match.group(1))
                     if 0 < sqm < 2000:
                         home.sqm = sqm
+
+            self.homes.append(home)
+
+    def parse_athome(self, r: requests.models.Response):
+        base_url = "https://www.athomevastgoed.nl"
+
+        # Listings are server-rendered into a Vuex store commit as a Laravel
+        # paginator object: store.commit('SET_PROPERTIES_COLLECTION', {...}).
+        html = r.content.decode("utf-8", "replace")
+        marker = "SET_PROPERTIES_COLLECTION',"
+        idx = html.find(marker)
+        if idx == -1:
+            return
+        brace = html.find("{", idx + len(marker))
+        if brace == -1:
+            return
+        data = chompjs.parse_js_object(html[brace:])
+
+        unavailable_keywords = [
+            "verhuurd",
+            "onder optie",
+            "onder voorbehoud",
+            "verkocht",
+            "rented",
+            "withdrawn",
+            "niet beschikbaar",
+            "gereserveerd",
+        ]
+
+        for listing in data.get("data", []):
+            status = listing.get("status") or {}
+            status_lang = status.get("value_lang") or {}
+            status_text = " ".join(
+                str(v) for v in [status.get("value"), status_lang.get("en"), status_lang.get("nl")] if v
+            ).lower()
+            if any(kw in status_text for kw in unavailable_keywords):
+                continue
+
+            street = (listing.get("street") or "").strip()
+            if not street:
+                continue
+
+            location = listing.get("location") or {}
+            city = (location.get("name") or "").strip()
+            if not city:
+                continue
+
+            url = (listing.get("url") or "").strip()
+            if not url:
+                continue
+
+            # Prices look like "2850,00" (comma decimals, no thousands separator).
+            euros = (listing.get("ah_price") or "").split(",")[0].replace(".", "")
+            if not euros.isdigit() or int(euros) <= 0:
+                continue
+            price = int(euros)
+
+            # At Home only lists the street, never a house number. Mirror the
+            # Pararius handling and append the price so the address stays a
+            # usable unique identifier.
+            address = street
+            if not re.search(r"\d", address):
+                address += f" [€{price}]"
+
+            home = Home(agency="athome")
+            home.address = address
+            home.city = city
+            home.url = parse.urljoin(base_url, url)
+            home.price = price
+
+            area = listing.get("area")
+            if isinstance(area, int) and 0 < area < 2000:
+                home.sqm = area
 
             self.homes.append(home)
 
