@@ -8,6 +8,7 @@ hestia/hestia_utils/athome_scraper.py
 tests/test_ikwilhuren_scraper.py
 tests/test_pararius_scraper.py
 requirements-private.txt
+sync-secret-parsers.sh
 # Hestia specific files
 error.log
 hestia.log
