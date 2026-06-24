@@ -143,6 +143,23 @@
                 </form>
             </div>
         </details>
+        <div class="dashboard-affiliate" id="affiliate-section" hidden>
+            <details class="affiliate-collapsible" id="affiliate-collapsible">
+                <summary class="filters-summary">
+                    <span data-i18n="affiliate_title">Support Hestia</span>
+                    <button type="button" class="affiliate-info-btn" id="affiliate-info-btn" data-modal="cost" data-i18n-title="cost_modal_title" aria-label="Running costs">
+                        <i data-lucide="info" style="width:16px;height:16px"></i>
+                    </button>
+                </summary>
+                <div class="affiliate-panel">
+                    <p class="affiliate-cost-note" data-i18n="cost_link">Hestia is free, but costs &euro;79/month to run</p>
+                    <p class="affiliate-intro" data-i18n-html="affiliate_intro">And I'd like to ask for your help: if you sign up for utilities in your new home through any of the links below then Hestia gets a small bonus. By doing this you cover roughly a week of Hestia's running costs, and at no extra cost to you!<br><br>Don't need any of that but still want to contribute? You can use <a id="affiliate-tikkie-link" href="#" target="_blank" rel="noopener noreferrer">this open Tikkie</a>!<br><br>Thank you so much!</p>
+                    <p class="affiliate-protip" id="affiliate-protip" hidden></p>
+                    <div id="affiliate-list" class="affiliate-list"></div>
+                    <p class="affiliate-footnote" data-i18n="affiliate_footnote">More partnerships will be added in the next few days!</p>
+                </div>
+            </details>
+        </div>
     </section>
     <section class="dashboard-results">
         <div id="homes-live-status" class="homes-live-status">

@@ -152,6 +152,54 @@ CREATE TABLE hestia.targets (
 );
 
 
+-- hestia.affiliate_categories definition
+
+-- Drop table
+
+-- DROP TABLE hestia.affiliate_categories;
+
+CREATE TABLE hestia.affiliate_categories (
+  id int4 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START 1 CACHE 1 NO CYCLE) NOT NULL,
+  slug varchar NOT NULL,
+  name_en varchar NOT NULL,
+  name_nl varchar NOT NULL,
+  icon varchar NULL,
+  sort_order int4 DEFAULT 0 NOT NULL,
+  enabled bool DEFAULT true NOT NULL,
+  CONSTRAINT affiliate_categories_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_categories_slug_key UNIQUE (slug)
+);
+
+
+-- hestia.affiliate_links definition
+
+-- Drop table
+
+-- DROP TABLE hestia.affiliate_links;
+
+CREATE TABLE hestia.affiliate_links (
+  id int4 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START 1 CACHE 1 NO CYCLE) NOT NULL,
+  category_id int4 NOT NULL,
+  provider varchar NOT NULL,
+  url varchar NOT NULL,
+  title_en varchar NULL,
+  title_nl varchar NULL,
+  blurb_en varchar NULL,
+  blurb_nl varchar NULL,
+  logo varchar NULL,
+  slug varchar NULL,
+  sort_order int4 DEFAULT 0 NOT NULL,
+  enabled bool DEFAULT true NOT NULL,
+  click_count int4 DEFAULT 0 NOT NULL,
+  created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  CONSTRAINT affiliate_links_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_links_slug_key UNIQUE (slug),
+  CONSTRAINT affiliate_links_category_id_fkey FOREIGN KEY (category_id) REFERENCES hestia.affiliate_categories(id)
+);
+CREATE INDEX affiliate_links_category_idx ON hestia.affiliate_links USING btree (category_id);
+
+
 -- hestia.error_rollups definition
 
 -- Drop table

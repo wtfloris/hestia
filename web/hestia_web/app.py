@@ -64,6 +64,9 @@ RECENT_LOGIN_MAX_ENTRIES = 10000
 SESSION_MAX_AGE = 365 * 24 * 60 * 60  # 1 year
 SESSION_COOKIE_NAME = "hestia_session"
 DEVICE_ID_HEADER = "X-Device-Id"
+# Slug marking the affiliate link surfaced inline in the support "Pro tip"
+# (a comparison tool such as Pricewise). Kept out of the regular link cards.
+COMPARISON_LINK_SLUG = "comparison"
 
 serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
 
@@ -1975,6 +1978,102 @@ def donation_link():
     except psycopg2.Error as e:
         logger.error(
             "Database error fetching donation link",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
+        return jsonify({"error": "Database error"}), 500
+
+
+@app.route("/api/affiliate-links")
+@api_client_auth_required
+def affiliate_links():
+    """Return enabled affiliate categories with their links, localized via ?lang=en|nl."""
+    lang = request.args.get("lang", "en")
+    if lang not in ("en", "nl"):
+        lang = "en"
+    base_url = request.host_url.rstrip("/")
+    try:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT id, slug, name_en, name_nl, icon FROM hestia.affiliate_categories WHERE enabled = true ORDER BY sort_order, id"
+                )
+                categories = cur.fetchall()
+                cur.execute(
+                    "SELECT id, category_id, provider, title_en, title_nl, blurb_en, blurb_nl, logo FROM hestia.affiliate_links WHERE enabled = true AND slug IS DISTINCT FROM %s ORDER BY sort_order, id",
+                    [COMPARISON_LINK_SLUG],
+                )
+                links = cur.fetchall()
+                cur.execute(
+                    "SELECT id, provider FROM hestia.affiliate_links WHERE enabled = true AND slug = %s LIMIT 1",
+                    [COMPARISON_LINK_SLUG],
+                )
+                comparison_row = cur.fetchone()
+    except psycopg2.Error as e:
+        logger.error(
+            "Database error fetching affiliate links",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
+        return jsonify({"error": "Database error"}), 500
+
+    links_by_category = {}
+    for link in links:
+        links_by_category.setdefault(link["category_id"], []).append({
+            "id": link["id"],
+            "provider": link["provider"],
+            "title": link[f"title_{lang}"],
+            "blurb": link[f"blurb_{lang}"],
+            "logo": link["logo"],
+            "go_url": f"{base_url}/go/{link['id']}",
+        })
+
+    result = []
+    for cat in categories:
+        cat_links = links_by_category.get(cat["id"], [])
+        if not cat_links:
+            continue
+        result.append({
+            "slug": cat["slug"],
+            "name": cat[f"name_{lang}"],
+            "icon": cat["icon"],
+            "links": cat_links,
+        })
+
+    comparison = None
+    if comparison_row:
+        comparison = {
+            "provider": comparison_row["provider"],
+            "go_url": f"{base_url}/go/{comparison_row['id']}",
+        }
+    return jsonify({"categories": result, "comparison": comparison})
+
+
+@app.route("/go/<int:link_id>")
+def affiliate_go(link_id):
+    """Redirect to an affiliate URL and count the click. Public (linked from bot/app)."""
+    try:
+        with get_db(autocommit=True) as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT url FROM hestia.affiliate_links WHERE id = %s AND enabled = true",
+                    [link_id],
+                )
+                row = cur.fetchone()
+                if not row:
+                    return jsonify({"error": "Not found"}), 404
+                url = row["url"]
+                parsed = urlparse(url)
+                if parsed.scheme not in {"http", "https"}:
+                    return jsonify({"error": "Not found"}), 404
+                cur.execute(
+                    "UPDATE hestia.affiliate_links SET click_count = click_count + 1 WHERE id = %s",
+                    [link_id],
+                )
+        return redirect(url, code=302)
+    except psycopg2.Error as e:
+        logger.error(
+            "Database error in affiliate redirect",
             extra={"error": str(e), "error_type": type(e).__name__},
             exc_info=True,
         )

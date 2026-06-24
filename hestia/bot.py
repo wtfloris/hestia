@@ -398,6 +398,46 @@ async def donate(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def support(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat: return
+    lang = db.get_user_lang(update.effective_chat.id)
+    categories = db.get_affiliate_categories_with_links(lang)
+
+    if not categories:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=strings.get("support_empty", update.effective_chat.id),
+            parse_mode="MarkdownV2",
+            disable_web_page_preview=True
+        )
+        return
+
+    message = strings.get("support_intro", update.effective_chat.id)
+
+    comparison = db.get_comparison_link()
+    if comparison:
+        message += "\n\n" + strings.get("support_protip", update.effective_chat.id)
+
+    for cat in categories:
+        icon = f"{cat['icon']} " if cat["icon"] else ""
+        message += f"\n\n*{icon}{meta.escape_markdownv2(cat['name'])}*"
+        for link in cat["links"]:
+            go_url = f"{meta.HESTIA_BASE_URL}/go/{link['id']}"
+            provider = meta.escape_markdownv2(link["provider"])
+            message += f"\n• [{provider}]({go_url})"
+            if link["title"]:
+                message += f" {meta.escape_markdownv2(link['title'])}"
+            if link["blurb"]:
+                message += f"\n  {meta.escape_markdownv2(link['blurb'])}"
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=message,
+        parse_mode="MarkdownV2",
+        disable_web_page_preview=True
+    )
+
+
 async def faq(update: telegram.Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat: return
     donation_link = db.get_donation_link()
@@ -494,6 +534,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("announce", announce))
     application.add_handler(CommandHandler("websites", websites))
     application.add_handler(CommandHandler("donate", donate))
+    application.add_handler(CommandHandler("support", support))
+    application.add_handler(CommandHandler("steun", support))
     application.add_handler(CommandHandler("filter", filter))
     application.add_handler(CommandHandler("filters", filter))
     application.add_handler(CommandHandler("status", status))

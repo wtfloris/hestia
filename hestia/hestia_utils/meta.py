@@ -22,6 +22,9 @@ logging.basicConfig(
 
 BOT = telegram.Bot(TOKEN)
 
+# Base URL of the web service, used to build affiliate /go/<id> redirect links
+HESTIA_BASE_URL = "https://hestia.bot"
+
 HOUSE_EMOJI = "\U0001F3E0"
 LINK_EMOJI = "\U0001F517"
 EURO_EMOJI = "\U0001F4B6"

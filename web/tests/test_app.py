@@ -1118,6 +1118,99 @@ class TestApiStatisticsAndDonationPublic:
         assert resp.get_json() == {"url": "https://example.com/donate"}
         assert "Location" not in resp.headers
 
+class TestAffiliateLinks:
+    AFF_CATS = [
+        {"id": 1, "slug": "energy", "name_en": "Energy", "name_nl": "Energie", "icon": "⚡"},
+        {"id": 2, "slug": "empty", "name_en": "Empty", "name_nl": "Leeg", "icon": None},
+    ]
+    AFF_LINKS = [
+        {"id": 10, "category_id": 1, "provider": "Vandebron", "title_en": "Green power",
+         "title_nl": "Groene stroom", "blurb_en": "Clean", "blurb_nl": "Schoon", "logo": "vdb.png"},
+    ]
+
+    def _conn_with_auth(self, mock_get_db, comparison=None):
+        auth_cur = make_mock_cursor(fetchone_value={"id": 33, "email_address": "user@example.com"})
+        data_cur = make_mock_cursor()
+        data_cur.fetchall.side_effect = [self.AFF_CATS, self.AFF_LINKS]
+        data_cur.fetchone.return_value = comparison
+        conn = MagicMock()
+        conn.__enter__ = MagicMock(return_value=conn)
+        conn.__exit__ = MagicMock(return_value=False)
+        conn.cursor.side_effect = [auth_cur, data_cur]
+        mock_get_db.return_value = conn
+        return conn
+
+    @patch("hestia_web.app.get_db")
+    def test_returns_grouped_localized_links(self, mock_get_db, client):
+        set_session(client, email="user@example.com")
+        self._conn_with_auth(mock_get_db)
+
+        resp = client.get("/api/affiliate-links?lang=nl", follow_redirects=False)
+        assert resp.status_code == 200
+        cats = resp.get_json()["categories"]
+        # Empty category (no links) is dropped
+        assert [c["slug"] for c in cats] == ["energy"]
+        assert cats[0]["name"] == "Energie"
+        link = cats[0]["links"][0]
+        assert link["title"] == "Groene stroom"
+        assert link["go_url"].endswith("/go/10")
+        # Raw affiliate URL must never be exposed
+        assert "url" not in link
+        # No comparison entry configured
+        assert resp.get_json()["comparison"] is None
+
+    @patch("hestia_web.app.get_db")
+    def test_returns_comparison_entry(self, mock_get_db, client):
+        set_session(client, email="user@example.com")
+        self._conn_with_auth(mock_get_db, comparison={"id": 99, "provider": "Pricewise"})
+
+        resp = client.get("/api/affiliate-links", follow_redirects=False)
+        assert resp.status_code == 200
+        comparison = resp.get_json()["comparison"]
+        assert comparison["provider"] == "Pricewise"
+        assert comparison["go_url"].endswith("/go/99")
+
+    def test_requires_auth(self, client):
+        resp = client.get("/api/affiliate-links", follow_redirects=False)
+        assert resp.status_code == 401
+        assert resp.get_json() == {"error": "unauthorized"}
+
+
+class TestAffiliateGo:
+    @patch("hestia_web.app.get_db")
+    def test_redirects_and_counts_click(self, mock_get_db, client):
+        cur = make_mock_cursor(fetchone_value={"url": "https://partner.example/ref"})
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+
+        resp = client.get("/go/10", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["Location"] == "https://partner.example/ref"
+        # An UPDATE incrementing click_count was issued
+        update_calls = [c for c in cur.execute.call_args_list if "click_count" in c[0][0]]
+        assert len(update_calls) == 1
+
+    @patch("hestia_web.app.get_db")
+    def test_unknown_id_returns_404(self, mock_get_db, client):
+        cur = make_mock_cursor(fetchone_value=None)
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+
+        resp = client.get("/go/999", follow_redirects=False)
+        assert resp.status_code == 404
+
+    @patch("hestia_web.app.get_db")
+    def test_non_http_scheme_rejected(self, mock_get_db, client):
+        cur = make_mock_cursor(fetchone_value={"url": "javascript:alert(1)"})
+        conn = make_mock_conn(cur)
+        mock_get_db.return_value = conn
+
+        resp = client.get("/go/10", follow_redirects=False)
+        assert resp.status_code == 404
+        # No redirect happened
+        assert "Location" not in resp.headers
+
+
 @pytest.mark.parametrize(
     "method,path",
     [

@@ -84,6 +84,46 @@ def get_donation_link_updated() -> datetime:
         return result["donation_link_updated"]
     return datetime.min
 
+def get_affiliate_categories_with_links(lang: Literal["en", "nl"] = "en") -> list[dict]:
+    """Return enabled categories (ordered) each with their enabled links, localized for lang."""
+    if lang not in ("en", "nl"):
+        lang = "en"
+    categories = fetch_all(
+        "SELECT id, slug, name_en, name_nl, icon FROM hestia.affiliate_categories WHERE enabled = true ORDER BY sort_order, id"
+    )
+    links = fetch_all(
+        "SELECT id, category_id, provider, title_en, title_nl, blurb_en, blurb_nl, logo FROM hestia.affiliate_links WHERE enabled = true AND slug IS DISTINCT FROM 'comparison' ORDER BY sort_order, id"
+    )
+    links_by_category = {}
+    for link in links:
+        links_by_category.setdefault(link["category_id"], []).append({
+            "id": link["id"],
+            "provider": link["provider"],
+            "title": link[f"title_{lang}"],
+            "blurb": link[f"blurb_{lang}"],
+            "logo": link["logo"],
+        })
+    result = []
+    for cat in categories:
+        cat_links = links_by_category.get(cat["id"], [])
+        if not cat_links:
+            continue
+        result.append({
+            "slug": cat["slug"],
+            "name": cat[f"name_{lang}"],
+            "icon": cat["icon"],
+            "links": cat_links,
+        })
+    return result
+
+
+def get_comparison_link() -> dict:
+    """Return the special 'comparison' affiliate link (e.g. Pricewise), or {} if none."""
+    return fetch_one(
+        "SELECT id, provider FROM hestia.affiliate_links WHERE enabled = true AND slug = 'comparison' LIMIT 1"
+    )
+
+
 def get_user_lang(telegram_id: int) -> Literal["en", "nl"]:
     if telegram_id in LANG_CACHE:
         return LANG_CACHE[telegram_id]
