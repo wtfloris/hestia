@@ -657,6 +657,17 @@ class TestParseFunda:
         assert len(results.homes) == 1
         assert results[0].sqm == -1
 
+    def test_error_response_surfaces_cause(self, mock_response):
+        # Funda's _msearch returns HTTP 200 with a per-query error instead of
+        # `hits`; the parser should raise a descriptive error, not KeyError.
+        data = {"responses": [{
+            "error": {"type": "search_phase_execution_exception", "reason": "all shards failed"},
+            "status": 400,
+        }]}
+        r = mock_response(data)
+        with pytest.raises(ValueError, match="Funda returned no hits"):
+            HomeResults("funda", r)
+
 
 class TestParseRebo:
     def test_basic_parsing(self, mock_response):
@@ -1937,6 +1948,82 @@ class TestParseAthome:
     def test_no_blob_returns_empty(self, mock_response):
         r = mock_response("<html><body>no listings here</body></html>")
         results = HomeResults("athome", r)
+        assert len(results.homes) == 0
+
+
+class TestParseInterhouse:
+    def _card(self, address="Westerdok", city="Amsterdam",
+              url="https://interhouse.nl/vastgoed/huur/amsterdam/appartement/westerdok/",
+              type_label="Appartement Te huur", price="€ 2.750 p/mnd Exclusief voorzieningen",
+              availability="Beschikbaar", area="Ca. 115 m<sup>2</sup>"):
+        return f"""
+        <a href="{url}" class="c-result-item building-result">
+            <div class="c-result-item__content">
+                <h3 class="c-result-item__title">
+                    <span class="c-result-item__title-type">{type_label}</span>
+                    <span class="c-result-item__title-address">{address}</span>
+                </h3>
+                <p class="c-result-item__location-label">{city}</p>
+                <div class="c-result-item__data-table">
+                    <div class="c-result-item__data-table-item">{availability}</div>
+                    <div class="c-result-item__data-table-item">{area}</div>
+                </div>
+                <div class="c-result-item__price">{price}</div>
+            </div>
+        </a>
+        """
+
+    def _page(self, cards):
+        return "<html><body><ul>" + "".join(cards) + "</ul></body></html>"
+
+    def test_basic_parsing(self, mock_response):
+        r = mock_response(self._page([self._card()]))
+        results = HomeResults("interhouse", r)
+        assert len(results.homes) == 1
+        assert results[0].agency == "interhouse"
+        # No house number is ever listed; price is appended for uniqueness.
+        assert results[0].address == "Westerdok [€2750]"
+        assert results[0].city == "Amsterdam"
+        assert results[0].price == 2750
+        assert results[0].sqm == 115
+        assert results[0].url == "https://interhouse.nl/vastgoed/huur/amsterdam/appartement/westerdok/"
+
+    def test_filters_koop_by_url(self, mock_response):
+        # For-sale listings share the markup but live under /vastgoed/koop/.
+        card = self._card(
+            url="https://interhouse.nl/vastgoed/koop/amsterdam/appartement/koopstraat/",
+            price="€ 400.000 k.k.",
+        )
+        r = mock_response(self._page([card]))
+        results = HomeResults("interhouse", r)
+        assert len(results.homes) == 0
+
+    def test_filters_rented(self, mock_response):
+        r = mock_response(self._page([self._card(availability="Verhuurd o.v.")]))
+        results = HomeResults("interhouse", r)
+        assert len(results.homes) == 0
+
+    def test_parses_price_without_notes(self, mock_response):
+        r = mock_response(self._page([self._card(address="Kajuit", price="€ 940 p/mnd")]))
+        results = HomeResults("interhouse", r)
+        assert len(results.homes) == 1
+        assert results[0].price == 940
+        assert results[0].address == "Kajuit [€940]"
+
+    def test_skips_price_without_amount(self, mock_response):
+        r = mock_response(self._page([self._card(price="Prijs op aanvraag")]))
+        results = HomeResults("interhouse", r)
+        assert len(results.homes) == 0
+
+    def test_missing_sqm_is_unset(self, mock_response):
+        r = mock_response(self._page([self._card(area="")]))
+        results = HomeResults("interhouse", r)
+        assert len(results.homes) == 1
+        assert results[0].sqm == -1
+
+    def test_no_cards_returns_empty(self, mock_response):
+        r = mock_response("<html><body>no listings here</body></html>")
+        results = HomeResults("interhouse", r)
         assert len(results.homes) == 0
 
 

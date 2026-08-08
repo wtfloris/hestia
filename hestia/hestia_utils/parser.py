@@ -157,6 +157,8 @@ class HomeResults:
             self.parse_yourhouse(raw)
         elif source == "athome":
             self.parse_athome(raw)
+        elif source == "interhouse":
+            self.parse_interhouse(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -406,8 +408,17 @@ class HomeResults:
             self.homes.append(home)
             
     def parse_funda(self, r: requests.models.Response):
-        results = json.loads(r.content)["responses"][0]["hits"]["hits"]
-        
+        response = json.loads(r.content)["responses"][0]
+        # Funda's Elasticsearch _msearch endpoint returns HTTP 200 even when the
+        # individual query fails: the failing sub-response carries an `error`
+        # object and a non-200 `status` instead of `hits`. Surface that instead
+        # of a bare KeyError: 'hits' so the real cause is visible in the alert.
+        if "hits" not in response:
+            status = response.get("status")
+            error = response.get("error", response)
+            raise ValueError(f"Funda returned no hits (status={status}): {json.dumps(error)[:1000]}")
+        results = response["hits"]["hits"]
+
         for res in results:
             # Some listings don't have house numbers, so skip
             if "house_number" not in res["_source"]["address"].keys():
@@ -1301,6 +1312,72 @@ class HomeResults:
             area = listing.get("area")
             if isinstance(area, int) and 0 < area < 2000:
                 home.sqm = area
+
+            self.homes.append(home)
+
+    def parse_interhouse(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        unavailable_keywords = [
+            "verhuurd",
+            "onder optie",
+            "onder voorbehoud",
+            "verkocht",
+            "rented",
+            "withdrawn",
+            "niet beschikbaar",
+            "gereserveerd",
+        ]
+
+        for card in soup.select("a.c-result-item"):
+            url = card.get("href")
+            # The feed mixes in for-sale ("koop") listings with otherwise
+            # identical markup, so restrict to rentals by their URL path.
+            if not url or "/vastgoed/huur/" not in url:
+                continue
+
+            # Rented/under-option listings still show up; their status is only
+            # reflected in the availability label inside the card text.
+            card_text = card.get_text(" ", strip=True).lower()
+            if any(keyword in card_text for keyword in unavailable_keywords):
+                continue
+
+            address_tag = card.select_one(".c-result-item__title-address")
+            city_tag = card.select_one(".c-result-item__location-label")
+            price_tag = card.select_one(".c-result-item__price")
+            if not address_tag or not city_tag or not price_tag:
+                continue
+
+            # Price reads like "€ 2.750 p/mnd Exclusief voorzieningen"; only the
+            # amount before "p/mnd" is the monthly rent.
+            price_text = price_tag.get_text(" ", strip=True).split("p/mnd")[0]
+            price_digits = re.sub(r"\D", "", price_text)
+            if not price_digits:
+                continue
+            price = int(price_digits)
+
+            # Interhouse only lists the street, never a house number. Mirror the
+            # At Home / Pararius handling and append the price so the address
+            # stays a usable unique identifier.
+            address = " ".join(address_tag.get_text(" ", strip=True).split())
+            if not re.search(r"\d", address):
+                address += f" [€{price}]"
+
+            home = Home(agency="interhouse")
+            home.address = address
+            home.city = city_tag.get_text(" ", strip=True)
+            home.url = url
+            home.price = price
+
+            data_table = card.select_one(".c-result-item__data-table")
+            if data_table:
+                # The living area shows as "Ca. 115 m²" (the "²" is a <sup>, so
+                # the text renders as "115 m 2").
+                m = re.search(r"(\d{1,4})\s*m\s*[²2]", data_table.get_text(" ", strip=True))
+                if m:
+                    sqm = int(m.group(1))
+                    if 0 < sqm < 2000:
+                        home.sqm = sqm
 
             self.homes.append(home)
 
