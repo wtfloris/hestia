@@ -227,8 +227,9 @@ async def broadcast(homes: list[Home]) -> None:
                     message += f"{meta.SQM_EMOJI} {home.sqm} m\u00b2\n"
                 message += "\n"
                 message = meta.escape_markdownv2(message)
-                agency_name = _get_agency_pretty_name()
-                message += f"{meta.LINK_EMOJI} [{agency_name}]({home.url})"
+                agency_name = meta.escape_markdownv2(_get_agency_pretty_name())
+                home_url = meta.escape_markdownv2_url(home.url)
+                message += f"{meta.LINK_EMOJI} [{agency_name}]({home_url})"
 
                 if sub.get("telegram_enabled") and sub.get("telegram_id"):
                     try:

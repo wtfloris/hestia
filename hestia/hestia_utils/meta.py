@@ -1,18 +1,23 @@
 import logging
 import telegram
+from telegram.helpers import escape_markdown
 
 from hestia_utils.secrets import TOKEN
 
+
 def escape_markdownv2(text: str) -> str:
-    text = text.replace('.', r'\.')
-    text = text.replace('!', r'\!')
-    text = text.replace('+', r'\+')
-    text = text.replace('-', r'\-')
-    text = text.replace('*', r'\*')
-    text = text.replace('|', r'\|')
-    text = text.replace('(', r'\(')
-    text = text.replace(')', r'\)')
-    return text
+    """Escape text for MarkdownV2 body content."""
+    return escape_markdown(text, version=2)
+
+
+def escape_markdownv2_url(url: str) -> str:
+    """Escape a URL for the (...) part of a MarkdownV2 inline link.
+
+    Only ')' and '\\' are reserved there — escaping the full special set
+    would corrupt the URL.
+    """
+    return escape_markdown(url, version=2, entity_type="text_link")
+
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
