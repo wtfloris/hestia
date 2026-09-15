@@ -83,7 +83,18 @@ class TestScrapeFunda:
 
         session.get.assert_called_once()
         assert session.get.call_args[0][0] == "https://www.funda.nl/"
-        assert session.mount.called
+
+    def test_impersonates_a_browser(self):
+        # Akamai scores the TLS handshake, so the session has to impersonate a
+        # real browser and must not send a User-Agent that contradicts it.
+        from hestia_utils import funda_scraper
+
+        session, patcher = _mock_session()
+        with patcher as mock_session_cls:
+            funda_scraper.scrape_funda(TARGET)
+
+        assert mock_session_cls.call_args[1]["impersonate"] == funda_scraper.IMPERSONATE
+        assert "User-Agent" not in session.post.call_args[1]["headers"]
 
     def test_body_is_ndjson(self):
         from hestia_utils.funda_scraper import scrape_funda
