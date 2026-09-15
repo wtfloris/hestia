@@ -8,8 +8,9 @@ logger = logging.getLogger("funda")
 # Akamai fingerprints the TLS handshake, and plain requests/urllib3 gets scored
 # as a bot no matter how browser-like the headers are: pinning the cipher list
 # bought a few days before the fingerprint was flagged durably. curl_cffi
-# impersonates a real browser's handshake instead. Keep this in step with the
-# User-Agent on the target so the handshake and the headers tell the same story.
+# impersonates a real browser's handshake instead, and supplies the matching
+# User-Agent itself. Profiles age as browsers ship, so if the 403s come back,
+# bump this to a current one before reaching for anything more elaborate.
 IMPERSONATE = "safari2601"
 
 
@@ -17,9 +18,11 @@ def scrape_funda(target: dict) -> list[Home]:
     headers = target.get("headers") or {}
     session = requests.Session(impersonate=IMPERSONATE)
 
-    # Akamai only serves the search API to clients holding a bm_s cookie, which
-    # is handed out by the public site, so prime the session before searching.
-    # (ak_bmsc and bm_so come along with it but neither is sufficient alone.)
+    # Akamai wants either a bm_s cookie or the browser-ish headers off the
+    # target; measured 8/8 with each on its own and 0/8 with neither, so the two
+    # are redundant paths to the same 200. Prime for the cookie anyway and send
+    # the headers too, so losing one to a rule change doesn't take the scraper
+    # down with it. (ak_bmsc and bm_so come along with bm_s but neither works.)
     prime_url = headers.get("Referer", "https://www.funda.nl/")
     prime = session.get(
         prime_url,
@@ -29,8 +32,9 @@ def scrape_funda(target: dict) -> list[Home]:
     if prime.status_code != 200:
         raise ConnectionError(f"Got a non-OK status code priming the session: {prime.status_code}")
 
-    # The impersonation profile supplies its own User-Agent; sending the one off
-    # the target too would risk it drifting out of step with the handshake.
+    # Drop the target's User-Agent: the impersonation profile sets one that
+    # matches its handshake, and sending a second, possibly stale one over the
+    # top is exactly the inconsistency the bot scoring looks for.
     search_headers = {k: v for k, v in headers.items() if k.lower() != "user-agent"}
 
     # The search endpoint is Elasticsearch _msearch, so the body is NDJSON.
