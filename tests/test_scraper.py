@@ -79,7 +79,7 @@ class TestScrapeSite:
             mock_db.fetch_all.return_value = []
 
             target = {
-                "id": 1, "agency": "funda", "queryurl": "http://api.test.com",
+                "id": 1, "agency": "rebo", "queryurl": "http://api.test.com",
                 "method": "POST", "headers": {"Content-Type": "application/json"},
                 "post_data": {"query": "test"}
             }
@@ -108,7 +108,7 @@ class TestScrapeSite:
             mock_db.fetch_all.return_value = []
 
             target = {
-                "id": 1, "agency": "funda", "queryurl": "http://api.test.com",
+                "id": 1, "agency": "rebo", "queryurl": "http://api.test.com",
                 "method": "POST_NDJSON", "headers": {},
                 "post_data": [{"index": "test"}, {"query": "match_all"}]
             }
