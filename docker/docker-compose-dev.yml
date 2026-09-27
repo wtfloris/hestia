@@ -377,6 +377,12 @@ services:
     environment:
       - HESTIA_TARGET=woonmatchwaterland
 
+  hestia-scraper-woonstadrotterdam-dev:
+    <<: *scraper-dev-base
+    container_name: hestia-scraper-woonstadrotterdam-dev
+    environment:
+      - HESTIA_TARGET=woonstadrotterdam
+
   hestia-scraper-yourhouse-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-yourhouse-dev
