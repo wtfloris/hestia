@@ -415,6 +415,51 @@ class TestParseHexia:
         results = HomeResults("hexia_antares", r)
         assert "thuisbijantares.nl" in results[0].url
 
+    def test_filters_parking(self, mock_response):
+        base = {
+            "rentBuy": "Huur",
+            "city": {"name": "Enschede"},
+            "street": "Spicastraat",
+            "houseNumber": "3",
+            "houseNumberAddition": "",
+            "netRent": 713,
+            "urlKey": "21106-spicastraat-3-enschede",
+        }
+        data = {"data": [
+            dict(base, dwellingType={"categorie": "woning"}),
+            dict(base, street="De Archipel", houseNumber="16", netRent=55,
+                 urlKey="23458-dearchipel-16-enschede", dwellingType={"categorie": "voorVoertuig"}),
+        ]}
+        r = mock_response(data)
+        results = HomeResults("hexia_woninghuren", r)
+        assert [h.address for h in results.homes] == ["Spicastraat 3"]
+
+    def test_portal_result_key_woninghuren(self, mock_response):
+        # Portal-hosted feeds wrap listings in "result" instead of "data"
+        data = {
+            "sAngularServiceData": "[]",
+            "result": [{
+                "rentBuy": "Huur",
+                "dwellingType": {"categorie": "woning"},
+                "city": {"name": "Enschede"},
+                "street": "Spicastraat",
+                "houseNumber": "3",
+                "houseNumberAddition": "",
+                "netRent": 713,
+                "areaDwelling": 67,
+                "urlKey": "21106-spicastraat-3-enschede",
+            }],
+        }
+        r = mock_response(data)
+        results = HomeResults("hexia_woninghuren", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Spicastraat 3"
+        assert results[0].city == "Enschede"
+        assert results[0].price == 713
+        assert results[0].sqm == 67
+        assert results[0].agency == "hexia_woninghuren"
+        assert results[0].url == "https://www.woninghuren.nl/aanbod/te-huur/details/21106-spicastraat-3-enschede"
+
 
 class TestParseWoonmatchwaterland:
     def test_basic_parsing(self, mock_response):
