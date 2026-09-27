@@ -193,6 +193,12 @@ services:
     environment:
       - HESTIA_TARGET=hoekstra
 
+  hestia-scraper-housinganywhere:
+    <<: *scraper-base
+    container_name: hestia-scraper-housinganywhere
+    environment:
+      - HESTIA_TARGET=housinganywhere
+
   hestia-scraper-huurportaal:
     <<: *scraper-base
     container_name: hestia-scraper-huurportaal

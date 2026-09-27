@@ -80,6 +80,10 @@ class Home:
             city = "Nederhorst den Berg"
         elif city.lower() == "huis ter heide":
             city = "Huis ter Heide"
+        elif city.lower() == "the hague":
+            city = "Den Haag"
+        elif city.lower() in ["almere stad", "almere-stad"]:
+            city = "Almere"
             
         self._parsed_city = city
         
@@ -159,6 +163,8 @@ class HomeResults:
             self.parse_athome(raw)
         elif source == "interhouse":
             self.parse_interhouse(raw)
+        elif source == "housinganywhere":
+            self.parse_housinganywhere(raw)
         elif source == "woonstadrotterdam":
             self.parse_woonstadrotterdam(raw)
         else:
@@ -1846,5 +1852,48 @@ class HomeResults:
             surface = ((res["unit"].get("propertySpecification")) or {}).get("surface")
             if isinstance(surface, (int, float)) and 0 < surface < 2000:
                 home.sqm = int(surface)
+
+            self.homes.append(home)
+
+    def parse_housinganywhere(self, r: requests.models.Response):
+        # Search index hits; the query itself filters on isSearchable (bookable) listings
+        results = json.loads(r.content)["hits"]
+
+        for res in results:
+            if res.get("isSearchable") is False:
+                continue
+
+            street = " ".join((res.get("street") or "").split())
+            city = (res.get("city") or "").strip()
+            path = res.get("path")
+            if not street or not city or not path:
+                continue
+
+            try:
+                price = int(float(res["priceEUR"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if price <= 0:
+                continue
+
+            # House numbers are never shown (only the street), and one street often has
+            # several rooms, so append the price to keep the address a usable identifier
+            address = street
+            if not re.search(r"\d", address):
+                address += f" [€{price}]"
+
+            home = Home(agency="housinganywhere")
+            home.address = address
+            home.city = city
+            home.url = f"https://housinganywhere.com{parse.quote(path)}"
+            home.price = price
+
+            # Total size for whole homes, room size for (shared) rooms
+            try:
+                sqm = int(float(res.get("propertySize")))
+                if 0 < sqm < 2000:
+                    home.sqm = sqm
+            except (TypeError, ValueError):
+                pass
 
             self.homes.append(home)
