@@ -159,6 +159,8 @@ class HomeResults:
             self.parse_athome(raw)
         elif source == "interhouse":
             self.parse_interhouse(raw)
+        elif source == "woonstadrotterdam":
+            self.parse_woonstadrotterdam(raw)
         else:
             raise ValueError(f"Unknown source: {source}")
 
@@ -1794,5 +1796,49 @@ class HomeResults:
                         sqm = round(home.price / ppm)
                         if 0 < sqm < 2000:
                             home.sqm = sqm
+
+            self.homes.append(home)
+
+    def parse_woonstadrotterdam(self, r: requests.models.Response):
+        results = json.loads(r.content)["items"]
+
+        # "Reacties gesloten" listings stay in the feed after applications close
+        available_states = {"beschikbaar", "binnenkort beschikbaar"}
+
+        for res in results:
+            state = ((res.get("state") or {}).get("name") or "").strip().lower()
+            if state not in available_states:
+                continue
+
+            # New-build project types ("Type A.1.1 ...") have no unit address
+            address = ((res.get("unit") or {}).get("address")) or {}
+            street = (address.get("street") or "").strip()
+            number = address.get("number")
+            city = (address.get("city") or "").strip()
+            if not street or not number or not city:
+                continue
+
+            try:
+                price = int(float(res["rentInfo"]["price"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if price <= 0:
+                continue
+
+            # Matches the site's own naming: "Rusthoflaan 3A", "Paradijslaan 6 D"
+            house = f"{number}{(address.get('houseletter') or '').strip()}"
+            addition = (address.get("addition") or "").strip()
+            if addition:
+                house += f" {addition}"
+
+            home = Home(agency="woonstadrotterdam")
+            home.address = f"{street} {house}"
+            home.city = city.title()
+            home.url = f"https://www.woonstadrotterdam.nl/aanbod/vrije-sector-huurwoning/{res['webSettings']['url']}"
+            home.price = price
+
+            surface = ((res["unit"].get("propertySpecification")) or {}).get("surface")
+            if isinstance(surface, (int, float)) and 0 < surface < 2000:
+                home.sqm = int(surface)
 
             self.homes.append(home)

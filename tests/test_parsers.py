@@ -2027,6 +2027,97 @@ class TestParseInterhouse:
         assert len(results.homes) == 0
 
 
+class TestParseWoonstadRotterdam:
+    def _item(self, street="Kogelvangerstraat", number=100, houseletter="", addition="",
+              city="ROTTERDAM", price=1569.0, state="Beschikbaar", surface=106,
+              slug="6a7482ac080773b68e049f86-kogelvangerstraat-100"):
+        return {
+            "name": f"{street} {number}{houseletter} ",
+            "typeLabel": "Vrijesectorhuur",
+            "webSettings": {"url": slug},
+            "rentInfo": {"price": price},
+            "state": {"name": state},
+            "unit": {
+                "address": {
+                    "street": street, "number": number, "houseletter": houseletter,
+                    "addition": addition, "zipcode": "3014 ZP", "city": city,
+                },
+                "propertySpecification": {"surface": surface},
+            },
+        }
+
+    def _project(self):
+        # New-build project types carry no unit/address
+        return {
+            "name": "Type A.1.1 Duivenvoordestraat",
+            "typeLabel": "Vrijesectorhuur",
+            "projectName": "Duivenvoordestraat",
+            "price": 1200,
+            "webSettings": {"url": "6a95628e1e08df096afe9985-a11"},
+            "state": {"name": "Inschrijving open"},
+        }
+
+    def test_basic_parsing(self, mock_response):
+        r = mock_response({"items": [self._item()]})
+        results = HomeResults("woonstadrotterdam", r)
+        assert len(results.homes) == 1
+        home = results[0]
+        assert home.agency == "woonstadrotterdam"
+        assert home.address == "Kogelvangerstraat 100"
+        assert home.city == "Rotterdam"
+        assert home.price == 1569
+        assert home.sqm == 106
+        assert home.url == "https://www.woonstadrotterdam.nl/aanbod/vrije-sector-huurwoning/6a7482ac080773b68e049f86-kogelvangerstraat-100"
+
+    def test_houseletter_and_addition(self, mock_response):
+        r = mock_response({"items": [
+            self._item(street="Rusthoflaan", number=3, houseletter="A"),
+            self._item(street="Paradijslaan", number=6, addition="D"),
+        ]})
+        results = HomeResults("woonstadrotterdam", r)
+        assert [h.address for h in results.homes] == ["Rusthoflaan 3A", "Paradijslaan 6 D"]
+
+    def test_decimal_price_truncated(self, mock_response):
+        r = mock_response({"items": [self._item(price=1097.61)]})
+        results = HomeResults("woonstadrotterdam", r)
+        assert results[0].price == 1097
+
+    def test_keeps_binnenkort_beschikbaar(self, mock_response):
+        r = mock_response({"items": [self._item(state="Binnenkort beschikbaar")]})
+        results = HomeResults("woonstadrotterdam", r)
+        assert len(results.homes) == 1
+
+    def test_filters_closed_and_rented(self, mock_response):
+        r = mock_response({"items": [
+            self._item(state="Reacties gesloten"),
+            self._item(state="Verhuurd"),
+            self._item(state="Onder optie"),
+        ]})
+        results = HomeResults("woonstadrotterdam", r)
+        assert len(results.homes) == 0
+
+    def test_filters_projects_without_address(self, mock_response):
+        r = mock_response({"items": [self._project(), self._item()]})
+        results = HomeResults("woonstadrotterdam", r)
+        assert len(results.homes) == 1
+        assert results[0].address == "Kogelvangerstraat 100"
+
+    def test_skips_missing_price(self, mock_response):
+        r = mock_response({"items": [self._item(price=None), self._item(price=0)]})
+        results = HomeResults("woonstadrotterdam", r)
+        assert len(results.homes) == 0
+
+    def test_missing_surface_is_unset(self, mock_response):
+        r = mock_response({"items": [self._item(surface=0)]})
+        results = HomeResults("woonstadrotterdam", r)
+        assert results[0].sqm == -1
+
+    def test_empty_items(self, mock_response):
+        r = mock_response({"items": []})
+        results = HomeResults("woonstadrotterdam", r)
+        assert len(results.homes) == 0
+
+
 class TestParseEasylease:
     def test_basic_parsing(self, mock_response):
         data = {
