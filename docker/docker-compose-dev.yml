@@ -157,6 +157,12 @@ services:
     environment:
       - HESTIA_TARGET=hexia_thuispoortstudenten
 
+  hestia-scraper-hexia-woninghuren-dev:
+    <<: *scraper-dev-base
+    container_name: hestia-scraper-hexia-woninghuren-dev
+    environment:
+      - HESTIA_TARGET=hexia_woninghuren
+
   hestia-scraper-hexia-woninginzicht-dev:
     <<: *scraper-dev-base
     container_name: hestia-scraper-hexia-woninginzicht-dev

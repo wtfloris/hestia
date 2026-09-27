@@ -165,11 +165,17 @@ class HomeResults:
             raise ValueError(f"Unknown source: {source}")
 
     def parse_hexia(self, r: requests.models.Response, corp: str):
-        results = json.loads(r.content)["data"]
+        payload = json.loads(r.content)
+        # hexia.io API returns "data"; older portal-hosted feeds (woninghuren) return "result"
+        results = payload["data"] if "data" in payload else payload["result"]
 
         for res in results:
             # Filter out non-rentable properties
             if not res['rentBuy'] == 'Huur':
+                continue
+            # Filter out parking spaces and storage ("voorVoertuig")
+            dwelling_type = res.get("dwellingType")
+            if isinstance(dwelling_type, dict) and dwelling_type.get("categorie") not in (None, "woning"):
                 continue
             # Filter out listings that don't have all info
             if (
