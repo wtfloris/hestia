@@ -165,6 +165,8 @@ class HomeResults:
             self.parse_interhouse(raw)
         elif source == "housinganywhere":
             self.parse_housinganywhere(raw)
+        elif source == "kamernet":
+            self.parse_kamernet(raw)
         elif source == "woonstadrotterdam":
             self.parse_woonstadrotterdam(raw)
         else:
@@ -1891,6 +1893,55 @@ class HomeResults:
             # Total size for whole homes, room size for (shared) rooms
             try:
                 sqm = int(float(res.get("propertySize")))
+                if 0 < sqm < 2000:
+                    home.sqm = sqm
+            except (TypeError, ValueError):
+                pass
+
+            self.homes.append(home)
+
+    def parse_kamernet(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+        script = soup.find("script", id="__NEXT_DATA__", type="application/json")
+        if not script or not script.string:
+            return
+        data = json.loads(script.string)
+        results = data["props"]["pageProps"]["targetPageProps"]["findListingsResponse"].get("listings") or []
+
+        # listingType -> URL slug, as used in the site's own listing links
+        type_slugs = {1: "kamer", 2: "appartement", 4: "studio", 8: "anti-kraak", 16: "studentenwoning"}
+
+        for res in results:
+            type_slug = type_slugs.get(res.get("listingType"))
+            street = " ".join((res.get("street") or "").split())
+            city = (res.get("city") or "").strip()
+            street_slug = res.get("streetSlug")
+            city_slug = res.get("citySlug")
+            listing_id = res.get("listingId")
+            if not type_slug or not street or not city or not street_slug or not city_slug or not listing_id:
+                continue
+
+            try:
+                price = int(float(res["totalRentalPrice"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if price <= 0:
+                continue
+
+            # Only the street is shown, never a house number, so append the price
+            # to keep the address a usable identifier
+            address = street
+            if not re.search(r"\d", address):
+                address += f" [€{price}]"
+
+            home = Home(agency="kamernet")
+            home.address = address
+            home.city = city
+            home.url = f"https://kamernet.nl/huren/{type_slug}-{city_slug}/{street_slug}/{type_slug}-{listing_id}"
+            home.price = price
+
+            try:
+                sqm = int(float(res.get("surfaceArea")))
                 if 0 < sqm < 2000:
                     home.sqm = sqm
             except (TypeError, ValueError):

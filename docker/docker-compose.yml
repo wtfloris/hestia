@@ -232,6 +232,12 @@ services:
     environment:
       - HESTIA_TARGET=interhouse
 
+  hestia-scraper-kamernet:
+    <<: *scraper-base
+    container_name: hestia-scraper-kamernet
+    environment:
+      - HESTIA_TARGET=kamernet
+
   hestia-scraper-krk:
     <<: *scraper-base
     container_name: hestia-scraper-krk

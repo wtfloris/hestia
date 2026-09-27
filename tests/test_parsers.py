@@ -2233,6 +2233,87 @@ class TestParseHousingAnywhere:
         assert len(results.homes) == 0
 
 
+class TestParseKamernet:
+    def _listing(self, listing_id=2408486, street="Chassestraat", street_slug="chassestraat",
+                 city="Amsterdam", city_slug="amsterdam", listing_type=2, price=2950, surface=58):
+        return {
+            "listingId": listing_id, "street": street, "streetSlug": street_slug,
+            "city": city, "citySlug": city_slug, "listingType": listing_type,
+            "totalRentalPrice": price, "surfaceArea": surface, "utilitiesIncluded": False,
+            "isTopAdvert": False,
+        }
+
+    def _page(self, listings, top_ads=None):
+        data = {"props": {"pageProps": {"targetPageProps": {"findListingsResponse": {
+            "listings": listings, "topAdListings": top_ads or [], "total": len(listings),
+        }}}}}
+        return f'<html><script id="__NEXT_DATA__" type="application/json">{json.dumps(data)}</script></html>'
+
+    def test_basic_parsing(self, mock_response):
+        r = mock_response(self._page([self._listing()]))
+        results = HomeResults("kamernet", r)
+        assert len(results.homes) == 1
+        home = results[0]
+        assert home.agency == "kamernet"
+        # Only the street is published, so the price is appended for uniqueness
+        assert home.address == "Chassestraat [€2950]"
+        assert home.city == "Amsterdam"
+        assert home.price == 2950
+        assert home.sqm == 58
+        assert home.url == "https://kamernet.nl/huren/appartement-amsterdam/chassestraat/appartement-2408486"
+
+    def test_url_slug_per_listing_type(self, mock_response):
+        listings = [
+            self._listing(listing_id=1, street="A", listing_type=1),
+            self._listing(listing_id=2, street="B", listing_type=4),
+            self._listing(listing_id=3, street="C", listing_type=8),
+            self._listing(listing_id=4, street="D", listing_type=16),
+        ]
+        r = mock_response(self._page(listings))
+        urls = [h.url for h in HomeResults("kamernet", r).homes]
+        assert urls == [
+            "https://kamernet.nl/huren/kamer-amsterdam/chassestraat/kamer-1",
+            "https://kamernet.nl/huren/studio-amsterdam/chassestraat/studio-2",
+            "https://kamernet.nl/huren/anti-kraak-amsterdam/chassestraat/anti-kraak-3",
+            "https://kamernet.nl/huren/studentenwoning-amsterdam/chassestraat/studentenwoning-4",
+        ]
+
+    def test_skips_unknown_listing_type(self, mock_response):
+        r = mock_response(self._page([self._listing(listing_type=99)]))
+        assert len(HomeResults("kamernet", r).homes) == 0
+
+    def test_ignores_top_ads(self, mock_response):
+        # Promoted listings are not part of the newest-first results
+        r = mock_response(self._page([], top_ads=[self._listing()]))
+        assert len(HomeResults("kamernet", r).homes) == 0
+
+    def test_street_with_number_not_suffixed(self, mock_response):
+        r = mock_response(self._page([self._listing(street="1e Jan Steenstraat")]))
+        assert HomeResults("kamernet", r)[0].address == "1e Jan Steenstraat"
+
+    def test_skips_missing_fields(self, mock_response):
+        r = mock_response(self._page([
+            self._listing(street=""),
+            self._listing(street_slug=None),
+            self._listing(price=None),
+            self._listing(price=0),
+        ]))
+        assert len(HomeResults("kamernet", r).homes) == 0
+
+    def test_missing_surface_is_unset(self, mock_response):
+        r = mock_response(self._page([self._listing(surface=None)]))
+        assert HomeResults("kamernet", r)[0].sqm == -1
+
+    def test_no_next_data(self, mock_response):
+        r = mock_response("<html><body>nothing</body></html>")
+        assert len(HomeResults("kamernet", r).homes) == 0
+
+    def test_null_listings(self, mock_response):
+        data = {"props": {"pageProps": {"targetPageProps": {"findListingsResponse": {"listings": None}}}}}
+        r = mock_response(f'<html><script id="__NEXT_DATA__" type="application/json">{json.dumps(data)}</script></html>')
+        assert len(HomeResults("kamernet", r).homes) == 0
+
+
 class TestParseEasylease:
     def test_basic_parsing(self, mock_response):
         data = {
