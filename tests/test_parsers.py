@@ -2163,6 +2163,76 @@ class TestParseWoonstadRotterdam:
         assert len(results.homes) == 0
 
 
+class TestParseHousingAnywhere:
+    def _hit(self, street="Slotlaan", city="Capelle aan den IJssel", price=325,
+             property_type="PRIVATE_ROOM", size=13, searchable=True,
+             path="/room/ut1742575/nl/Capelle aan den IJssel/slotlaan"):
+        return {
+            "street": street, "city": city, "country": "Netherlands", "countryCode": "nl",
+            "priceEUR": price, "price": price, "currency": "EUR", "priceType": "flat",
+            "propertyType": property_type, "propertySize": size,
+            "isSearchable": searchable, "path": path,
+        }
+
+    def test_basic_parsing(self, mock_response):
+        r = mock_response({"hits": [self._hit()], "nbHits": 1})
+        results = HomeResults("housinganywhere", r)
+        assert len(results.homes) == 1
+        home = results[0]
+        assert home.agency == "housinganywhere"
+        # Only the street is published, so the price is appended for uniqueness
+        assert home.address == "Slotlaan [€325]"
+        assert home.city == "Capelle aan den IJssel"
+        assert home.price == 325
+        assert home.sqm == 13
+        # Paths contain spaces and must be URL-encoded
+        assert home.url == "https://housinganywhere.com/room/ut1742575/nl/Capelle%20aan%20den%20IJssel/slotlaan"
+
+    def test_keeps_all_property_types(self, mock_response):
+        hits = [
+            self._hit(street=f"Straat{i}", property_type=t)
+            for i, t in enumerate(["APARTMENT", "PRIVATE_ROOM", "SHARED_ROOM", "STUDIO", "HOUSE", "BUILDING"])
+        ]
+        r = mock_response({"hits": hits})
+        results = HomeResults("housinganywhere", r)
+        assert len(results.homes) == 6
+
+    def test_street_with_number_not_suffixed(self, mock_response):
+        r = mock_response({"hits": [self._hit(street="1e Middellandstraat", city="Rotterdam")]})
+        results = HomeResults("housinganywhere", r)
+        assert results[0].address == "1e Middellandstraat"
+
+    def test_normalizes_english_city(self, mock_response):
+        r = mock_response({"hits": [self._hit(city="The Hague")]})
+        results = HomeResults("housinganywhere", r)
+        assert results[0].city == "Den Haag"
+
+    def test_filters_unsearchable(self, mock_response):
+        r = mock_response({"hits": [self._hit(searchable=False)]})
+        results = HomeResults("housinganywhere", r)
+        assert len(results.homes) == 0
+
+    def test_skips_missing_fields(self, mock_response):
+        r = mock_response({"hits": [
+            self._hit(street=""),
+            self._hit(path=None),
+            self._hit(price=None),
+            self._hit(price=0),
+        ]})
+        results = HomeResults("housinganywhere", r)
+        assert len(results.homes) == 0
+
+    def test_missing_size_is_unset(self, mock_response):
+        r = mock_response({"hits": [self._hit(size=None), self._hit(street="Other", size=0)]})
+        results = HomeResults("housinganywhere", r)
+        assert [h.sqm for h in results.homes] == [-1, -1]
+
+    def test_empty_hits(self, mock_response):
+        r = mock_response({"hits": [], "nbHits": 0})
+        results = HomeResults("housinganywhere", r)
+        assert len(results.homes) == 0
+
+
 class TestParseEasylease:
     def test_basic_parsing(self, mock_response):
         data = {

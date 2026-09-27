@@ -125,6 +125,14 @@ class TestCityNormalization:
         home = Home(city="huis ter heide")
         assert home.city == "Huis ter Heide"
 
+    def test_the_hague(self):
+        home = Home(city="The Hague")
+        assert home.city == "Den Haag"
+
+    def test_almere_stad(self):
+        assert Home(city="Almere Stad").city == "Almere"
+        assert Home(city="Almere-Stad").city == "Almere"
+
     def test_normal_city_unchanged(self):
         home = Home(city="Amsterdam")
         assert home.city == "Amsterdam"
