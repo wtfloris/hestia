@@ -57,6 +57,8 @@ PREVIEW_CACHE_OK_TTL = timedelta(days=30)
 PREVIEW_CACHE_EMPTY_TTL = timedelta(days=7)
 PREVIEW_CACHE_ERROR_TTL = timedelta(hours=1)
 PREVIEW_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+# Sites we never fetch previews from (matches the domain and its subdomains).
+PREVIEW_BLOCKED_DOMAINS = ("funda.nl", "pararius.nl", "pararius.com")
 
 RECENT_LOGIN_WINDOW_SECONDS = 10
 RECENT_LOGIN_REQUESTS = {}
@@ -1685,6 +1687,8 @@ def _safe_urlopen(url, headers, method="GET", timeout=5, max_redirects=3):
             raise ValueError("unsupported scheme")
         if not _is_public_host(parsed.hostname):
             raise ValueError("non-public host")
+        if _is_preview_blocked_host(parsed.hostname):
+            raise ValueError("blocked host")
         req = Request(current, method=method, headers=headers)
         try:
             return _ssrf_safe_opener.open(req, timeout=timeout)
@@ -1730,6 +1734,11 @@ def _is_image_url(url):
             return content_type.startswith("image/")
     except Exception:
         return False
+
+
+def _is_preview_blocked_host(hostname):
+    hostname = (hostname or "").lower().rstrip(".")
+    return any(hostname == d or hostname.endswith("." + d) for d in PREVIEW_BLOCKED_DOMAINS)
 
 
 def _is_public_host(hostname):
@@ -1809,6 +1818,8 @@ def api_preview_image():
         return jsonify({"image_url": ""})
     if not _is_public_host(parsed.hostname):
         return jsonify({"image_url": ""}), 400
+    if _is_preview_blocked_host(parsed.hostname):
+        return jsonify({"image_url": ""})
     cached = _preview_cache_get(url)
     if cached:
         if cached["status"] == "ok" and cached.get("image_url"):
@@ -1859,6 +1870,8 @@ def api_preview_image_raw():
         return ("", 400)
     if not _is_public_host(parsed.hostname):
         return ("", 400)
+    if _is_preview_blocked_host(parsed.hostname):
+        return ("", 404)
     cached = _preview_cache_get(url)
     if cached:
         if cached["status"] == "ok" and cached.get("image_bytes") and cached.get("content_type"):

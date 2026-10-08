@@ -922,6 +922,53 @@ class TestApiPreviewImageAuthParity:
         assert resp.data == b"\x89PNG\r\n"
         assert resp.headers.get("Content-Type", "").startswith("image/png")
 
+    @pytest.mark.parametrize("url", [
+        "https://www.funda.nl/detail/huur/amsterdam/appartement-kerkstraat-1/1/",
+        "https://funda.nl/detail/huur/amsterdam/appartement-kerkstraat-1/1/",
+        "https://www.pararius.nl/appartement-te-huur/amsterdam/abc/kerkstraat",
+        "https://www.pararius.com/apartment-for-rent/amsterdam/abc/kerkstraat",
+    ])
+    @patch("hestia_web.app._preview_cache_set")
+    @patch("hestia_web.app._preview_cache_get")
+    @patch("hestia_web.app._safe_urlopen")
+    @patch("hestia_web.app.get_db")
+    def test_preview_image_blocked_host_is_not_fetched(self, mock_get_db, mock_urlopen, mock_cache_get, _mock_cache_set, client, url):
+        cur = make_mock_cursor(fetchone_value={"id": 9, "device_id": VALID_DEVICE_ID})
+        mock_get_db.return_value = make_mock_conn(cur)
+
+        resp = client.get("/api/preview-image", query_string={"url": url}, headers={"X-Device-Id": VALID_DEVICE_ID})
+
+        assert resp.status_code == 200
+        assert resp.get_json() == {"image_url": ""}
+        mock_urlopen.assert_not_called()
+        mock_cache_get.assert_not_called()
+
+    @patch("hestia_web.app._preview_cache_set")
+    @patch("hestia_web.app._preview_cache_get")
+    @patch("hestia_web.app._safe_urlopen")
+    @patch("hestia_web.app.get_db")
+    def test_preview_image_raw_blocked_host_is_not_fetched(self, mock_get_db, mock_urlopen, mock_cache_get, _mock_cache_set, client):
+        cur = make_mock_cursor(fetchone_value={"id": 9, "device_id": VALID_DEVICE_ID})
+        mock_get_db.return_value = make_mock_conn(cur)
+
+        resp = client.get(
+            "/api/preview-image-raw?url=https://cloud.funda.nl/valentina_media/1.jpg",
+            headers={"X-Device-Id": VALID_DEVICE_ID},
+        )
+
+        assert resp.status_code == 404
+        mock_urlopen.assert_not_called()
+        mock_cache_get.assert_not_called()
+
+    def test_safe_urlopen_rejects_blocked_host(self):
+        from hestia_web.app import _safe_urlopen
+
+        with patch("hestia_web.app._is_public_host", return_value=True), \
+                patch("hestia_web.app._ssrf_safe_opener") as mock_opener:
+            with pytest.raises(ValueError):
+                _safe_urlopen("https://www.funda.nl/", {})
+        mock_opener.open.assert_not_called()
+
     def test_preview_image_missing_auth_is_401_json_not_redirect(self, client):
         resp = client.get("/api/preview-image?url=https://example.com/photo.jpg", follow_redirects=False)
         assert resp.status_code == 401
