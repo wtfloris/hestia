@@ -1150,8 +1150,20 @@ function formatRelativeTime(date) {
     return rtf.format(-years, 'year');
 }
 
+// Sites we never fetch previews from (the server blocks these too)
+var PREVIEW_BLOCKED_HOSTS = /(^|\.)(funda\.nl|pararius\.nl|pararius\.com)$/i;
+
+function isPreviewBlocked(url) {
+    try {
+        return PREVIEW_BLOCKED_HOSTS.test(new URL(url).hostname);
+    } catch (e) {
+        return false;
+    }
+}
+
 function loadPreviewImage(url, imgEl, placeholderEl, mediaEl) {
     if (!imgEl || !placeholderEl || !mediaEl) return;
+    if (isPreviewBlocked(url)) return;
 
     var didLoad = false;
     function showImage(src) {
