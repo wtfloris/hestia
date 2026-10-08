@@ -84,6 +84,7 @@ services:
     container_name: hestia-scraper-funda
     environment:
       - HESTIA_TARGET=funda
+      - HESTIA_CRON_SCHEDULE=0 14 * * *
 
   hestia-scraper-grunoverhuur:
     <<: *scraper-base
