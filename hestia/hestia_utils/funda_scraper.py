@@ -11,7 +11,7 @@ logger = logging.getLogger("funda")
 # impersonates a real browser's handshake instead, and supplies the matching
 # User-Agent itself. Profiles age as browsers ship, so if the 403s come back,
 # bump this to a current one before reaching for anything more elaborate.
-IMPERSONATE = "safari2601"
+IMPERSONATE = "safari184_ios"
 
 
 def scrape_funda(target: dict) -> list[Home]:
