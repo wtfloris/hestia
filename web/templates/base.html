@@ -44,6 +44,7 @@
         <div class="footer-icons">
             <span class="footer-icon" data-modal="contact" title="Contact"><i data-lucide="help-circle" style="width:18px;height:18px"></i></span>
             {% if not contact_only %}
+            <span class="footer-icon" data-modal="cost" title="Running costs" data-i18n-title="cost_modal_title"><i data-lucide="euro" style="width:18px;height:18px"></i></span>
             <span class="footer-icon" data-modal="stats" title="Statistics" data-i18n-title="stats_modal_title"><i data-lucide="bar-chart-3" style="width:18px;height:18px"></i></span>
             {% endif %}
         </div>
@@ -120,6 +121,9 @@
                 <tr><td data-i18n="cost_coffee">Coffee</td><td>&euro;5/mo</td></tr>
                 <tr class="total"><td data-i18n="cost_total">Total</td><td>&euro;79/mo</td></tr>
             </table>
+            <p class="donate-text">
+                <span data-i18n-html="cost_donate_text">Hestia is a passion project and will always be free. Similar services will cost you at least &euro;20/month.<br>If you'd like to help keep Hestia running, consider</span> <a id="donate-link" href="#" target="_blank" rel="noopener noreferrer" data-i18n="cost_donate_link">making a donation with this open Tikkie</a>!
+            </p>
         </div>
     </div>
     <div class="modal-overlay" id="stats-modal">

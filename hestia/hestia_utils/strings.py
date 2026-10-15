@@ -3,15 +3,13 @@ from hestia_utils.meta import LOVE_EMOJI
 
 _STRINGS = {
     "start": {
-        "en": rf"""Hi there\!
+        "en": r"""Hi there\!
 
 I check real estate websites for new rental homes in The Netherlands\. To see and modify your personal filters \(like city and maximum price\), say /filter\.
 
 You will receive a message when I find a new home that matches your filters\! If you want me to stop, just say /stop\.
 
 You can also visit [hestia\.bot](https://hestia\.bot) to manage your filters and see new listings come in live\! Prefer an app? Hestia is now also available as an [iPhone app](https://apps\.apple\.com/app/id6760269825)\!
-
-Want to support Hestia? If you\'re arranging energy, internet or other services for your new home, please say /support and help Hestia \(at no cost to you\!\) {LOVE_EMOJI}
 
 If you have any questions, please read the /faq or say /help\!
 
@@ -24,10 +22,10 @@ If you have any questions, please read the /faq or say /help\!
     "stop": {
         "en": rf"""You will no longer receive updates for new listings\. I hope this is because you\'ve found a new home\!
 
-Can you help me keep Hestia free for everyone? Say /support to see some \(free\!\) ways to help, thank you so much {LOVE_EMOJI}""",
+Consider [buying me a beer]({{}}) if Hestia has helped you in your search {LOVE_EMOJI}""",
         "nl": rf"""Je ontvangt geen updates meer voor nieuwe woningen\. Ik hoop dat dit is omdat je een nieuw huis hebt gevonden\!
 
-Zou je me willen helpen om Hestia gratis te houden voor iedereen? Zeg /steun om te zien hoe je dit \(gratis\!\) kunt doen {LOVE_EMOJI}"""
+Je kunt eventueel [een biertje voor me kopen]({{}}) als Hestia je heeft geholpen in je zoektocht {LOVE_EMOJI}"""
     },
     
     "websites": {
@@ -149,41 +147,17 @@ Je kunt een deel van die besparing eventueel gebruiken om [een biertje voor me t
 Succes met je zoektocht\!"""
     },
 
-    "support_intro": {
-        "en": rf"""Hestia is free, but costs about €79/month to run\. And I\'d like to ask for your help\: if you sign up for utilities in your new home through any of the links below then Hestia gets a small bonus\. By doing this you cover roughly a week of Hestia\'s running costs, and at no extra cost to you\!
-
-Don\'t need any of that but still want to contribute? You can use /donate to get an open Tikkie link\!
-
-Thank you so much\!""",
-        "nl": rf"""Hestia is gratis, maar kost ongeveer €79/maand om draaiende te houden\. Ik wil vragen of je kunt helpen\: als je stroom of internet voor je nieuwe woning afsluit via een van de onderstaande links dan krijgt Hestia een kleine bonus\. Hiermee dek je ongeveer een week aan kosten van Hestia, en het kost je helemaal niets\!
-
-Heb je dat niet nodig maar wil je toch bijdragen? Zeg /donate om een link naar een open Tikkie te krijgen\!
-
-Heel erg bedankt\!"""
-    },
-    "support_protip": {
-        "en": r"""Pro tip\: use a comparison website and then come back to use the links below""",
-        "nl": r"""Pro tip\: check een vergelijker en kom daarna terug om de links hier te gebruiken"""
-    },
-    "support_empty": {
-        "en": r"""There are no partner links available right now\. You can still support Hestia via /donate\!""",
-        "nl": r"""Er zijn op dit moment geen partnerlinks beschikbaar\. Je kunt Hestia nog steeds steunen via /donate\!"""
-    },
     "weekly_reminder": {
-        "en": rf"""Thanks for using Hestia, I\'ve put a lot of work into it and hope it\'s helping you out\!
+        "en": rf"""Thanks for using Hestia, I\'ve put a lot of work into it and I hope it\'s helping you out\!
 
-And I\'d like to ask for your help because Hestia costs about €79/month to run\: if you sign up for utilities in your new home through any of my links then Hestia gets a small bonus\. By doing this you cover roughly a week of Hestia\'s running costs, and at no extra cost to you\! Just say /support to get the links\.
+Moving is expensive enough and similar scraping services start at like €20/month\. Hopefully Hestia has helped you save some money\! With this open Tikkie you could use some of those savings to [buy me a beer]({{}}) {LOVE_EMOJI}
 
-Don\'t need any of that but still want to contribute? Say /donate to get an open Tikkie link {LOVE_EMOJI}
-
-Either way, thank you and good luck in your search\!""",
+Good luck in your search\!""",
         "nl": rf"""Bedankt voor het gebruiken van Hestia, ik heb er veel werk in gestoken en hoop dat het je helpt\!
 
-Ik wil vragen of je kunt helpen omdat Hestia ongeveer €79/maand kost om draaiende te houden\: als je stroom of internet voor je nieuwe woning afsluit via een van mijn links dan krijgt Hestia een kleine bonus\. Hiermee dek je ongeveer een week aan kosten van Hestia, en het kost je helemaal niets\! Zeg /steun om het lijstje met links te zien\.
+Verhuizen is al duur genoeg en vergelijkbare diensten kosten minimaal €20/maand\. Hopelijk heeft Hestia je geholpen wat geld te besparen\! Met deze open Tikkie kun je een deel van die besparing eventueel gebruiken om [een biertje voor me te kopen]({{}}) {LOVE_EMOJI}
 
-Heb je dat niet nodig maar wil je toch bijdragen? Zeg dan /donate om een link naar een open Tikkie te krijgen {LOVE_EMOJI}
-
-In ieder geval\: bedankt en succes met de zoektocht\!"""
+Succes met je zoektocht\!"""
     },
 
     "faq": {
@@ -274,7 +248,6 @@ In ieder geval\: bedankt en succes met de zoektocht\!"""
 /filter - Show and modify your personal filters
 /websites - Show info about the websites Hestia checks
 /donate - Get an open Tikkie link to show your appreciation for Hestia
-/support - See how you can support Hestia at no cost
 /link - Link your website account to Telegram
 
 /nl - Gebruik Hestia in het Nederlands
@@ -288,7 +261,6 @@ In ieder geval\: bedankt en succes met de zoektocht\!"""
 /filter - Bekijk en wijzig je persoonlijke filters
 /websites - Bekijk welke websites Hestia checkt
 /donate - Ontvang een open Tikkie link en waardeer Hestia met een biertje voor de maker
-/steun - Bekijk hoe je Hestia gratis kunt steunen
 /link - Koppel je website-account aan Telegram
 
 /nl - Gebruik Hestia in het Nederlands
