@@ -155,7 +155,7 @@ Moving is expensive enough and similar scraping services start at like €20/mon
 Good luck in your search\!""",
         "nl": rf"""Bedankt voor het gebruiken van Hestia, ik heb er veel werk in gestoken en hoop dat het je helpt\!
 
-Verhuizen is al duur genoeg en vergelijkbare diensten kosten minimaal €20/maand\. Hopelijk heeft Hestia je geholpen wat geld te besparen\! Met deze open Tikkie kun je een deel van die besparing eventueel gebruiken om [een biertje voor me te kopen]({{}}) {LOVE_EMOJI}
+Verhuizen is al duur genoeg en vergelijkbare diensten kosten minimaal €20/maand\. Hopelijk heeft Hestia je geholpen wat geld te besparen\! Met dit open Tikkie kun je een deel van die besparing eventueel gebruiken om [een biertje voor me te kopen]({{}}) {LOVE_EMOJI}
 
 Succes met je zoektocht\!"""
     },
