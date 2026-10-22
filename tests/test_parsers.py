@@ -740,6 +740,21 @@ class TestParseRebo:
         results = HomeResults("rebo", r)
         assert len(results.homes) == 0
 
+    def test_decimal_string_price(self, mock_response):
+        data = {"hits": [{"address": "Gerbrandyhof 285", "city": "Utrecht", "slug": "g-285", "price": "1250.00"}]}
+        results = HomeResults("rebo", mock_response(data))
+        assert len(results.homes) == 1
+        assert results[0].price == 1250
+
+    def test_bad_listing_does_not_drop_others(self, mock_response):
+        data = {"hits": [
+            {"address": "Kapot 1", "city": "Delft", "slug": "kapot-1", "price": None},
+            {"address": "Geen slug 2", "city": "Delft", "price": 900},
+            {"address": "Kerkweg 5", "city": "Delft", "slug": "kerkweg-5", "price": 1200},
+        ]}
+        results = HomeResults("rebo", mock_response(data))
+        assert [h.address for h in results.homes] == ["Kerkweg 5"]
+
 
 class TestParseNmg:
     def test_basic_parsing(self, mock_response):
