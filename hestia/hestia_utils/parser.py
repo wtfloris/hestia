@@ -5,6 +5,7 @@ import chompjs
 import logging
 import requests
 from urllib import parse
+from contextlib import contextmanager
 from bs4 import BeautifulSoup, NavigableString
 
 
@@ -97,6 +98,8 @@ class HomeResults:
     
     def __init__(self, source: str, raw: requests.models.Response):
         self.homes: list[Home] = []
+        self._skipped = 0
+        self._last_skip_error: Exception | None = None
         if source == "vesteda":
             self.parse_vesteda(raw)
         elif source == "alliantie":
@@ -172,95 +175,113 @@ class HomeResults:
         else:
             raise ValueError(f"Unknown source: {source}")
 
+        # Every listing failed: the response format probably changed, so surface it
+        if self._skipped and not self.homes:
+            raise ValueError(
+                f"No {source} listings parsed, {self._skipped} malformed listing(s) skipped. Last error: {repr(self._last_skip_error)}"
+            )
+
+    @contextmanager
+    def _skip_bad_listing(self, agency: str):
+        """Wrap one listing's parsing so a malformed listing is skipped instead of failing the whole scrape."""
+        try:
+            yield
+        except Exception as e:
+            self._skipped += 1
+            self._last_skip_error = e
+            logging.warning(f"Skipping malformed {agency} listing: {repr(e)}")
+
     def parse_hexia(self, r: requests.models.Response, corp: str):
         payload = json.loads(r.content)
         # hexia.io API returns "data"; older portal-hosted feeds (woninghuren) return "result"
         results = payload["data"] if "data" in payload else payload["result"]
 
         for res in results:
-            # Filter out non-rentable properties
-            if not res['rentBuy'] == 'Huur':
-                continue
-            # Filter out parking spaces and storage ("voorVoertuig")
-            dwelling_type = res.get("dwellingType")
-            if isinstance(dwelling_type, dict) and dwelling_type.get("categorie") not in (None, "woning"):
-                continue
-            # Filter out listings that don't have all info
-            if (
-                "city" not in res
-                or not res["city"]
-                or "name" not in res["city"]
-                or "street" not in res
-                or "houseNumber" not in res
-                or "netRent" not in res 
-                or "urlKey" not in res
-            ):
-                continue
+            with self._skip_bad_listing(f"hexia_{corp}"):
+                # Filter out non-rentable properties
+                if not res['rentBuy'] == 'Huur':
+                    continue
+                # Filter out parking spaces and storage ("voorVoertuig")
+                dwelling_type = res.get("dwellingType")
+                if isinstance(dwelling_type, dict) and dwelling_type.get("categorie") not in (None, "woning"):
+                    continue
+                # Filter out listings that don't have all info
+                if (
+                    "city" not in res
+                    or not res["city"]
+                    or "name" not in res["city"]
+                    or "street" not in res
+                    or "houseNumber" not in res
+                    or "netRent" not in res 
+                    or "urlKey" not in res
+                ):
+                    continue
             
-            home = Home(agency=f"hexia_{corp}")
-            home.city = res['city']['name']
+                home = Home(agency=f"hexia_{corp}")
+                home.city = res['city']['name']
 
-            # If there is an addition to the housenumber defined, format with that instead
-            if "houseNumberAddition" in res and res['houseNumberAddition']:
-                home.address = f"{res['street']} {res['houseNumber']} {res['houseNumberAddition']}"
-            elif "street" in res and "houseNumber" in res:
-                home.address = f"{res['street']} {res['houseNumber']}"
+                # If there is an addition to the housenumber defined, format with that instead
+                if "houseNumberAddition" in res and res['houseNumberAddition']:
+                    home.address = f"{res['street']} {res['houseNumber']} {res['houseNumberAddition']}"
+                elif "street" in res and "houseNumber" in res:
+                    home.address = f"{res['street']} {res['houseNumber']}"
 
-            # Price is sometimes whole euros, sometimes not. But is always in period instead of comma
-            # Use default python float to int rounding method
-            home.price = int(float(res['netRent']))
+                # Price is sometimes whole euros, sometimes not. But is always in period instead of comma
+                # Use default python float to int rounding method
+                home.price = int(float(res['netRent']))
 
-            # Hexia returns sqm as "areaDwelling" on some listings. Many listings omit it.
-            sqm = res.get("areaDwelling")
-            if sqm is not None:
-                try:
-                    sqm_i = int(float(sqm))
-                    if 0 < sqm_i < 2000:
-                        home.sqm = sqm_i
-                except (TypeError, ValueError):
-                    pass
+                # Hexia returns sqm as "areaDwelling" on some listings. Many listings omit it.
+                sqm = res.get("areaDwelling")
+                if sqm is not None:
+                    try:
+                        sqm_i = int(float(sqm))
+                        if 0 < sqm_i < 2000:
+                            home.sqm = sqm_i
+                    except (TypeError, ValueError):
+                        pass
 
-            # Since the customers of this platform can have different subdomains, paths etc..
-            # We have to map the corporation to a full path where the listing is accessible
-            map = {
-                'antares': 'https://wonen.thuisbijantares.nl/aanbod/nu-te-huur/te-huur/details/',
-                'dewoningzoeker': 'https://www.dewoningzoeker.nl/aanbod/te-huur/details/',
-                'frieslandhuurt': 'https://www.frieslandhuurt.nl/nu-te-huur/woningen/details/',
-                'hollandrijnland': 'https://www.hureninhollandrijnland.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'hwwonen': 'https://www.thuisbijhwwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'klikvoorwonen': 'https://www.klikvoorwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'mercatus-aanbod': 'https://woningaanbod.mercatus.nl/aanbod/te-huur/details/',
-                'mosaic-plaza': 'https://plaza.newnewnew.space/aanbod/huurwoningen/details/',
-                'noordveluwe': 'https://www.hurennoordveluwe.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'oostwestwonen': 'https://woningzoeken.oostwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'studentenenschede': 'https://www.roomspot.nl/aanbod/te-huur/details/',
-                'svnk': 'https://www.svnk.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'thuisindeachterhoek': 'https://www.thuisindeachterhoek.nl/aanbod/te-huur/details/',
-                'thuisinlimburg': 'https://www.thuisinlimburg.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'thuiskompas': 'https://www.thuiskompas.nl/aanbod/nu-te-huur/te-huur/details/',
-                'thuispoort': 'https://www.thuispoort.nl/aanbod/te-huur/details/',
-                'thuispoortstudenten': 'https://www.thuispoortstudentenwoningen.nl/aanbod/details/',
-                'woninghuren': 'https://www.woninghuren.nl/aanbod/te-huur/details/',
-                'woninginzicht': 'https://www.woninginzicht.nl/aanbod/te-huur/details/',
-                'wooniezie': 'https://www.wooniezie.nl/aanbod/nu-te-huur/te-huur/details/',
-                'woonkeusstedendriehoek': 'https://www.woonkeus-stedendriehoek.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'woonnethaaglanden': 'https://www.woonnet-haaglanden.nl/aanbod/nu-te-huur/te-huur/details/',
-                'woontij': 'https://www.wonenindekop.nl/aanbod/nu-te-huur/huurwoningen/details/',
-                'zuidwestwonen': 'https://www.zuidwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/'
-            }
-            home.url = f"{map[corp]}{res['urlKey']}"
+                # Since the customers of this platform can have different subdomains, paths etc..
+                # We have to map the corporation to a full path where the listing is accessible
+                map = {
+                    'antares': 'https://wonen.thuisbijantares.nl/aanbod/nu-te-huur/te-huur/details/',
+                    'dewoningzoeker': 'https://www.dewoningzoeker.nl/aanbod/te-huur/details/',
+                    'frieslandhuurt': 'https://www.frieslandhuurt.nl/nu-te-huur/woningen/details/',
+                    'hollandrijnland': 'https://www.hureninhollandrijnland.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'hwwonen': 'https://www.thuisbijhwwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'klikvoorwonen': 'https://www.klikvoorwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'mercatus-aanbod': 'https://woningaanbod.mercatus.nl/aanbod/te-huur/details/',
+                    'mosaic-plaza': 'https://plaza.newnewnew.space/aanbod/huurwoningen/details/',
+                    'noordveluwe': 'https://www.hurennoordveluwe.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'oostwestwonen': 'https://woningzoeken.oostwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'studentenenschede': 'https://www.roomspot.nl/aanbod/te-huur/details/',
+                    'svnk': 'https://www.svnk.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'thuisindeachterhoek': 'https://www.thuisindeachterhoek.nl/aanbod/te-huur/details/',
+                    'thuisinlimburg': 'https://www.thuisinlimburg.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'thuiskompas': 'https://www.thuiskompas.nl/aanbod/nu-te-huur/te-huur/details/',
+                    'thuispoort': 'https://www.thuispoort.nl/aanbod/te-huur/details/',
+                    'thuispoortstudenten': 'https://www.thuispoortstudentenwoningen.nl/aanbod/details/',
+                    'woninghuren': 'https://www.woninghuren.nl/aanbod/te-huur/details/',
+                    'woninginzicht': 'https://www.woninginzicht.nl/aanbod/te-huur/details/',
+                    'wooniezie': 'https://www.wooniezie.nl/aanbod/nu-te-huur/te-huur/details/',
+                    'woonkeusstedendriehoek': 'https://www.woonkeus-stedendriehoek.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'woonnethaaglanden': 'https://www.woonnet-haaglanden.nl/aanbod/nu-te-huur/te-huur/details/',
+                    'woontij': 'https://www.wonenindekop.nl/aanbod/nu-te-huur/huurwoningen/details/',
+                    'zuidwestwonen': 'https://www.zuidwestwonen.nl/aanbod/nu-te-huur/huurwoningen/details/'
+                }
+                home.url = f"{map[corp]}{res['urlKey']}"
 
-            self.homes.append(home)
+                self.homes.append(home)
 
     def parse_woonnet_rijnmond(self, r: requests.models.Response):
         results = json.loads(r.content)["data"]["housingPublications"]["nodes"]["edges"]
         for res in results:
-            home = Home(agency="woonnet_rijnmond")
-            home.address = res["node"]["unit"]["location"]["addressLine1"]
-            home.city = res["node"]["unit"]["location"]["addressLine2"]
-            home.url = f"https://www.woonnetrijnmond.nl/nl-NL/aanbod/advertentie/{res['node']['unit']['slug']['value']}"
-            home.price = int(res["node"]["unit"]["basicRent"]["exact"])
-            self.homes.append(home)
+            with self._skip_bad_listing("woonnet_rijnmond"):
+                home = Home(agency="woonnet_rijnmond")
+                home.address = res["node"]["unit"]["location"]["addressLine1"]
+                home.city = res["node"]["unit"]["location"]["addressLine2"]
+                home.url = f"https://www.woonnetrijnmond.nl/nl-NL/aanbod/advertentie/{res['node']['unit']['slug']['value']}"
+                home.price = int(res["node"]["unit"]["basicRent"]["exact"])
+                self.homes.append(home)
         
     def parse_woonin(self, r: requests.models.Response):
         results = json.loads(r.content)['objects']
@@ -308,120 +329,125 @@ class HomeResults:
         results = json.loads(r.content)["results"]["objects"]
             
         for res in results:
-            # Filter non-available properties
-            # Status 0 seems to be that the property is a project
-            # Status > 1 seems to be unavailable
-            if res["status"] != 1:
-                continue
+            with self._skip_bad_listing("vesteda"):
+                # Filter non-available properties
+                # Status 0 seems to be that the property is a project
+                # Status > 1 seems to be unavailable
+                if res["status"] != 1:
+                    continue
             
-            # I don't think seniors are really into Telegram
-            if res["onlySixtyFivePlus"]:
-                continue
+                # I don't think seniors are really into Telegram
+                if res["onlySixtyFivePlus"]:
+                    continue
             
-            home = Home(agency="vesteda")
-            home.address = f"{res['street']} {res['houseNumber']}"
-            if res["houseNumberAddition"] is not None:
-                home.address += f"{res['houseNumberAddition']}"
-            home.city = res["city"]
-            home.url = "https://vesteda.com" + res["url"]
-            home.price = int(res["priceUnformatted"])
-            try:
-                sqm = res.get("size")
-                if sqm not in (None, "", 0, "0"):
-                    sqm_i = int(float(sqm))
-                    if 0 < sqm_i < 2000:
-                        home.sqm = sqm_i
-            except (TypeError, ValueError):
-                pass
-            self.homes.append(home)
+                home = Home(agency="vesteda")
+                home.address = f"{res['street']} {res['houseNumber']}"
+                if res["houseNumberAddition"] is not None:
+                    home.address += f"{res['houseNumberAddition']}"
+                home.city = res["city"]
+                home.url = "https://vesteda.com" + res["url"]
+                home.price = int(res["priceUnformatted"])
+                try:
+                    sqm = res.get("size")
+                    if sqm not in (None, "", 0, "0"):
+                        sqm_i = int(float(sqm))
+                        if 0 < sqm_i < 2000:
+                            home.sqm = sqm_i
+                except (TypeError, ValueError):
+                    pass
+                self.homes.append(home)
         
     def parse_vbt(self, r: requests.models.Response):
         results = json.loads(r.content)["houses"]
         
         for res in results:
-            # Filter Bouwinvest results to not have double results
-            if res["isBouwinvest"]:
-                continue
+            with self._skip_bad_listing("vbt"):
+                # Filter Bouwinvest results to not have double results
+                if res["isBouwinvest"]:
+                    continue
             
-            home = Home(agency="vbt")
-            home.address = res["address"]["house"]
-            home.city = res["address"]["city"]
-            home.url = res["source"]["externalLink"]
-            home.price = int(res["prices"]["rental"]["price"])
-            self.homes.append(home)
+                home = Home(agency="vbt")
+                home.address = res["address"]["house"]
+                home.city = res["address"]["city"]
+                home.url = res["source"]["externalLink"]
+                home.price = int(res["prices"]["rental"]["price"])
+                self.homes.append(home)
             
     def parse_alliantie(self, r: requests.models.Response):
         results = json.loads(r.content)["data"]
         
         for res in results:
-            # Filter results not in selection because why the FUCK would you include
-            # parameters and then not actually use them in your FUCKING API
-            if not res["isInSelection"]:
-                continue
+            with self._skip_bad_listing("alliantie"):
+                # Filter results not in selection because why the FUCK would you include
+                # parameters and then not actually use them in your FUCKING API
+                if not res["isInSelection"]:
+                    continue
                 
-            home = Home(agency="alliantie")
-            home.address = res["address"]
-            # this is a dirty hack because what website with rental homes does not
-            # include the city AT ALL in their FUCKING API RESPONSES
-            city_start = res["url"].index('/') + 1
-            city_end = res["url"][city_start:].index('/') + city_start
-            home.city = res["url"][city_start:city_end].capitalize()
-            home.url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
-            home.price = int(res["price"][2:].replace('.', ''))
-            try:
-                sqm = res.get("size")
-                if sqm not in (None, "", 0, "0"):
-                    sqm_i = int(float(sqm))
-                    if 0 < sqm_i < 2000:
-                        home.sqm = sqm_i
-            except (TypeError, ValueError):
-                pass
-            self.homes.append(home)
+                home = Home(agency="alliantie")
+                home.address = res["address"]
+                # this is a dirty hack because what website with rental homes does not
+                # include the city AT ALL in their FUCKING API RESPONSES
+                city_start = res["url"].index('/') + 1
+                city_end = res["url"][city_start:].index('/') + city_start
+                home.city = res["url"][city_start:city_end].capitalize()
+                home.url = "https://ik-zoek.de-alliantie.nl/" + res["url"].replace(" ", "%20")
+                home.price = int(res["price"][2:].replace('.', ''))
+                try:
+                    sqm = res.get("size")
+                    if sqm not in (None, "", 0, "0"):
+                        sqm_i = int(float(sqm))
+                        if 0 < sqm_i < 2000:
+                            home.sqm = sqm_i
+                except (TypeError, ValueError):
+                    pass
+                self.homes.append(home)
             
     def parse_woningnet_dak(self, r: requests.models.Response, regio: str):
         results = json.loads(r.content)["data"]["PublicatieLijst"]["List"]
         
         for res in results:
-            # Filter seniorenwoningen and items without prices
-            if "Seniorenwoning" in res["PublicatieLabel"] or res["Eenheid"]["Brutohuur"] == "0.0":
-                continue
+            with self._skip_bad_listing(f"woningnet_{regio}"):
+                # Filter seniorenwoningen and items without prices
+                if "Seniorenwoning" in res["PublicatieLabel"] or res["Eenheid"]["Brutohuur"] == "0.0":
+                    continue
             
-            home = Home(agency=f"woningnet_{regio}")
-            home.address = f"{res['Adres']['Straatnaam']} {res['Adres']['Huisnummer']}"
-            if res["Adres"]["HuisnummerToevoeging"]:
-                home.address = f"{home.address} {res['Adres']['HuisnummerToevoeging']}"
-            home.city = res["Adres"]["Woonplaats"]
-            home.url = f"https://{regio}.mijndak.nl/HuisDetails?PublicatieId={res['Id']}"
-            home.price = int(float(res["Eenheid"]["Brutohuur"]))
-            sqm = -1
-            try:
-                # Seen in live responses as strings like "51.00".
-                raw = res.get("Eenheid", {}).get("WoonVertrekkenTotOpp")
-                if raw in (None, "", "0", "0.0", "0.00", 0):
-                    raw = res.get("Eenheid", {}).get("TotaleOppervlakte")
-                if raw not in (None, "", "0", "0.0", "0.00", 0):
-                    sqm = int(float(raw))
-                    if sqm <= 0:
-                        sqm = -1
-            except Exception:
+                home = Home(agency=f"woningnet_{regio}")
+                home.address = f"{res['Adres']['Straatnaam']} {res['Adres']['Huisnummer']}"
+                if res["Adres"]["HuisnummerToevoeging"]:
+                    home.address = f"{home.address} {res['Adres']['HuisnummerToevoeging']}"
+                home.city = res["Adres"]["Woonplaats"]
+                home.url = f"https://{regio}.mijndak.nl/HuisDetails?PublicatieId={res['Id']}"
+                home.price = int(float(res["Eenheid"]["Brutohuur"]))
                 sqm = -1
-            home.sqm = sqm
-            self.homes.append(home)
+                try:
+                    # Seen in live responses as strings like "51.00".
+                    raw = res.get("Eenheid", {}).get("WoonVertrekkenTotOpp")
+                    if raw in (None, "", "0", "0.0", "0.00", 0):
+                        raw = res.get("Eenheid", {}).get("TotaleOppervlakte")
+                    if raw not in (None, "", "0", "0.0", "0.00", 0):
+                        sqm = int(float(raw))
+                        if sqm <= 0:
+                            sqm = -1
+                except Exception:
+                    sqm = -1
+                home.sqm = sqm
+                self.homes.append(home)
             
     def parse_krk(self, r: requests.models.Response):
         results = json.loads(r.content)["objects"]
     
         for res in results:
-            # Filter non-rental and unavailable properties
-            if res["buy_or_rent"] != "rent" or res["availability_status"].lower() != "beschikbaar":
-                continue
+            with self._skip_bad_listing("krk"):
+                # Filter non-rental and unavailable properties
+                if res["buy_or_rent"] != "rent" or res["availability_status"].lower() != "beschikbaar":
+                    continue
     
-            home = Home(agency="krk")
-            home.address = res["short_title"]
-            home.city = res["place"]
-            home.url = res["url"]
-            home.price = int(res["rent_price"])
-            self.homes.append(home)
+                home = Home(agency="krk")
+                home.address = res["short_title"]
+                home.city = res["place"]
+                home.url = res["url"]
+                home.price = int(res["rent_price"])
+                self.homes.append(home)
             
     def parse_funda(self, r: requests.models.Response):
         response = json.loads(r.content)["responses"][0]
@@ -436,46 +462,47 @@ class HomeResults:
         results = response["hits"]["hits"]
 
         for res in results:
-            # Some listings don't have house numbers, so skip
-            if "house_number" not in res["_source"]["address"].keys():
-                continue
-            # Some listings don't have a rent_price, skip as well
-            if "rent_price" not in res["_source"]["price"].keys():
-                continue
+            with self._skip_bad_listing("funda"):
+                # Some listings don't have house numbers, so skip
+                if "house_number" not in res["_source"]["address"].keys():
+                    continue
+                # Some listings don't have a rent_price, skip as well
+                if "rent_price" not in res["_source"]["price"].keys():
+                    continue
         
-            home = Home(agency="funda")
+                home = Home(agency="funda")
 
-            home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
-            if "house_number_suffix" in res["_source"]["address"].keys():
-                suffix = res["_source"]["address"]["house_number_suffix"]
-                if '-' not in suffix and '+' not in suffix:
-                    suffix = f" {suffix}"
-                home.address += f"{suffix}"
+                home.address = f"{res['_source']['address']['street_name']} {res['_source']['address']['house_number']}"
+                if "house_number_suffix" in res["_source"]["address"].keys():
+                    suffix = res["_source"]["address"]["house_number_suffix"]
+                    if '-' not in suffix and '+' not in suffix:
+                        suffix = f" {suffix}"
+                    home.address += f"{suffix}"
             
-            home.city = res["_source"]["address"]["city"]
-            home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
-            home.price = res["_source"]["price"]["rent_price"][0]
+                home.city = res["_source"]["address"]["city"]
+                home.url = "https://funda.nl" + res["_source"]["object_detail_page_relative_url"]
+                home.price = res["_source"]["price"]["rent_price"][0]
 
-            # Funda search results may include a usable sqm in `_source.floor_area`.
-            # Keep parsing defensive: treat unknown/ambiguous values as "unknown" (-1).
-            sqm = -1
-            try:
-                floor_area = res["_source"].get("floor_area")
-                if isinstance(floor_area, list) and floor_area:
-                    if isinstance(floor_area[0], (int, float)) and floor_area[0] > 0:
-                        sqm = int(floor_area[0])
-                if sqm == -1:
-                    far = res["_source"].get("floor_area_range")
-                    if isinstance(far, dict):
-                        gte = far.get("gte")
-                        lte = far.get("lte")
-                        if isinstance(gte, (int, float)) and isinstance(lte, (int, float)) and gte == lte and gte > 0:
-                            sqm = int(gte)
-            except Exception:
+                # Funda search results may include a usable sqm in `_source.floor_area`.
+                # Keep parsing defensive: treat unknown/ambiguous values as "unknown" (-1).
                 sqm = -1
-            home.sqm = sqm
+                try:
+                    floor_area = res["_source"].get("floor_area")
+                    if isinstance(floor_area, list) and floor_area:
+                        if isinstance(floor_area[0], (int, float)) and floor_area[0] > 0:
+                            sqm = int(floor_area[0])
+                    if sqm == -1:
+                        far = res["_source"].get("floor_area_range")
+                        if isinstance(far, dict):
+                            gte = far.get("gte")
+                            lte = far.get("lte")
+                            if isinstance(gte, (int, float)) and isinstance(lte, (int, float)) and gte == lte and gte > 0:
+                                sqm = int(gte)
+                except Exception:
+                    sqm = -1
+                home.sqm = sqm
             
-            self.homes.append(home)
+                self.homes.append(home)
             
     # I love websites with (accidental) public API endpoints and proper JSON
     def parse_rebo(self, r: requests.models.Response):
@@ -510,86 +537,91 @@ class HomeResults:
     def parse_nmg(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("article", class_="house huur")
         for res in results:
-            home = Home(agency="nmg")
-            content = res.find_all("div", class_="house__content")[0]
-            if address_tag := content.select_one('.house__heading h2'):
-                home.address = address_tag.text.strip().split('\t\t\t\t')[0]
-            if city_tag := content.select_one('.house__heading h2 span'):
-                home.city = city_tag.text.strip()
-            if url_tag := res.select_one('.house__overlay'):
-                home.url = str(url_tag["href"])
-            # Remove all non-numeric characters from the price
-            if price_tag := res.select_one('.house__list-item .house__icon--value + span'):
-                rawprice = price_tag.text.strip()
-                home.price = int(re.sub(r'\D', '', rawprice))
-            if (home.address and home.city and home.url and home.price):
-                self.homes.append(home)
+            with self._skip_bad_listing("nmg"):
+                home = Home(agency="nmg")
+                content = res.find_all("div", class_="house__content")[0]
+                if address_tag := content.select_one('.house__heading h2'):
+                    home.address = address_tag.text.strip().split('\t\t\t\t')[0]
+                if city_tag := content.select_one('.house__heading h2 span'):
+                    home.city = city_tag.text.strip()
+                if url_tag := res.select_one('.house__overlay'):
+                    home.url = str(url_tag["href"])
+                # Remove all non-numeric characters from the price
+                if price_tag := res.select_one('.house__list-item .house__icon--value + span'):
+                    rawprice = price_tag.text.strip()
+                    home.price = int(re.sub(r'\D', '', rawprice))
+                if (home.address and home.city and home.url and home.price):
+                    self.homes.append(home)
 
     def parse_vbo(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("a", class_="propertyLink")
         for res in results:
-            home = Home(agency="vbo")
-            home.url = str(res["href"])
-            if address_tag := res.select_one(".street"):
-                home.address = address_tag.text.strip()
-            if city_tag := res.select_one(".city"):
-                home.city = city_tag.text.strip()
-            if price_tag := res.select_one(".price"):
-                rawprice = price_tag.text
-                end = rawprice.index(",") # Every price is terminated with a trailing ,
-                home.price = int(rawprice[2:end].replace(".", ""))
-            # Seen on aanbod.vastgoednederland.nl as: <span class="icon icon-meter"></span> 115 m²
-            try:
-                sqm = None
-                if meter_tag := res.select_one(".icon-meter"):
-                    li = meter_tag.find_parent("li")
-                    if li:
-                        m = re.search(r"(\d{1,4})\s*(?:m2|m²)", li.get_text(" ", strip=True), re.IGNORECASE)
+            with self._skip_bad_listing("vbo"):
+                home = Home(agency="vbo")
+                home.url = str(res["href"])
+                if address_tag := res.select_one(".street"):
+                    home.address = address_tag.text.strip()
+                if city_tag := res.select_one(".city"):
+                    home.city = city_tag.text.strip()
+                if price_tag := res.select_one(".price"):
+                    rawprice = price_tag.text
+                    end = rawprice.index(",") # Every price is terminated with a trailing ,
+                    home.price = int(rawprice[2:end].replace(".", ""))
+                # Seen on aanbod.vastgoednederland.nl as: <span class="icon icon-meter"></span> 115 m²
+                try:
+                    sqm = None
+                    if meter_tag := res.select_one(".icon-meter"):
+                        li = meter_tag.find_parent("li")
+                        if li:
+                            m = re.search(r"(\d{1,4})\s*(?:m2|m²)", li.get_text(" ", strip=True), re.IGNORECASE)
+                            if m:
+                                sqm = int(m.group(1))
+                    if sqm is None:
+                        m = re.search(r"(\d{1,4})\s*(?:m2|m²)", res.get_text(" ", strip=True), re.IGNORECASE)
                         if m:
                             sqm = int(m.group(1))
-                if sqm is None:
-                    m = re.search(r"(\d{1,4})\s*(?:m2|m²)", res.get_text(" ", strip=True), re.IGNORECASE)
-                    if m:
-                        sqm = int(m.group(1))
-                if sqm is not None and 0 < sqm < 2000:
-                    home.sqm = sqm
-            except Exception:
-                pass
-            if (home.address and home.city and home.url and home.price):
-                self.homes.append(home)
+                    if sqm is not None and 0 < sqm < 2000:
+                        home.sqm = sqm
+                except Exception:
+                    pass
+                if (home.address and home.city and home.url and home.price):
+                    self.homes.append(home)
 
     def parse_atta(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="list__object")
         for res in results:
-            home = Home(agency="atta")
-            if url_tag := res.select_one("a"):
-                home.url = str(url_tag["href"])
-            if address_tag := res.select_one(".object-list__address"):
-                home.address = address_tag.text
-            if city_tag := res.select_one(".object-list__city"):
-                home.city = city_tag.text.strip()
-            if price_tag := res.select_one(".object-list__price"):
-                home.price = int(price_tag.text[2:].replace(".", ""))
-            if (home.address and home.city and home.url and home.price):
-                self.homes.append(home)
+            with self._skip_bad_listing("atta"):
+                home = Home(agency="atta")
+                if url_tag := res.select_one("a"):
+                    home.url = str(url_tag["href"])
+                if address_tag := res.select_one(".object-list__address"):
+                    home.address = address_tag.text
+                if city_tag := res.select_one(".object-list__city"):
+                    home.city = city_tag.text.strip()
+                if price_tag := res.select_one(".object-list__price"):
+                    home.price = int(price_tag.text[2:].replace(".", ""))
+                if (home.address and home.city and home.url and home.price):
+                    self.homes.append(home)
 
     def parse_ooms(self, r: requests.models.Response):
         results = json.loads(r.content)["objects"]
-        rentals = filter(lambda res: res["filters"]["buy_rent"] == "rent", results)
-        for res in rentals:
-            home = Home(agency="ooms")
-            home.url = f"https://ooms.com/wonen/aanbod/{res['slug']}"
+        for res in results:
+            with self._skip_bad_listing("ooms"):
+                if res["filters"]["buy_rent"] != "rent":
+                    continue
+                home = Home(agency="ooms")
+                home.url = f"https://ooms.com/wonen/aanbod/{res['slug']}"
 
-            addition = res.get("house_number_addition")
-            # Explicitly check for None because it can be {"house_number_addition": None}
-            # in which case using a default value in `get` would not work
-            if addition == None:
-                addition = ""
+                addition = res.get("house_number_addition")
+                # Explicitly check for None because it can be {"house_number_addition": None}
+                # in which case using a default value in `get` would not work
+                if addition == None:
+                    addition = ""
 
-            home.address = f"{res['street_name']} {res['house_number']} {addition}"
-            home.city = res["place"]
-            home.price = res["rent_price"]
-            self.homes.append(home)
+                home.address = f"{res['street_name']} {res['house_number']} {addition}"
+                home.city = res["place"]
+                home.price = res["rent_price"]
+                self.homes.append(home)
 
     def parse_woonmatchwaterland(self, r: requests.models.Response):
         soup = BeautifulSoup(r.content, "html.parser")
@@ -599,35 +631,37 @@ class HomeResults:
             results = json.loads(script.string)["props"]["pageProps"]["houses"]
             if results:
                 for res in results:
-                    home = Home(agency="woonmatchwaterland")
-                    home.address = res["address"]["street"] + " " + str(res["address"]["number"])
-                    home.city = res["address"]["city"]
-                    home.url = "https://woonmatchwaterland.nl/houses/" + res["advert"]
-                    home.price = int(float(res["details"]["grossrent"]))
-                    self.homes.append(home)
+                    with self._skip_bad_listing("woonmatchwaterland"):
+                        home = Home(agency="woonmatchwaterland")
+                        home.address = res["address"]["street"] + " " + str(res["address"]["number"])
+                        home.city = res["address"]["city"]
+                        home.url = "https://woonmatchwaterland.nl/houses/" + res["advert"]
+                        home.price = int(float(res["details"]["grossrent"]))
+                        self.homes.append(home)
 
     def parse_entree(self, r: requests.models.Response):
         results = json.loads(r.content)["d"]["aanbod"]
         for res in results:
-            skip_prop = ["Garage", "Parkeerplaats"]
-            home = Home(agency="entree")
-            if res["objecttype"] not in skip_prop and res["gebruik"] != "Cluster":
-                if res["huisletter"]:
-                    home.address = f"{res['straat']} {res['huisnummer']}{res['huisletter']}"
-                else:
-                    home.address = f"{res['straat']} {res['huisnummer']}"
-                home.city = res["plaats"]
-                home.price = int(float(res["kalehuur"].replace(',', '.')))
-                home.url = f"https://entree.nu/detail/{res['id']}"
-                try:
-                    sqm = res.get("totaleoppervlakte")
-                    if sqm not in (None, "", 0, "0", "0,0", "0,00", "0.0", "0.00"):
-                        sqm_i = int(float(str(sqm).replace(",", ".")))
-                        if 0 < sqm_i < 2000:
-                            home.sqm = sqm_i
-                except (TypeError, ValueError):
-                    pass
-                self.homes.append(home)
+            with self._skip_bad_listing("entree"):
+                skip_prop = ["Garage", "Parkeerplaats"]
+                home = Home(agency="entree")
+                if res["objecttype"] not in skip_prop and res["gebruik"] != "Cluster":
+                    if res["huisletter"]:
+                        home.address = f"{res['straat']} {res['huisnummer']}{res['huisletter']}"
+                    else:
+                        home.address = f"{res['straat']} {res['huisnummer']}"
+                    home.city = res["plaats"]
+                    home.price = int(float(res["kalehuur"].replace(',', '.')))
+                    home.url = f"https://entree.nu/detail/{res['id']}"
+                    try:
+                        sqm = res.get("totaleoppervlakte")
+                        if sqm not in (None, "", 0, "0", "0,0", "0,00", "0.0", "0.00"):
+                            sqm_i = int(float(str(sqm).replace(",", ".")))
+                            if 0 < sqm_i < 2000:
+                                home.sqm = sqm_i
+                    except (TypeError, ValueError):
+                        pass
+                    self.homes.append(home)
 
     """
     Woonzeker Rentals has a really weird structure. They load all the data
@@ -774,36 +808,37 @@ class HomeResults:
                 return mapping.get(s, s)
 
             for res in results:
-                home = Home(agency="woonzeker")
+                with self._skip_bad_listing("woonzeker"):
+                    home = Home(agency="woonzeker")
 
-                if mapping_or_raw(res.get("mappedStatus", "")).lower() == "onder optie":
-                    continue  # This house is already gone
+                    if mapping_or_raw(res.get("mappedStatus", "")).lower() == "onder optie":
+                        continue  # This house is already gone
 
-                address = res.get("address", {})
-                slug = res.get("slug", "")
-                extract_regex = re.compile(r"(.*)-([0-9]+)(-([a-zA-Z0-9]+))?")
-                matches = extract_regex.match(slug)
-                if not matches:
-                    logging.warning(f"Unable to pattern match woonzeker slug: {slug}")
-                    continue
+                    address = res.get("address", {})
+                    slug = res.get("slug", "")
+                    extract_regex = re.compile(r"(.*)-([0-9]+)(-([a-zA-Z0-9]+))?")
+                    matches = extract_regex.match(slug)
+                    if not matches:
+                        logging.warning(f"Unable to pattern match woonzeker slug: {slug}")
+                        continue
 
-                ext = matches.group(4)
-                if ext:
-                    hn_ext = address.get("houseNumberExtension", "")
-                    if hn_ext and (hn_ext not in mapping or ext.lower() == str(hn_ext).lower()):
-                        ext = hn_ext
-                    elif hn_ext in mapping:
-                        ext = mapping[hn_ext]
-                    home.address = f"{mapping_or_raw(address.get('street', ''))} {mapping_or_raw(address.get('houseNumber', ''))} {ext}".strip()
-                else:
-                    home.address = f"{mapping_or_raw(address.get('street', ''))} {mapping_or_raw(address.get('houseNumber', ''))}".strip()
+                    ext = matches.group(4)
+                    if ext:
+                        hn_ext = address.get("houseNumberExtension", "")
+                        if hn_ext and (hn_ext not in mapping or ext.lower() == str(hn_ext).lower()):
+                            ext = hn_ext
+                        elif hn_ext in mapping:
+                            ext = mapping[hn_ext]
+                        home.address = f"{mapping_or_raw(address.get('street', ''))} {mapping_or_raw(address.get('houseNumber', ''))} {ext}".strip()
+                    else:
+                        home.address = f"{mapping_or_raw(address.get('street', ''))} {mapping_or_raw(address.get('houseNumber', ''))}".strip()
 
-                home.city = mapping_or_raw(address.get("location", ""))
-                home.url = "https://woonzeker.com/aanbod/" + parse.quote(home.city + "/" + slug)
-                home.price = int(mapping_or_raw(res.get("handover", {}).get("price", -1)))
+                    home.city = mapping_or_raw(address.get("location", ""))
+                    home.url = "https://woonzeker.com/aanbod/" + parse.quote(home.city + "/" + slug)
+                    home.price = int(mapping_or_raw(res.get("handover", {}).get("price", -1)))
 
-                if (home.address and home.city and home.url and home.price and home.price > 0):
-                    self.homes.append(home)
+                    if (home.address and home.city and home.url and home.price and home.price > 0):
+                        self.homes.append(home)
         except Exception:
             return
 
@@ -811,16 +846,17 @@ class HomeResults:
     def parse_123wonen(self, r: requests.models.Response):
         results = json.loads(r.content)['pointers']
         for res in results:
-            if res['transaction'] == 'Verhuur':
-                home = Home(agency="123wonen")
-                home.url = f"https://www.123wonen.nl/{res['detailurl']}"
-                if res['address_num_extra']:
-                    home.address = f"{res['address']} {res['address_num']}{res['address_num_extra']}"
-                else:
-                    home.address = f"{res['address']} {res['address_num']}"
-                home.city = res['city']
-                home.price = int(res['price'])
-                self.homes.append(home)
+            with self._skip_bad_listing("123wonen"):
+                if res['transaction'] == 'Verhuur':
+                    home = Home(agency="123wonen")
+                    home.url = f"https://www.123wonen.nl/{res['detailurl']}"
+                    if res['address_num_extra']:
+                        home.address = f"{res['address']} {res['address_num']}{res['address_num_extra']}"
+                    else:
+                        home.address = f"{res['address']} {res['address_num']}"
+                    home.city = res['city']
+                    home.price = int(res['price'])
+                    self.homes.append(home)
 
     def parse_roofz(self, r: requests.models.Response):
         data = r.json()
@@ -837,39 +873,40 @@ class HomeResults:
                     results.extend(page_r.json().get("data", []))
 
         for res in results:
-            addr = res.get("address", {})
-            ho = res.get("handover", {})
-            status = res.get("status", {})
-            status_code = status.get("code", "") if isinstance(status, dict) else str(status)
-            stage = str(res.get("stage", ""))
+            with self._skip_bad_listing("roofz"):
+                addr = res.get("address", {})
+                ho = res.get("handover", {})
+                status = res.get("status", {})
+                status_code = status.get("code", "") if isinstance(status, dict) else str(status)
+                stage = str(res.get("stage", ""))
 
-            # Filter already-rented, under-option and occupied listings
-            if status_code in ("occupied", "unavailable"):
-                continue
-            if stage in ("occupied", "option"):
-                continue
+                # Filter already-rented, under-option and occupied listings
+                if status_code in ("occupied", "unavailable"):
+                    continue
+                if stage in ("occupied", "option"):
+                    continue
 
-            street = addr.get("street", "")
-            house_num = str(addr.get("house_number", ""))
-            ext = addr.get("house_number_addition", "")
-            city = addr.get("location", "")
-            price = ho.get("price", 0)
-            slug = res.get("slug", "")
+                street = addr.get("street", "")
+                house_num = str(addr.get("house_number", ""))
+                ext = addr.get("house_number_addition", "")
+                city = addr.get("location", "")
+                price = ho.get("price", 0)
+                slug = res.get("slug", "")
 
-            if not street or not house_num or not city or not price:
-                continue
+                if not street or not house_num or not city or not price:
+                    continue
 
-            home = Home(agency="roofz")
-            home.address = f"{street} {house_num}"
-            if ext:
-                home.address += f" {ext}"
-            home.city = city
-            home.url = f"https://roofz.eu/huur/woningen/{slug}"
-            home.price = int(float(price))
-            living_area = res.get("characteristic", {}).get("living_area")
-            if living_area:
-                home.sqm = int(living_area)
-            self.homes.append(home)
+                home = Home(agency="roofz")
+                home.address = f"{street} {house_num}"
+                if ext:
+                    home.address += f" {ext}"
+                home.city = city
+                home.url = f"https://roofz.eu/huur/woningen/{slug}"
+                home.price = int(float(price))
+                living_area = res.get("characteristic", {}).get("living_area")
+                if living_area:
+                    home.sqm = int(living_area)
+                self.homes.append(home)
 
     def parse_vanderlinden(self, r: requests.models.Response):
         results = BeautifulSoup(r.content, "html.parser").find_all("div", class_="woninginfo")
@@ -1037,14 +1074,15 @@ class HomeResults:
     def parse_easylease(self, r: requests.models.Response):
         results = json.loads(r.content)
         for res in results["values"]:
-            if res["data"]["label"] == "Nieuw":
-                home = Home(agency="easylease")
-                home.address = res["data"]["locality"]["street"] + " " + res["data"]["locality"]["number"] + res["data"]["locality"]["addition"]
-                home.city = res["data"]["locality"]["city"]
-                home.url = "https://www.easyleasewonen.nl/woning/" + res["page_item_url"]
-                home.price = int(res["data"]["price"])
-                home.sqm = int(res["data"]["surface"])
-                self.homes.append(home)
+            with self._skip_bad_listing("easylease"):
+                if res["data"]["label"] == "Nieuw":
+                    home = Home(agency="easylease")
+                    home.address = res["data"]["locality"]["street"] + " " + res["data"]["locality"]["number"] + res["data"]["locality"]["addition"]
+                    home.city = res["data"]["locality"]["city"]
+                    home.url = "https://www.easyleasewonen.nl/woning/" + res["page_item_url"]
+                    home.price = int(res["data"]["price"])
+                    home.sqm = int(res["data"]["surface"])
+                    self.homes.append(home)
 
     def parse_beumer(self, r: requests.models.Response):
         soup = BeautifulSoup(r.content, "html.parser")
@@ -1831,42 +1869,43 @@ class HomeResults:
         available_states = {"beschikbaar", "binnenkort beschikbaar"}
 
         for res in results:
-            state = ((res.get("state") or {}).get("name") or "").strip().lower()
-            if state not in available_states:
-                continue
+            with self._skip_bad_listing("woonstadrotterdam"):
+                state = ((res.get("state") or {}).get("name") or "").strip().lower()
+                if state not in available_states:
+                    continue
 
-            # New-build project types ("Type A.1.1 ...") have no unit address
-            address = ((res.get("unit") or {}).get("address")) or {}
-            street = (address.get("street") or "").strip()
-            number = address.get("number")
-            city = (address.get("city") or "").strip()
-            if not street or not number or not city:
-                continue
+                # New-build project types ("Type A.1.1 ...") have no unit address
+                address = ((res.get("unit") or {}).get("address")) or {}
+                street = (address.get("street") or "").strip()
+                number = address.get("number")
+                city = (address.get("city") or "").strip()
+                if not street or not number or not city:
+                    continue
 
-            try:
-                price = int(float(res["rentInfo"]["price"]))
-            except (KeyError, TypeError, ValueError):
-                continue
-            if price <= 0:
-                continue
+                try:
+                    price = int(float(res["rentInfo"]["price"]))
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if price <= 0:
+                    continue
 
-            # Matches the site's own naming: "Rusthoflaan 3A", "Paradijslaan 6 D"
-            house = f"{number}{(address.get('houseletter') or '').strip()}"
-            addition = (address.get("addition") or "").strip()
-            if addition:
-                house += f" {addition}"
+                # Matches the site's own naming: "Rusthoflaan 3A", "Paradijslaan 6 D"
+                house = f"{number}{(address.get('houseletter') or '').strip()}"
+                addition = (address.get("addition") or "").strip()
+                if addition:
+                    house += f" {addition}"
 
-            home = Home(agency="woonstadrotterdam")
-            home.address = f"{street} {house}"
-            home.city = city.title()
-            home.url = f"https://www.woonstadrotterdam.nl/aanbod/vrije-sector-huurwoning/{res['webSettings']['url']}"
-            home.price = price
+                home = Home(agency="woonstadrotterdam")
+                home.address = f"{street} {house}"
+                home.city = city.title()
+                home.url = f"https://www.woonstadrotterdam.nl/aanbod/vrije-sector-huurwoning/{res['webSettings']['url']}"
+                home.price = price
 
-            surface = ((res["unit"].get("propertySpecification")) or {}).get("surface")
-            if isinstance(surface, (int, float)) and 0 < surface < 2000:
-                home.sqm = int(surface)
+                surface = ((res["unit"].get("propertySpecification")) or {}).get("surface")
+                if isinstance(surface, (int, float)) and 0 < surface < 2000:
+                    home.sqm = int(surface)
 
-            self.homes.append(home)
+                self.homes.append(home)
 
     def parse_housinganywhere(self, r: requests.models.Response):
         # Search index hits; the query itself filters on isSearchable (bookable) listings
