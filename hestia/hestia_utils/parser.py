@@ -481,11 +481,22 @@ class HomeResults:
     def parse_rebo(self, r: requests.models.Response):
         results = json.loads(r.content)["hits"]
         for res in results:
+            # Skip a malformed listing instead of failing the whole scrape
+            try:
+                address = str(res["address"]).strip()
+                city = str(res["city"]).strip()
+                slug = str(res["slug"]).strip()
+                price = int(float(res["price"]))
+            except (KeyError, TypeError, ValueError) as e:
+                logging.warning(f"Skipping REBO listing {res.get('address')!r}: {repr(e)}")
+                continue
+            if not (address and city and slug):
+                continue
             home = Home(agency="rebo")
-            home.address = res["address"]
-            home.city = res["city"]
-            home.url = "https://www.rebogroep.nl/nl/aanbod/" + res["slug"]
-            home.price = int(res["price"])
+            home.address = address
+            home.city = city
+            home.url = "https://www.rebogroep.nl/nl/aanbod/" + slug
+            home.price = price
             try:
                 sqm = res.get("surface_living")
                 if sqm not in (None, "", 0, "0"):
