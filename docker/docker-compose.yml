@@ -193,6 +193,12 @@ services:
     environment:
       - HESTIA_TARGET=hoekstra
 
+  hestia-scraper-househunting:
+    <<: *scraper-base
+    container_name: hestia-scraper-househunting
+    environment:
+      - HESTIA_TARGET=househunting
+
   hestia-scraper-housinganywhere:
     <<: *scraper-base
     container_name: hestia-scraper-housinganywhere
@@ -255,6 +261,12 @@ services:
     container_name: hestia-scraper-maxxhuren
     environment:
       - HESTIA_TARGET=maxxhuren
+
+  hestia-scraper-mfvastgoed:
+    <<: *scraper-base
+    container_name: hestia-scraper-mfvastgoed
+    environment:
+      - HESTIA_TARGET=mfvastgoed
 
   hestia-scraper-nederwoon:
     <<: *scraper-base
