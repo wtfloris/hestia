@@ -170,6 +170,10 @@ class HomeResults:
             self.parse_housinganywhere(raw)
         elif source == "kamernet":
             self.parse_kamernet(raw)
+        elif source == "mfvastgoed":
+            self.parse_mfvastgoed(raw)
+        elif source == "househunting":
+            self.parse_househunting(raw)
         elif source == "woonstadrotterdam":
             self.parse_woonstadrotterdam(raw)
         else:
@@ -1998,3 +2002,99 @@ class HomeResults:
                 pass
 
             self.homes.append(home)
+
+    def parse_mfvastgoed(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        for res in soup.select("div.object"):
+            with self._skip_bad_listing("mfvastgoed"):
+                link = res.select_one("a.sys-property-link[href]")
+                heading = res.select_one("h2")
+                if not link or not heading:
+                    continue
+
+                href = str(link["href"])
+                if "/huur/" not in href:
+                    continue
+
+                # The heading is "<status>: <street> <number>, <postcode> <city>",
+                # e.g. "Te huur: Isabellastraat 53, 4811JZ Breda" or "Verhuurd: ...".
+                # Only the "Te huur" listings are available.
+                heading_text = " ".join(heading.get_text(" ", strip=True).split())
+                status, _, location = heading_text.partition(":")
+                if status.strip().lower() != "te huur":
+                    continue
+
+                address, _, city = location.partition(",")
+                address = address.strip()
+                city = re.sub(r"^\d{4}\s?[A-Za-z]{2}\s+", "", city.strip()).strip()
+                if not address or not city:
+                    raise ValueError(f"Unexpected heading: {heading_text!r}")
+
+                price_tag = res.select_one(".object_price")
+                amount_match = re.search(r"(\d[\d\.]*)", price_tag.get_text(" ", strip=True)) if price_tag else None
+                if not amount_match:
+                    raise ValueError(f"No price for {heading_text!r}")
+
+                home = Home(agency="mfvastgoed")
+                home.address = address
+                home.city = city
+                home.url = parse.urljoin("https://www.mfvastgoed.nl", href.split("?")[0])
+                home.price = int(amount_match.group(1).replace(".", ""))
+
+                # Seen as: <span title="Woonoppervlakte">58 m²</span>
+                sqm_tag = res.select_one('[title="Woonoppervlakte"]') or res.select_one(".object_sqfeet")
+                if sqm_tag:
+                    sqm_match = re.search(r"(\d+)\s*m", sqm_tag.get_text(" ", strip=True))
+                    if sqm_match and 0 < int(sqm_match.group(1)) < 2000:
+                        home.sqm = int(sqm_match.group(1))
+
+                self.homes.append(home)
+
+    def parse_househunting(self, r: requests.models.Response):
+        soup = BeautifulSoup(r.content, "html.parser")
+
+        for res in soup.select("li.location"):
+            with self._skip_bad_listing("househunting"):
+                # The badge image is for-rent_nl.png, for-sale_nl.png, etc.
+                badge = res.select_one(".type_badge img")
+                if badge and "for-rent" not in str(badge.get("src", "")):
+                    continue
+
+                # Labels seen: "Nieuw", "Tophuis", "Aanbevolen", "Verhuurd",
+                # "Verhuurd onder voorbehoud"
+                label = res.select_one(".location_lable")
+                label_text = label.get_text(" ", strip=True).lower() if label else ""
+                if label_text.startswith("verhuurd") or "optie" in label_text:
+                    continue
+
+                link = res.select_one("a[href]")
+                street_tag = res.select_one(".location_street")
+                # There is a second, hidden .location_city with the office's city
+                city_tag = res.select_one(".location_address .location_city")
+                price_tag = res.select_one(".location_price")
+                if not link or not street_tag or not city_tag or not price_tag:
+                    raise ValueError("Listing card is missing fields")
+
+                street = " ".join(street_tag.get_text(" ", strip=True).split())
+                city = city_tag.get_text(" ", strip=True)
+                amount_match = re.search(r"(\d[\d\.]*)", price_tag.get_text(" ", strip=True))
+                if not street or not city or not amount_match:
+                    raise ValueError(f"Unexpected listing card: {street!r}, {city!r}")
+                price = int(amount_match.group(1).replace(".", ""))
+                # Placeholder prices like "€1,-" show up on some listings
+                if price < 50:
+                    continue
+
+                # Only the street is shown, never a house number, so append the price
+                # to keep the address a usable identifier
+                address = street
+                if not re.search(r"\d", address):
+                    address += f" [€{price}]"
+
+                home = Home(agency="househunting")
+                home.address = address
+                home.city = city
+                home.url = parse.urljoin("https://househunting.nl", str(link["href"]).split("?")[0])
+                home.price = price
+                self.homes.append(home)

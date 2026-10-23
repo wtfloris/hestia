@@ -2329,6 +2329,162 @@ class TestParseKamernet:
         assert len(HomeResults("kamernet", r).homes) == 0
 
 
+
+class TestParseMfvastgoed:
+    def _card(self, heading, price="€ 2.150,- /mnd", sqm="102 m²", kind="huur", slug="breda/isabellastraat/53", rented=False):
+        sqm_html = f'<span class="object_label object_sqfeet"><span><span title="Woonoppervlakte">{sqm}</span></span></span>' if sqm else ""
+        price_html = f'<span class="object_price">{price}</span>' if price else ""
+        return f"""
+        <div class="object clearfix{' rented' if rented else ''}">
+            <a class="sys-property-link object_header" href="/woningaanbod/{kind}/{slug}?forsaleorrent=1&amp;iscustom=true&amp;take=50">
+                <ul><li><h2>{heading}</h2></li></ul>
+            </a>
+            <a class="sys-property-link object_data" href="/woningaanbod/{kind}/{slug}?forsaleorrent=1&amp;iscustom=true&amp;take=50">
+                {price_html}
+                <div class="object_data_labels">
+                    <span class="object_label object_rooms" title="Aantal kamers"><span>4</span></span>
+                    {sqm_html}
+                </div>
+            </a>
+        </div>
+        """
+
+    def test_basic_parsing(self, mock_response):
+        r = mock_response(self._card("Te huur: Isabellastraat 53, 4811JZ Breda"))
+        results = HomeResults("mfvastgoed", r)
+        assert len(results.homes) == 1
+        home = results[0]
+        assert home.agency == "mfvastgoed"
+        assert home.address == "Isabellastraat 53"
+        assert home.city == "Breda"
+        assert home.price == 2150
+        assert home.sqm == 102
+        assert home.url == "https://www.mfvastgoed.nl/woningaanbod/huur/breda/isabellastraat/53"
+
+    def test_skips_rented(self, mock_response):
+        r = mock_response(self._card("Verhuurd: Boschstraat 57b11, 4811GC Breda", rented=True))
+        assert len(HomeResults("mfvastgoed", r).homes) == 0
+
+    def test_skips_other_statuses(self, mock_response):
+        r = mock_response(self._card("Onder optie: Boschstraat 57b11, 4811GC Breda"))
+        assert len(HomeResults("mfvastgoed", r).homes) == 0
+
+    def test_skips_sale(self, mock_response):
+        r = mock_response(self._card("Te koop: Esserstraat 28, 4812AB Breda", kind="koop", slug="breda/esserstraat/28"))
+        assert len(HomeResults("mfvastgoed", r).homes) == 0
+
+    def test_postcode_with_space(self, mock_response):
+        r = mock_response(self._card("Te huur: Sint Bavostraat 19B, 4891 CG Rijsbergen"))
+        assert HomeResults("mfvastgoed", r)[0].city == "Rijsbergen"
+
+    def test_missing_sqm_is_unset(self, mock_response):
+        r = mock_response(self._card("Te huur: Isabellastraat 53, 4811JZ Breda", sqm=""))
+        assert HomeResults("mfvastgoed", r)[0].sqm == -1
+
+    def test_mixed_page(self, mock_response):
+        r = mock_response(
+            self._card("Verhuurd: Boschstraat 57b11, 4811GC Breda", rented=True)
+            + self._card("Te huur: Isabellastraat 53, 4811JZ Breda")
+        )
+        results = HomeResults("mfvastgoed", r)
+        assert [h.address for h in results.homes] == ["Isabellastraat 53"]
+
+    def test_all_available_listings_malformed_raises(self, mock_response):
+        r = mock_response(self._card("Te huur: Isabellastraat 53, 4811JZ Breda", price=""))
+        with pytest.raises(ValueError):
+            HomeResults("mfvastgoed", r)
+
+    def test_empty_page(self, mock_response):
+        r = mock_response("<html><body>Geen aanbod</body></html>")
+        assert len(HomeResults("mfvastgoed", r).homes) == 0
+
+
+class TestParseHousehunting:
+    def _card(self, street="Ernst Casimirstraat", city="Waalre", price="€1975,-", badge="for-rent_nl.png",
+              label="", slug="69c354af-2594-42a5-9864-e1cf21b316bc-ernst-casimirstraat-waalre", office_city="Eindhoven"):
+        url = f"https://househunting.nl/woningaanbod/{slug}/"
+        label_html = f'<div class="location_lable">{label}</div>' if label else ""
+        return f"""
+        <li class="location" onClick="window.open('{url}', '_blank');">
+            <a href="{url}" title="{street}"><img class="location_image" src="x.jpg"></a>
+            <div class="location_info_container">
+                <div class="location_address">
+                    <h3 class="location_street">{street}</h3>
+                    <p class="location_city">{city}</p>
+                </div>
+                <p class="location_price">{price}</p>
+                <p class="price_per">/mnd</p>
+                <div class="location_office">
+                    <p>HouseHunting {office_city}</p>
+                    <p class="location_city" style="display:none;">{office_city}</p>
+                </div>
+            </div>
+            <div class="type_badge"><img src="https://househunting.nl/wp-content/themes/househunting/img/price-label/{badge}" alt=""></div>
+            {label_html}
+        </li>
+        """
+
+    def _page(self, *cards):
+        return f'<div class="results"><ul class="locations">{"".join(cards)}</ul></div>'
+
+    def test_basic_parsing(self, mock_response):
+        r = mock_response(self._page(self._card()))
+        results = HomeResults("househunting", r)
+        assert len(results.homes) == 1
+        home = results[0]
+        assert home.agency == "househunting"
+        # Only the street is published, so the price is appended for uniqueness
+        assert home.address == "Ernst Casimirstraat [€1975]"
+        # Not the hidden office city
+        assert home.city == "Waalre"
+        assert home.price == 1975
+        assert home.sqm == -1
+        assert home.url == "https://househunting.nl/woningaanbod/69c354af-2594-42a5-9864-e1cf21b316bc-ernst-casimirstraat-waalre/"
+
+    def test_skips_for_sale(self, mock_response):
+        r = mock_response(self._page(self._card(price="€519000,-", badge="for-sale_nl.png")))
+        assert len(HomeResults("househunting", r).homes) == 0
+
+    def test_skips_rented(self, mock_response):
+        r = mock_response(self._page(
+            self._card(label="Verhuurd"),
+            self._card(label="Verhuurd onder voorbehoud"),
+        ))
+        assert len(HomeResults("househunting", r).homes) == 0
+
+    def test_keeps_promo_labels(self, mock_response):
+        r = mock_response(self._page(
+            self._card(label="Nieuw", street="A"),
+            self._card(label="Tophuis", street="B"),
+            self._card(label="Aanbevolen", street="C"),
+        ))
+        assert len(HomeResults("househunting", r).homes) == 3
+
+    def test_skips_placeholder_price(self, mock_response):
+        r = mock_response(self._page(self._card(price="€1,-")))
+        assert len(HomeResults("househunting", r).homes) == 0
+
+    def test_thousands_separator(self, mock_response):
+        r = mock_response(self._page(self._card(price="€1.975,-")))
+        assert HomeResults("househunting", r)[0].price == 1975
+
+    def test_city_normalized(self, mock_response):
+        r = mock_response(self._page(self._card(city="'s-Hertogenbosch")))
+        assert HomeResults("househunting", r)[0].city == "Den Bosch"
+
+    def test_street_with_number_not_suffixed(self, mock_response):
+        r = mock_response(self._page(self._card(street="1e Jan Steenstraat")))
+        assert HomeResults("househunting", r)[0].address == "1e Jan Steenstraat"
+
+    def test_all_listings_malformed_raises(self, mock_response):
+        r = mock_response(self._page(self._card(price="Prijs op aanvraag")))
+        with pytest.raises(ValueError):
+            HomeResults("househunting", r)
+
+    def test_empty_page(self, mock_response):
+        r = mock_response("<html><body>Geen resultaten</body></html>")
+        assert len(HomeResults("househunting", r).homes) == 0
+
 class TestParseEasylease:
     def test_basic_parsing(self, mock_response):
         data = {
