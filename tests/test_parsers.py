@@ -12,9 +12,7 @@ class TestHomeResultsUnknownSource:
 
 class TestHomeResultsIndexing:
     def test_getitem(self, mock_response):
-        data = {"hits": [
-            {"address": "Straat 1", "city": "Amsterdam", "slug": "straat-1", "price": 1000},
-        ]}
+        data = {"data": [rebo_listing(street="Straat", house_number="1", city="Amsterdam")]}
         r = mock_response(data)
         results = HomeResults("rebo", r)
         assert results[0].address == "Straat 1"
@@ -714,43 +712,64 @@ class TestParseFunda:
             HomeResults("funda", r)
 
 
+def rebo_listing(**kw):
+    listing = {
+        "street": "Kerkweg", "house_number": "5", "house_number_addon": "",
+        "city": "Delft", "rental_price": 1200, "surface_living": 66,
+        "url": "/nl/aanbod/abc-kerkweg-5-2611-aa-delft",
+        "private": False,
+        "type": {"value": "rent", "label": "Huur", "key": "rent"},
+        "status_mapped": {"value": "for_rent", "label": "Te huur", "key": "for_rent"},
+    }
+    listing.update(kw)
+    return listing
+
+
 class TestParseRebo:
     def test_basic_parsing(self, mock_response):
-        data = {"hits": [
-            {
-                "address": "Kerkweg 5",
-                "city": "Delft",
-                "slug": "kerkweg-5-delft",
-                "price": 1200,
-                "surface_living": 66
-            }
-        ]}
-        r = mock_response(data)
-        results = HomeResults("rebo", r)
+        results = HomeResults("rebo", mock_response({"data": [rebo_listing()]}))
         assert len(results.homes) == 1
         assert results[0].address == "Kerkweg 5"
         assert results[0].city == "Delft"
         assert results[0].price == 1200
         assert results[0].sqm == 66
-        assert "rebogroep.nl" in results[0].url
+        assert results[0].url == "https://www.rebogroep.nl/nl/aanbod/abc-kerkweg-5-2611-aa-delft"
 
-    def test_empty_hits(self, mock_response):
-        data = {"hits": []}
-        r = mock_response(data)
-        results = HomeResults("rebo", r)
+    def test_empty_data(self, mock_response):
+        results = HomeResults("rebo", mock_response({"data": []}))
         assert len(results.homes) == 0
 
-    def test_decimal_string_price(self, mock_response):
-        data = {"hits": [{"address": "Gerbrandyhof 285", "city": "Utrecht", "slug": "g-285", "price": "1250.00"}]}
+    def test_house_number_addon(self, mock_response):
+        data = {"data": [
+            rebo_listing(house_number_addon="A"),
+            rebo_listing(street="Laan", house_number_addon="2"),
+        ]}
         results = HomeResults("rebo", mock_response(data))
-        assert len(results.homes) == 1
-        assert results[0].price == 1250
+        assert [h.address for h in results.homes] == ["Kerkweg 5A", "Laan 5-2"]
+
+    def test_filters_unavailable(self, mock_response):
+        def status(key):
+            return {"value": key, "label": key, "key": key}
+        data = {"data": [
+            rebo_listing(street="Optie", status_mapped=status("on_option")),
+            rebo_listing(street="Verhuurd", status_mapped=status("rented")),
+            rebo_listing(street="Gereserveerd", status_mapped=status("reserved")),
+            rebo_listing(street="Koop", type={"value": "sales", "label": "Koop", "key": "sales"}),
+            rebo_listing(street="Vrij"),
+        ]}
+        results = HomeResults("rebo", mock_response(data))
+        assert [h.address for h in results.homes] == ["Vrij 5"]
+
+    def test_skips_missing_house_number(self, mock_response):
+        data = {"data": [rebo_listing(house_number=""), rebo_listing(house_number=None)]}
+        assert len(HomeResults("rebo", mock_response(data)).homes) == 0
 
     def test_bad_listing_does_not_drop_others(self, mock_response):
-        data = {"hits": [
-            {"address": "Kapot 1", "city": "Delft", "slug": "kapot-1", "price": None},
-            {"address": "Geen slug 2", "city": "Delft", "price": 900},
-            {"address": "Kerkweg 5", "city": "Delft", "slug": "kerkweg-5", "price": 1200},
+        data = {"data": [
+            rebo_listing(street="Kapot", rental_price=None),
+            rebo_listing(street="Geen url", url=None),
+            {"status_mapped": None},
+            rebo_listing(),
         ]}
         results = HomeResults("rebo", mock_response(data))
         assert [h.address for h in results.homes] == ["Kerkweg 5"]

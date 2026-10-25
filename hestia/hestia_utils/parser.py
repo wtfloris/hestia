@@ -508,25 +508,32 @@ class HomeResults:
             
                 self.homes.append(home)
             
-    # I love websites with (accidental) public API endpoints and proper JSON
     def parse_rebo(self, r: requests.models.Response):
-        results = json.loads(r.content)["hits"]
+        results = json.loads(r.content)["data"]
         for res in results:
             # Skip a malformed listing instead of failing the whole scrape
             try:
-                address = str(res["address"]).strip()
+                if (res.get("status_mapped") or {}).get("key") != "for_rent":
+                    continue
+                if (res.get("type") or {}).get("key") != "rent" or res.get("private"):
+                    continue
+                street = str(res["street"]).strip()
+                number = str(res["house_number"] or "").strip()
+                addon = str(res.get("house_number_addon") or "").strip()
                 city = str(res["city"]).strip()
-                slug = str(res["slug"]).strip()
-                price = int(float(res["price"]))
-            except (KeyError, TypeError, ValueError) as e:
-                logging.warning(f"Skipping REBO listing {res.get('address')!r}: {repr(e)}")
+                url = str(res["url"] or "").strip()
+                price = int(float(res["rental_price"]))
+            except (KeyError, TypeError, ValueError, AttributeError) as e:
+                logging.warning(f"Skipping REBO listing {res.get('slug')!r}: {repr(e)}")
                 continue
-            if not (address and city and slug):
+            if not (street and number and city and url) or price <= 0:
                 continue
+            if addon:
+                number += addon if addon[0].isalpha() else f"-{addon}"
             home = Home(agency="rebo")
-            home.address = address
+            home.address = f"{street} {number}"
             home.city = city
-            home.url = "https://www.rebogroep.nl/nl/aanbod/" + slug
+            home.url = "https://www.rebogroep.nl" + url if url.startswith("/") else url
             home.price = price
             try:
                 sqm = res.get("surface_living")
