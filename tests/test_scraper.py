@@ -122,6 +122,32 @@ class TestScrapeSite:
     @patch('scraper.broadcast', new_callable=AsyncMock)
     @patch('scraper.db')
     @patch('scraper.requests')
+    def test_cachebust_placeholder_replaced(self, mock_requests, mock_db, mock_broadcast):
+        from scraper import scrape_site
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_requests.get.return_value = mock_response
+
+        with patch('scraper.HomeResults') as mock_hr:
+            mock_hr.return_value = []
+            mock_db.fetch_all.return_value = []
+
+            target = {
+                "id": 1, "agency": "rebo", "queryurl": "http://api.test.com/?a=1&_={cachebust}",
+                "method": "GET", "headers": {}, "post_data": None
+            }
+
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(scrape_site(target))
+
+            url = mock_requests.get.call_args[0][0]
+            assert "{cachebust}" not in url
+            assert url.split("_=")[1].isdigit()
+
+    @patch('scraper.broadcast', new_callable=AsyncMock)
+    @patch('scraper.db')
+    @patch('scraper.requests')
     def test_unknown_method_raises(self, mock_requests, mock_db, mock_broadcast):
         from scraper import scrape_site
 
