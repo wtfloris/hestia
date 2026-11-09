@@ -356,13 +356,15 @@ async def scrape_site(target: dict) -> None:
         await broadcast(new_homes)
 
     else:
+        # Some sites cache responses per exact URL; {cachebust} makes every request unique
+        queryurl = target["queryurl"].replace("{cachebust}", str(int(datetime.now().timestamp())))
         if target["method"] == "GET":
-            r = requests.get(target["queryurl"], headers=target["headers"])
+            r = requests.get(queryurl, headers=target["headers"])
         elif target["method"] == "POST":
-            r = requests.post(target["queryurl"], json=target["post_data"], headers=target["headers"])
+            r = requests.post(queryurl, json=target["post_data"], headers=target["headers"])
         elif target["method"] == "POST_NDJSON":
             post_data = "\n".join(json.dumps(obj, separators=(",", ":")) for obj in target["post_data"]) + "\n"
-            r = requests.post(target["queryurl"], data=post_data, headers=target["headers"])
+            r = requests.post(queryurl, data=post_data, headers=target["headers"])
         else:
             raise ValueError(f"Unknown method {target['method']} for target id {target['id']}")
             
